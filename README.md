@@ -1,4 +1,4 @@
-# STUDIO — Affiliate Commerce Platform (V0)
+# STUDIO — Affiliate Commerce Platform (V0.2)
 
 A premium platform to recruit, equip and pay an international network of partners who sell **one product: STUDIO (€3,000 / year, 50% recurring commission)**.
 
@@ -7,6 +7,8 @@ The critical pipeline — and the thing this V0 is built around:
 ```
 AFFILIATE → LINK → PROSPECT/LEAD → SALE → PAYMENT → COMMISSION → RENEWAL → PAYOUT
 ```
+
+**V0.2** connects Stripe (Checkout, Billing, webhooks, Connect preparation), a real commission ledger with recurring commissions, and Resend transactional emails. Read **[docs/V0.2-payments.md](docs/V0.2-payments.md)** for the pipeline, setup in Stripe test mode, email responsibilities, test coverage and the business decisions still to confirm.
 
 ## Quick start (demo mode, no setup)
 
@@ -53,10 +55,11 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 | Click tracking + attribution cookies | `src/app/s/[code]/route.ts`, `src/lib/tracking` |
 | Lead capture + attribution resolution | `src/app/actions/lead.ts` |
 | Daily cron (release commissions, schedule renewals) | `src/app/api/cron/daily`, `vercel.json` |
-| Payment webhook contract (provider not wired yet) | `src/lib/payments`, `src/app/api/webhooks/payments` |
-| Email abstraction (Resend, console fallback) | `src/lib/email` |
+| Stripe webhook, checkout, attribution, payouts (services) | `src/lib/services/*`, `src/app/api/webhooks/stripe` |
+| Stripe mirror, commission engine & rules, email outbox (V0.2) | `supabase/migrations/20260925*` |
+| Email service (templates, Resend, outbox) | `src/lib/email` |
 
-**Money & commissions.** Amounts are integer cents. A commission is created `pending` with the sale, becomes `in_validation` only when the payment is collected, `available` after the configurable validation period, then `paid` via a payout. Refunds / chargebacks / unpaid invoices reverse it (a `clawback` if it was already paid out). Every movement is an append-only `commission_ledger` entry. The UI never shows pending money as earned; projections are always labelled as projections.
+**Money & commissions.** Amounts are integer cents. A commission is created only when Stripe confirms the payment: `pending` during the configurable validation period, then `available`, then `paid` via a payout; `disputed` when a human must decide. Refunds / chargebacks reverse it (a `clawback` if it was already paid out, recovered from the next payout). Renewal commissions are created by each renewal payment — never in advance. Every movement is an append-only `commission_ledger` entry. The UI never shows pending money as earned; projections are always labelled as projections.
 
 **Attribution.** Affiliate links: `/s/{slug|code|linkCode}` or any page with `?ref=CODE`. The cookie stores the first **and** last touch; the winning model (`first_click` / `last_click`) and the window (days) are read from `public.settings` at conversion time — nothing is hardcoded. Private sales pages (`/p/{slug}`) attribute explicitly and are `noindex`, excluded from the sitemap.
 
@@ -78,8 +81,9 @@ Locales: `en fr de es pt it nl ar` (Arabic is fully RTL). All UI copy lives in `
 ## Checks
 
 ```bash
-npm test          # commission + attribution domain tests
-npm run db:test   # 37 SQL assertions: pipeline, clawbacks, ledger, fraud, RLS isolation (rolls back; local/staging DB only)
+npm test               # 42 unit tests: commission engine, money, Stripe normalisation + signatures, emails, attribution
+npm run db:test:local  # 161 SQL assertions on a throwaway local Postgres (no Docker): V0.1 pipeline + the 10 V0.2 scenarios
+npm run db:test        # same suites against $DATABASE_URL (rolls back; local/staging DB only)
 npm run typecheck
 npm run lint
 npm run build     # needs Supabase env, or STUDIO_DEMO_MODE=true for a local build
@@ -87,6 +91,6 @@ npm run build     # needs Supabase env, or STUDIO_DEMO_MODE=true for a local bui
 
 ## Not in V0 (deliberately) / next steps
 
-- **Payment provider**: implement `PaymentProvider` (customer billing) and a payout rail; until then staff record sales from leads and confirm payments manually (audited).
+- **Payouts**: created by staff after validation (audited). Stripe Connect onboarding is ready behind `payouts.connect_enabled`; automatic transfers are deliberately not implemented.
 - **Legal pages**: placeholders only — real content must come from legal counsel.
 - Email delivery worker for `notification_deliveries`; admin editing + uploads for the sales kit; CSV import of prospects; authorised prospect-data providers in *Find clients*; rate limiting / bot protection on the lead form; generated Supabase types (`npm run db:types`).

@@ -11,7 +11,11 @@ import { Navbar } from "@/components/marketing/navbar";
 import { Notice } from "@/components/ui/primitives";
 import { CheckoutButton } from "@/components/marketing/checkout-button";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: PageProps<"/[locale]/buy">): Promise<Metadata> {
+  const { locale } = (await params) as { locale: Locale };
+  const t = await getDictionary(locale);
+  return { title: `${t.checkout.title} — STUDIO`, robots: { index: false, follow: false } };
+}
 
 /**
  * Purchase entry point — reached from the STUDIO page, an affiliate link

@@ -8,9 +8,11 @@ export function summarizeBook(contracts: RecurringContract[], currency: string, 
   const renewing = live.filter((c) => !c.cancelling);
   const in60 = Date.now() + 60 * DAY;
   return {
-    contracts, currency, earnedCents,
+    contracts: contracts.map((c) => ({ ...c, renewsSoon: !c.cancelling && Date.parse(c.renewalDate) <= in60 })),
+    currency, earnedCents,
     activeCount: live.length,
-    annualRevenueCents: live.filter((c) => c.currency === currency).reduce((a, c) => a + c.annualCents, 0),
+    // Recurring = will renew: contracts with a scheduled cancellation are excluded.
+    annualRevenueCents: renewing.filter((c) => c.currency === currency).reduce((a, c) => a + c.annualCents, 0),
     potentialRenewalCommissionsCents: renewing.filter((c) => c.currency === currency).reduce((a, c) => a + c.nextCommissionCents, 0),
     upcoming60dCount: renewing.filter((c) => Date.parse(c.renewalDate) <= in60).length,
     renewedCount: contracts.reduce((a, c) => a + c.renewalsCount, 0),

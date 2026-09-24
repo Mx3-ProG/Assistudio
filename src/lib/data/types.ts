@@ -211,6 +211,8 @@ export interface RecurringContract {
   projected12mCents: number;
   renewalsCount: number;
   lastPaidAt: string | null;
+  /** Renewal due within 60 days (computed server-side). */
+  renewsSoon?: boolean;
 }
 
 export interface RecurringBook {

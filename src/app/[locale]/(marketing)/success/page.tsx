@@ -4,7 +4,11 @@ import type { Locale } from "@/i18n/config";
 import { Navbar } from "@/components/marketing/navbar";
 import { PaymentStatus } from "@/components/marketing/payment-status";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: PageProps<"/[locale]/success">): Promise<Metadata> {
+  const { locale } = (await params) as { locale: Locale };
+  const t = await getDictionary(locale);
+  return { title: `${t.success.welcomeTitle.replace(/\.$/, "")}`, robots: { index: false, follow: false } };
+}
 
 /**
  * Stripe redirects here after Checkout. This page NEVER records anything:

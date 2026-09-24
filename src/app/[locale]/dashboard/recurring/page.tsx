@@ -84,7 +84,7 @@ export default async function Recurring({ params }: PageProps<"/[locale]/dashboa
                       <td className="px-4 py-3 text-fg-2">{c.productName}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-fg-2">{formatDate(c.startedAt, locale, "short")}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-fg-2">
-                        {c.cancelling || c.status === "cancelled" ? "—" : <>{formatDate(c.renewalDate, locale, "short")}<div className="text-[12px] text-muted">{formatRelative(c.renewalDate, locale)}</div></>}
+                        {c.cancelling || c.status === "cancelled" ? "—" : <>{formatDate(c.renewalDate, locale, "short")}{c.renewsSoon && <div className="text-[12px] text-muted">{formatRelative(c.renewalDate, locale)}</div>}</>}
                       </td>
                       <td className="tabular px-4 py-3 text-end">{formatMoney(c.annualCents, locale, c.currency)}</td>
                       <td className="px-4 py-3 text-[13px] text-fg-2">{ruleText(c)}</td>

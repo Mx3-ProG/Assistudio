@@ -37,7 +37,7 @@ export default async function AdminFinance({ params, searchParams }: PageProps<"
     <>
       <PageHeader title={F.title} subtitle={F.subtitle} />
       <Card className="mb-6 p-4 sm:p-5">
-        <form className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7 lg:items-end">
+        <form className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7 lg:items-end">
           <Field label={F.from}><input type="date" name="from" defaultValue={filters.from ?? ""} className={inputClass} /></Field>
           <Field label={F.to}><input type="date" name="to" defaultValue={filters.to ?? ""} className={inputClass} /></Field>
           <Field label={t.admin.affiliate}>{select("affiliate", filters.affiliateId, opt.affiliates)}</Field>
@@ -45,7 +45,7 @@ export default async function AdminFinance({ params, searchParams }: PageProps<"
           <Field label={F.status}>{select("status", filters.status, SALE_STATUSES.map((x) => ({ id: x, name: t.dash.sales.statuses[x] })))}</Field>
           <Field label={F.country}>{select("country", filters.country, opt.countries.map((c) => ({ id: c, name: c })))}</Field>
           <Field label={F.campaign}>{select("campaign", filters.campaignId, opt.campaigns)}</Field>
-          <div className="flex gap-2 sm:col-span-3 lg:col-span-7">
+          <div className="col-span-2 flex gap-2 sm:col-span-3 lg:col-span-7">
             <button className={buttonClass("primary", "sm")}>{F.apply}</button>
             <Link href={`/${locale}/admin/finance`} className={buttonClass("ghost", "sm")}>{F.reset}</Link>
           </div>
