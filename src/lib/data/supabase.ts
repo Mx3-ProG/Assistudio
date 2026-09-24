@@ -1,0 +1,614 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- rows are untyped until `supabase gen types` is wired in */
+import "server-only";
+import { supabaseServer, supabaseService } from "@/lib/supabase/server";
+import { computeCommissionCents, summarize, type Balances } from "@/lib/commission";
+import { defaultMarkets, type Market } from "@/content/markets";
+import { assetsFor, type SalesAsset } from "@/content/sales-kit";
+import { resolveLocale } from "@/i18n/config";
+import { isValidCode } from "@/lib/attribution";
+import type { Repo, Range } from "./repo";
+import type {
+  Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
+  ReferralTarget, AdminAffiliateRow,
+} from "./types";
+
+const DAY = 86_400_000;
+const rangeStart = (r: Range) => new Date(Date.now() - { "7d": 7, "30d": 30, "90d": 90, "1y": 365, all: 3650 }[r] * DAY).toISOString();
+
+function check<T>(res: { data: T; error: any }): T {
+  if (res.error) throw new Error(res.error.message ?? String(res.error));
+  return res.data;
+}
+function mustAffiliate(s: Session) {
+  if (!s.affiliate) throw new Error("No affiliate account");
+  return s.affiliate.id;
+}
+
+const toProspect = (r: any): Prospect => ({
+  id: r.id, name: r.name, company: r.company, profession: r.profession, email: r.email, phone: r.phone,
+  website: r.website, notes: r.notes, source: r.source, campaignId: r.campaign_id, marketId: r.market_id,
+  stage: r.stage, nextAction: r.next_action, nextActionAt: r.next_action_at,
+  potentialValueCents: r.potential_value_cents, createdAt: r.created_at,
+});
+const fromProspect = (p: Partial<Prospect>) => {
+  const out: Record<string, unknown> = {};
+  const map: Record<string, string> = {
+    name: "name", company: "company", profession: "profession", email: "email", phone: "phone", website: "website",
+    notes: "notes", source: "source", campaignId: "campaign_id", marketId: "market_id", stage: "stage",
+    nextAction: "next_action", nextActionAt: "next_action_at", potentialValueCents: "potential_value_cents",
+  };
+  for (const [k, col] of Object.entries(map)) if (k in p) out[col] = (p as any)[k];
+  if ("stage" in p) out.stage_changed_at = new Date().toISOString();
+  return out;
+};
+const toPage = (r: any): PrivatePage => ({
+  id: r.id, slug: r.slug, affiliateId: r.affiliate_id, marketId: r.market_id, campaignId: r.campaign_id,
+  locale: resolveLocale(r.locale) ?? "en", pitchVariant: r.pitch_variant, ctaVariant: r.cta_variant,
+  displayName: r.display_name, visibility: r.visibility, isActive: r.is_active, viewCount: r.view_count, createdAt: r.created_at,
+});
+const toCommission = (r: any): CommissionRow => ({
+  id: r.id, saleRef: r.sales?.public_ref ?? "—", customerRef: r.sales?.customer_ref ?? "—",
+  grossCents: r.base_amount_cents, amountCents: r.amount_cents, status: r.status, validatedAt: r.validated_at,
+  holdUntil: r.hold_until, expectedPaymentDate: r.expected_payment_date, paidAt: r.paid_at,
+  reversalReason: r.reversal_reason, createdAt: r.created_at,
+});
+
+async function linkStats(sb: any, filter: { affiliate_id?: string; link_id?: string }): Promise<LinkStats> {
+  const [clicks, leads, sales] = await Promise.all([
+    sb.from("clicks").select("visitor_id").match(filter).eq("is_bot", false).limit(50_000),
+    sb.from("my_leads").select("id", { count: "exact", head: true }).match(filter),
+    sb.from("sales").select("id, gross_amount_cents, commissions(amount_cents)").match(filter).eq("status", "paid"),
+  ]);
+  const c = check(clicks) as any[];
+  const s = check(sales) as any[];
+  return {
+    clicks: c.length,
+    uniqueVisitors: new Set(c.map((x) => x.visitor_id)).size,
+    leads: leads.count ?? 0,
+    conversions: s.length,
+    revenueCents: s.reduce((a, x) => a + x.gross_amount_cents, 0),
+    commissionCents: s.reduce((a, x) => a + (x.commissions?.[0]?.amount_cents ?? 0), 0),
+  };
+}
+
+export const supabaseRepo: Repo = {
+  // ------------------------------------------------------------- public
+  async getSettings(): Promise<Settings> {
+    const sb = supabaseService();
+    const rows = check(await sb.from("settings").select("key, value")) as { key: string; value: any }[];
+    const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    return {
+      attributionWindowDays: Number(v["attribution.window_days"] ?? 90),
+      attributionModel: v["attribution.model"] === "first_click" ? "first_click" : "last_click",
+      commissionValidationDays: Number(v["commission.validation_days"] ?? 30),
+      payoutMinimumCents: Number(v["payout.minimum_cents"] ?? 5000),
+      leaderboardEnabled: Boolean(v["leaderboard.enabled"]),
+      autoApprove: Boolean(v["affiliates.auto_approve"]),
+    };
+  },
+
+  async getOffer(): Promise<Offer> {
+    const sb = supabaseService();
+    const r = check(await sb.from("offers").select("*, products!inner(slug, name)").eq("products.slug", "studio").eq("is_active", true).limit(1).single()) as any;
+    return {
+      id: r.id, productId: r.product_id, productName: r.products.name, priceCents: r.price_cents,
+      currency: r.currency, commissionRate: Number(r.commission_rate), recurring: r.commission_recurring,
+    };
+  },
+
+  async listMarkets(): Promise<Market[]> {
+    const sb = supabaseService();
+    const rows = check(await sb.from("markets").select("*").eq("is_active", true).order("sort")) as any[];
+    if (!rows.length) return defaultMarkets;
+    return rows.map((r) => ({ id: r.id, slug: r.slug, icon: r.icon ?? "sparkles", sort: r.sort, content: r.content }));
+  },
+
+  async resolveReferral(codeOrSlug) {
+    const sb = supabaseService();
+    const key = codeOrSlug.trim();
+    if (!isValidCode(key)) return null;
+    const link = check(await sb.from("affiliate_links").select("id, code, campaign_id, affiliate_id").ilike("code", key).is("archived_at", null).maybeSingle()) as any;
+    let aff: any;
+    if (link) {
+      aff = check(await sb.from("affiliates").select("id, code, status, profile_id, profiles(display_name, full_name)").eq("id", link.affiliate_id).single());
+    } else {
+      aff = check(await sb.from("affiliates").select("id, code, status, profile_id, profiles(display_name, full_name)")
+        .or(`code.eq.${key.toUpperCase()},slug.eq.${key.toLowerCase()}`).is("deleted_at", null).maybeSingle());
+    }
+    if (!aff) return null;
+    const def = link ?? (check(await sb.from("affiliate_links").select("id, code").eq("affiliate_id", aff.id).eq("is_default", true).maybeSingle()) as any);
+    const target: ReferralTarget = {
+      affiliateId: aff.id, affiliateCode: aff.code, linkId: def?.id ?? null, linkCode: def?.code ?? null,
+      campaignId: link?.campaign_id ?? null,
+      displayName: aff.profiles?.display_name || (aff.profiles?.full_name ?? "").split(" ")[0] || null,
+      active: aff.status === "approved",
+    };
+    return target;
+  },
+
+  async getPrivatePage(slug) {
+    const sb = supabaseService();
+    const r = check(await sb.from("private_sales_pages").select("*, affiliates(code)").eq("slug", slug.toUpperCase()).eq("is_active", true).maybeSingle()) as any;
+    if (!r) return null;
+    const referral = await supabaseRepo.resolveReferral(r.affiliates.code);
+    return referral ? { ...toPage(r), referral } : null;
+  },
+
+  async recordClick(i) {
+    const sb = supabaseService();
+    await sb.from("visitors").upsert(
+      { id: i.visitorId, last_seen_at: new Date().toISOString(), country: i.country, device_type: i.deviceType, is_bot: i.isBot },
+      { onConflict: "id" },
+    );
+    const { count } = await sb.from("clicks").select("id", { count: "exact", head: true }).eq("visitor_id", i.visitorId);
+    check(await sb.from("clicks").insert({
+      affiliate_id: i.affiliateId, link_id: i.linkId, campaign_id: i.campaignId, private_page_id: i.privatePageId,
+      visitor_id: i.visitorId, landing_path: i.landingPath, utm_source: i.utm.source, utm_medium: i.utm.medium,
+      utm_campaign: i.utm.campaign, utm_content: i.utm.content, utm_term: i.utm.term, referrer_host: i.referrerHost,
+      country: i.country, device_type: i.deviceType, ip_hash: i.ipHash, ua_hash: i.uaHash, is_bot: i.isBot,
+    }));
+    if (!i.isBot) {
+      await sb.from("activity_events").insert({ affiliate_id: i.affiliateId, type: count ? "click" : "visitor", payload: { source: i.utm.source ?? null } });
+    }
+    // Abnormal click burst → flag for human review (never auto-block).
+    const since = new Date(Date.now() - 3600_000).toISOString();
+    const { count: burst } = await sb.from("clicks").select("id", { count: "exact", head: true })
+      .eq("affiliate_id", i.affiliateId).eq("ip_hash", i.ipHash ?? "").gte("occurred_at", since);
+    const threshold = Number((check(await sb.from("settings").select("value").eq("key", "fraud.click_burst_threshold").maybeSingle()) as any)?.value ?? 50);
+    if (i.ipHash && (burst ?? 0) === threshold) {
+      await sb.from("fraud_flags").insert({ type: "abnormal_clicks", severity: 2, affiliate_id: i.affiliateId, entity: "affiliate", entity_id: i.affiliateId, signals: { clicks_last_hour_same_ip: burst } });
+    }
+  },
+
+  async recordPrivatePageView(pageId) {
+    const sb = supabaseService();
+    const r = check(await sb.from("private_sales_pages").select("view_count").eq("id", pageId).single()) as any;
+    await sb.from("private_sales_pages").update({ view_count: r.view_count + 1 }).eq("id", pageId);
+  },
+
+  async createLead(i) {
+    const sb = supabaseService();
+    const row = check(await sb.from("leads").insert({
+      affiliate_id: i.affiliateId, link_id: i.linkId, campaign_id: i.campaignId, private_page_id: i.privatePageId,
+      visitor_id: i.visitorId, attribution_model: i.attributionModel, first_click_at: i.firstClickAt, last_click_at: i.lastClickAt,
+      utm: i.utm, full_name: i.fullName, company: i.company, profession: i.profession, email: i.email, phone: i.phone,
+      website: i.website, message: i.message, locale: i.locale, consent_at: new Date().toISOString(),
+    }).select("id").single()) as any;
+    return { id: row.id };
+  },
+
+  // ------------------------------------------------------------- session
+  async getSession(): Promise<Session | null> {
+    const sb = await supabaseServer();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return null;
+    const profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+    if (!profile || profile.deleted_at) return null;
+    const aff = check(await sb.from("affiliates").select("*").eq("profile_id", user.id).maybeSingle()) as any;
+    let rate = 0.5;
+    if (aff) {
+      const offer = await supabaseRepo.getOffer().catch(() => null);
+      rate = aff.commission_rate_override != null ? Number(aff.commission_rate_override) : offer?.commissionRate ?? 0.5;
+    }
+    return {
+      userId: user.id, email: user.email ?? "", role: profile.role, fullName: profile.full_name ?? "",
+      displayName: profile.display_name, locale: resolveLocale(profile.locale) ?? "en",
+      leaderboardOptIn: profile.leaderboard_opt_in, isDemo: false,
+      affiliate: aff && {
+        id: aff.id, code: aff.code, slug: aff.slug, status: aff.status, commissionRate: rate,
+        onboardingStep: aff.onboarding_step, onboardingCompletedAt: aff.onboarding_completed_at,
+        monthlyGoalSales: aff.monthly_goal_sales, payoutProvider: aff.payout_provider,
+        payoutAccountRef: aff.payout_account_ref ? "connected" : null, createdAt: aff.created_at,
+      },
+    };
+  },
+
+  // ------------------------------------------------------------- affiliate
+  async getBalances(s): Promise<Balances> {
+    const sb = await supabaseServer();
+    const rows = check(await sb.from("commissions").select("status, amount_cents").eq("affiliate_id", mustAffiliate(s))) as any[];
+    const claw = check(await sb.from("commission_ledger").select("amount_cents").eq("affiliate_id", mustAffiliate(s)).eq("entry_type", "clawback").is("payout_id", null)) as any[];
+    return summarize(rows.map((r) => ({ status: r.status, amountCents: r.amount_cents })), claw.reduce((a, r) => a + r.amount_cents, 0));
+  },
+
+  async getOverview(s, range) {
+    const aff = mustAffiliate(s);
+    const sb = await supabaseServer();
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    const [balances, subs, prospects, clicks, earned, activity, next, monthSales, goal] = await Promise.all([
+      supabaseRepo.getBalances(s),
+      sb.from("subscriptions").select("id", { count: "exact", head: true }).eq("affiliate_id", aff).eq("status", "active"),
+      sb.from("prospects").select("id", { count: "exact", head: true }).eq("affiliate_id", aff).is("deleted_at", null).not("stage", "in", "(won,lost)"),
+      sb.from("clicks").select("id", { count: "exact", head: true }).eq("affiliate_id", aff).eq("is_bot", false).gte("occurred_at", rangeStart(range)),
+      sb.from("commissions").select("amount_cents, available_at").eq("affiliate_id", aff).in("status", ["available", "paid"]).not("available_at", "is", null).order("available_at"),
+      sb.from("activity_events").select("*").eq("affiliate_id", aff).order("occurred_at", { ascending: false }).limit(12),
+      sb.from("prospects").select("*").eq("affiliate_id", aff).is("deleted_at", null).not("next_action_at", "is", null).not("stage", "in", "(won,lost)").order("next_action_at").limit(5),
+      sb.from("sales").select("id", { count: "exact", head: true }).eq("affiliate_id", aff).eq("status", "paid").gte("paid_at", monthStart.toISOString()),
+      sb.from("goals").select("target_sales").eq("affiliate_id", aff).eq("month", monthStart.toISOString().slice(0, 10)).maybeSingle(),
+    ]);
+    return {
+      balances,
+      activeClients: subs.count ?? 0,
+      opportunities: prospects.count ?? 0,
+      clicks: clicks.count ?? 0,
+      earnings: (check(earned) as any[]).map((r) => ({ date: r.available_at.slice(0, 10), cents: r.amount_cents })),
+      activity: (check(activity) as any[]).map((r) => ({ id: String(r.id), type: r.type, occurredAt: r.occurred_at, payload: r.payload })),
+      nextActions: (check(next) as any[]).map(toProspect),
+      goal: { target: (goal.data as any)?.target_sales ?? s.affiliate!.monthlyGoalSales, current: monthSales.count ?? 0 },
+    };
+  },
+
+  async getDefaultLink(s) {
+    const aff = mustAffiliate(s);
+    const sb = await supabaseServer();
+    let r = check(await sb.from("affiliate_links").select("*").eq("affiliate_id", aff).eq("is_default", true).maybeSingle()) as any;
+    if (!r) r = check(await sb.from("affiliate_links").insert({ affiliate_id: aff, name: "Default", is_default: true }).select("*").single());
+    return { id: r.id, code: r.code, name: r.name, campaignId: null, campaignName: null, source: null, marketId: null, isDefault: true, createdAt: r.created_at, stats: await linkStats(sb, { link_id: r.id }) };
+  },
+
+  async getLinkStats(s) {
+    return linkStats(await supabaseServer(), { affiliate_id: mustAffiliate(s) });
+  },
+
+  async listLinks(s) {
+    const sb = await supabaseServer();
+    const rows = check(await sb.from("affiliate_links").select("*, campaigns(name, source, market_id)").eq("affiliate_id", mustAffiliate(s)).eq("is_default", false).is("archived_at", null).order("created_at", { ascending: false })) as any[];
+    return Promise.all(rows.map(async (r): Promise<TrackingLink> => ({
+      id: r.id, code: r.code, name: r.name, campaignId: r.campaign_id, campaignName: r.campaigns?.name ?? null,
+      source: r.campaigns?.source ?? null, marketId: r.campaigns?.market_id ?? null, isDefault: false, createdAt: r.created_at,
+      stats: await linkStats(sb, { link_id: r.id }),
+    })));
+  },
+
+  async createCampaignLink(s, input) {
+    const aff = mustAffiliate(s);
+    const sb = await supabaseServer();
+    const c = check(await sb.from("campaigns").insert({ affiliate_id: aff, name: input.name, source: input.source, market_id: input.marketId }).select("id").single()) as any;
+    const l = check(await sb.from("affiliate_links").insert({ affiliate_id: aff, campaign_id: c.id, name: input.name }).select("*").single()) as any;
+    return { id: l.id, code: l.code, name: l.name, campaignId: c.id, campaignName: input.name, source: input.source, marketId: input.marketId, isDefault: false, createdAt: l.created_at, stats: { clicks: 0, uniqueVisitors: 0, leads: 0, conversions: 0, revenueCents: 0, commissionCents: 0 } };
+  },
+
+  async setSlug(s, slug) {
+    const sb = await supabaseServer();
+    const { error } = await sb.from("affiliates").update({ slug }).eq("id", mustAffiliate(s));
+    if (error) throw new Error(error.code === "23505" ? "slug_taken" : error.message);
+  },
+
+  async listPrivatePages(s) {
+    const sb = await supabaseServer();
+    return (check(await sb.from("private_sales_pages").select("*").eq("affiliate_id", mustAffiliate(s)).order("created_at", { ascending: false })) as any[]).map(toPage);
+  },
+
+  async createPrivatePage(s, i) {
+    const sb = await supabaseServer();
+    return toPage(check(await sb.from("private_sales_pages").insert({
+      affiliate_id: mustAffiliate(s), market_id: i.marketId, campaign_id: i.campaignId, locale: i.locale,
+      pitch_variant: i.pitchVariant, cta_variant: i.ctaVariant, display_name: i.displayName, visibility: i.visibility,
+    }).select("*").single()));
+  },
+
+  async listProspects(s) {
+    const sb = await supabaseServer();
+    return (check(await sb.from("prospects").select("*").eq("affiliate_id", mustAffiliate(s)).is("deleted_at", null).order("created_at", { ascending: false })) as any[]).map(toProspect);
+  },
+  async createProspect(s, input) {
+    const sb = await supabaseServer();
+    return toProspect(check(await sb.from("prospects").insert({ ...fromProspect(input), affiliate_id: mustAffiliate(s) }).select("*").single()));
+  },
+  async updateProspect(s, id, patch) {
+    const sb = await supabaseServer();
+    check(await sb.from("prospects").update(fromProspect(patch)).eq("id", id).eq("affiliate_id", mustAffiliate(s)));
+  },
+  async deleteProspect(s, id) {
+    const sb = await supabaseServer();
+    check(await sb.from("prospects").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("affiliate_id", mustAffiliate(s)));
+  },
+
+  async listSales(s) {
+    const sb = await supabaseServer();
+    const [rows, customers] = await Promise.all([
+      sb.from("sales").select("*, commissions(amount_cents, status), subscriptions(current_period_end, status), campaigns(name, source), offers(products(name))")
+        .eq("affiliate_id", mustAffiliate(s)).order("created_at", { ascending: false }),
+      sb.from("my_customers").select("*"),
+    ]);
+    const cmap = new Map((check(customers) as any[]).map((c) => [c.id, c]));
+    return (check(rows) as any[]).map((r): SaleRow => ({
+      id: r.id, ref: r.public_ref, customerRef: cmap.get(r.customer_id)?.public_ref ?? "—",
+      customerName: cmap.get(r.customer_id)?.company_name ?? null, product: r.offers?.products?.name ?? "STUDIO",
+      date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
+      commissionCents: r.commissions?.[0]?.amount_cents ?? null, commissionStatus: r.commissions?.[0]?.status ?? null,
+      renewalDate: r.subscriptions?.status === "active" ? r.subscriptions.current_period_end : null,
+      source: r.campaigns?.source ?? null, campaign: r.campaigns?.name ?? null, isDemo: r.is_demo,
+    }));
+  },
+
+  async listCommissions(s) {
+    const sb = await supabaseServer();
+    const [rows, customers] = await Promise.all([
+      sb.from("commissions").select("*, sales(public_ref, customer_id)").eq("affiliate_id", mustAffiliate(s)).order("created_at", { ascending: false }),
+      sb.from("my_customers").select("id, public_ref"),
+    ]);
+    const cmap = new Map((check(customers) as any[]).map((c) => [c.id, c.public_ref]));
+    return (check(rows) as any[]).map((r) => toCommission({ ...r, sales: { ...r.sales, customer_ref: cmap.get(r.sales?.customer_id) } }));
+  },
+
+  async getRecurringBook(s) {
+    const sb = await supabaseServer();
+    const [subs, customers, balances] = await Promise.all([
+      sb.from("subscriptions").select("*, offers(price_cents, commission_rate, commission_recurring)").eq("affiliate_id", mustAffiliate(s)).order("current_period_end"),
+      sb.from("my_customers").select("*"),
+      supabaseRepo.getBalances(s),
+    ]);
+    const cmap = new Map((check(customers) as any[]).map((c) => [c.id, c]));
+    const contracts = (check(subs) as any[]).map((r) => ({
+      subscriptionId: r.id, customerRef: cmap.get(r.customer_id)?.public_ref ?? "—", customerName: cmap.get(r.customer_id)?.company_name ?? null,
+      startedAt: r.started_at, renewalDate: r.current_period_end, annualCents: r.offers.price_cents,
+      commissionCents: r.offers.commission_recurring ? computeCommissionCents(r.offers.price_cents, s.affiliate!.commissionRate) : 0,
+      status: r.status,
+    }));
+    return {
+      contracts, earnedCents: balances.lifetimeEarnedCents,
+      potentialAnnualCents: contracts.filter((c) => c.status === "active").reduce((a, c) => a + c.commissionCents, 0),
+    };
+  },
+
+  async listPayouts(s) {
+    const sb = await supabaseServer();
+    return (check(await sb.from("payouts").select("*").eq("affiliate_id", mustAffiliate(s)).order("scheduled_for", { ascending: false })) as any[])
+      .map((r) => ({ id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path }));
+  },
+
+  async listNotifications(s) {
+    const sb = await supabaseServer();
+    return (check(await sb.from("notifications").select("*").eq("profile_id", s.userId).order("created_at", { ascending: false }).limit(100)) as any[])
+      .map((r) => ({ id: r.id, type: r.type, titleKey: String(r.title_key).replace(/^notifications\./, ""), params: r.params, href: r.href, readAt: r.read_at, createdAt: r.created_at }));
+  },
+  async markNotificationsRead(s) {
+    const sb = await supabaseServer();
+    check(await sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("profile_id", s.userId).is("read_at", null));
+  },
+
+  async getLeaderboard() {
+    const sb = await supabaseServer();
+    return (check(await sb.rpc("leaderboard")) as any[]).map((r) => ({ rank: Number(r.rank), displayName: r.display_name, sales: Number(r.sales), isMe: r.is_me }));
+  },
+
+  async getAnalytics(s, range) {
+    const aff = mustAffiliate(s);
+    const sb = await supabaseServer();
+    const since = rangeStart(range);
+    const [clicks, leads, sales, campaigns] = await Promise.all([
+      sb.from("clicks").select("visitor_id, country, device_type, campaign_id").eq("affiliate_id", aff).eq("is_bot", false).gte("occurred_at", since).limit(50_000),
+      sb.from("my_leads").select("status, campaign_id").gte("created_at", since),
+      sb.from("sales").select("campaign_id").eq("affiliate_id", aff).eq("status", "paid").gte("created_at", since),
+      sb.from("campaigns").select("id, name").eq("affiliate_id", aff),
+    ]);
+    const c = check(clicks) as any[]; const l = check(leads) as any[]; const sl = check(sales) as any[];
+    const count = (xs: string[]) => Object.entries(xs.reduce<Record<string, number>>((m, k) => ((m[k] = (m[k] ?? 0) + 1), m), {}))
+      .map(([key, n]) => ({ key, clicks: n })).sort((a, b) => b.clicks - a.clicks);
+    return {
+      funnel: {
+        visitors: new Set(c.map((x) => x.visitor_id)).size, leads: l.length,
+        appointments: l.filter((x) => x.status === "appointment_requested" || x.status === "converted").length, sales: sl.length,
+      },
+      byCampaign: (check(campaigns) as any[]).map((cm) => ({
+        name: cm.name, clicks: c.filter((x) => x.campaign_id === cm.id).length,
+        leads: l.filter((x) => x.campaign_id === cm.id).length, sales: sl.filter((x) => x.campaign_id === cm.id).length,
+      })),
+      byCountry: count(c.map((x) => x.country ?? "—")),
+      byDevice: count(c.map((x) => x.device_type ?? "unknown")),
+    };
+  },
+
+  async listSalesAssets(_s, locale): Promise<SalesAsset[]> {
+    const sb = await supabaseServer();
+    const rows = check(await sb.from("sales_assets").select("*").eq("is_active", true).in("locale", [locale, "en"]).order("sort")) as any[];
+    if (!rows.length) return assetsFor(locale);
+    const local = rows.filter((r) => r.locale === locale);
+    return (local.length ? local : rows).map((r) => ({ id: r.id, type: r.type, locale: r.locale, title: r.title, body: r.body ?? undefined, filePath: r.file_path ?? undefined }));
+  },
+
+  async setMonthlyGoal(s, target) {
+    const sb = await supabaseServer();
+    const month = new Date(); month.setDate(1);
+    check(await sb.from("goals").upsert({ affiliate_id: mustAffiliate(s), month: month.toISOString().slice(0, 10), target_sales: target }));
+  },
+
+  async updateProfile(s, patch) {
+    const sb = await supabaseServer();
+    const row: Record<string, unknown> = {};
+    if (patch.fullName !== undefined) row.full_name = patch.fullName;
+    if (patch.displayName !== undefined) row.display_name = patch.displayName;
+    if (patch.leaderboardOptIn !== undefined) row.leaderboard_opt_in = patch.leaderboardOptIn;
+    check(await sb.from("profiles").update(row).eq("id", s.userId));
+  },
+
+  async setOnboardingStep(s, step, completed) {
+    const sb = await supabaseServer();
+    const row: Record<string, unknown> = { onboarding_step: Math.max(step, s.affiliate?.onboardingStep ?? 0) };
+    if (completed) row.onboarding_completed_at = new Date().toISOString();
+    check(await sb.from("affiliates").update(row).eq("id", mustAffiliate(s)));
+  },
+
+  async exportMyData(s) {
+    const sb = await supabaseServer();
+    const aff = s.affiliate?.id ?? "";
+    const tables = ["prospects", "campaigns", "affiliate_links", "private_sales_pages", "commissions", "payouts", "goals"] as const;
+    const out: Record<string, unknown> = {
+      profile: check(await sb.from("profiles").select("*").eq("id", s.userId).single()),
+      affiliate: check(await sb.from("affiliates").select("*").eq("id", aff).maybeSingle()),
+    };
+    for (const t of tables) out[t] = check(await sb.from(t).select("*").eq("affiliate_id", aff));
+    await sb.from("privacy_requests").insert({ profile_id: s.userId, kind: "export", status: "completed", completed_at: new Date().toISOString() });
+    return out;
+  },
+
+  async requestErasure(s) {
+    const sb = await supabaseServer();
+    check(await sb.from("privacy_requests").insert({ profile_id: s.userId, kind: "erasure" }));
+  },
+
+  // ------------------------------------------------------------- admin
+  // Staff reads run under the user's JWT: RLS grants staff access via is_staff().
+  async adminOverview() {
+    const sb = await supabaseServer();
+    const since30 = new Date(Date.now() - 30 * DAY).toISOString();
+    const in60 = new Date(Date.now() + 60 * DAY).toISOString();
+    const [aff, apps, clicks, leads, sales, coms, payouts, renewals, fraud] = await Promise.all([
+      sb.from("affiliates").select("id", { count: "exact", head: true }).eq("status", "approved"),
+      sb.from("affiliates").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      sb.from("clicks").select("id", { count: "exact", head: true }).gte("occurred_at", since30),
+      sb.from("leads").select("id", { count: "exact", head: true }).is("deleted_at", null),
+      sb.from("sales").select("gross_amount_cents").eq("status", "paid"),
+      sb.from("commissions").select("amount_cents").in("status", ["in_validation", "on_hold", "available"]),
+      sb.from("payouts").select("amount_cents").eq("status", "paid"),
+      sb.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "active").lte("current_period_end", in60),
+      sb.from("fraud_flags").select("id", { count: "exact", head: true }).in("status", ["open", "reviewing"]),
+    ]);
+    const sum = (r: any, k: string) => (check(r) as any[]).reduce((a, x) => a + x[k], 0);
+    return {
+      affiliates: aff.count ?? 0, applications: apps.count ?? 0, clicks30d: clicks.count ?? 0, leads: leads.count ?? 0,
+      sales: (sales.data ?? []).length, revenueCents: sum(sales, "gross_amount_cents"), commissionsOwedCents: sum(coms, "amount_cents"),
+      paidOutCents: sum(payouts, "amount_cents"), renewals60d: renewals.count ?? 0, openFraudFlags: fraud.count ?? 0,
+    };
+  },
+
+  async adminListAffiliates() {
+    const sb = await supabaseServer();
+    const rows = check(await sb.from("affiliates").select("*, profiles(full_name, email), commissions(status, amount_cents), sales(status)").is("deleted_at", null).order("created_at", { ascending: false })) as any[];
+    return rows.map((r): AdminAffiliateRow => ({
+      id: r.id, name: r.profiles?.full_name ?? "—", email: r.profiles?.email ?? "—", code: r.code, status: r.status, country: r.country,
+      sales: (r.sales ?? []).filter((x: any) => x.status === "paid").length,
+      availableCents: (r.commissions ?? []).filter((c: any) => c.status === "available").reduce((a: number, c: any) => a + c.amount_cents, 0),
+      createdAt: r.created_at, application: r.application ?? {},
+    })).sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
+  },
+
+  async adminSetAffiliateStatus(_s, affiliateId, status, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_set_affiliate_status", { p_affiliate_id: affiliateId, p_status: status, p_reason: reason }));
+  },
+
+  async adminListSales() {
+    const sb = await supabaseServer();
+    const rows = check(await sb.from("sales").select("*, customers(public_ref, company_name), commissions(amount_cents, status), campaigns(name, source), affiliates(id, profiles(full_name)), subscriptions(current_period_end, status)").order("created_at", { ascending: false }).limit(500)) as any[];
+    return rows.map((r) => ({
+      id: r.id, ref: r.public_ref, customerRef: r.customers?.public_ref ?? "—", customerName: r.customers?.company_name ?? null,
+      product: "STUDIO", date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
+      commissionCents: r.commissions?.[0]?.amount_cents ?? null, commissionStatus: r.commissions?.[0]?.status ?? null,
+      renewalDate: r.subscriptions?.status === "active" ? r.subscriptions.current_period_end : null,
+      source: r.campaigns?.source ?? null, campaign: r.campaigns?.name ?? null,
+      affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, isDemo: r.is_demo,
+    }));
+  },
+
+  async adminSetSaleStatus(_s, saleId, status, reason) {
+    // Payment status normally arrives through the payment-provider webhook.
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_set_sale_status", { p_sale_id: saleId, p_status: status, p_reason: reason }));
+  },
+
+  async adminListLeads() {
+    const sb = await supabaseServer();
+    return (check(await sb.from("leads").select("*, affiliates(profiles(full_name))").is("deleted_at", null).order("created_at", { ascending: false }).limit(300)) as any[])
+      .map((r) => ({ id: r.id, fullName: r.full_name, company: r.company, profession: r.profession, email: r.email, affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, status: r.status, createdAt: r.created_at }));
+  },
+
+  async adminCreateSaleFromLead(_s, leadId, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_create_sale_from_lead", { p_lead_id: leadId, p_reason: reason }));
+  },
+
+  async adminCorrectAttribution(_s, saleId, affiliateId, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_correct_attribution", { p_sale_id: saleId, p_new_affiliate_id: affiliateId, p_reason: reason }));
+  },
+
+  async adminListCommissions() {
+    const sb = await supabaseServer();
+    const rows = check(await sb.from("commissions").select("*, sales(public_ref, customers(public_ref)), affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(500)) as any[];
+    return rows.map((r) => ({ ...toCommission({ ...r, sales: { public_ref: r.sales?.public_ref, customer_ref: r.sales?.customers?.public_ref } }), affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
+  },
+
+  async adminHoldCommission(_s, id, hold, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_set_commission_hold", { p_commission_id: id, p_hold: hold, p_reason: reason }));
+  },
+  async adminReverseCommission(_s, id, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_reverse_commission", { p_commission_id: id, p_reason: reason }));
+  },
+  async adminReleaseDue() {
+    return Number(check(await supabaseService().rpc("release_due_commissions")));
+  },
+
+  async adminPayoutCandidates() {
+    const sb = await supabaseServer();
+    const [rows, settings] = await Promise.all([
+      sb.from("commissions").select("affiliate_id, amount_cents, affiliates(profiles(full_name))").eq("status", "available").is("payout_id", null),
+      supabaseRepo.getSettings(),
+    ]);
+    const m = new Map<string, { affiliateId: string; affiliateName: string; availableCents: number }>();
+    for (const r of check(rows) as any[]) {
+      const e = m.get(r.affiliate_id) ?? { affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—", availableCents: 0 };
+      e.availableCents += r.amount_cents;
+      m.set(r.affiliate_id, e);
+    }
+    return [...m.values()].filter((x) => x.availableCents >= settings.payoutMinimumCents);
+  },
+  async adminListPayouts() {
+    const sb = await supabaseServer();
+    return (check(await sb.from("payouts").select("*, affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
+      .map((r) => ({ id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path, affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
+  },
+  async adminCreatePayout(_s, affiliateId) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_create_payout", { p_affiliate_id: affiliateId }));
+  },
+  async adminMarkPayoutPaid(_s, payoutId, providerRef) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_mark_payout_paid", { p_payout_id: payoutId, p_provider_ref: providerRef }));
+  },
+
+  async adminListFraudFlags() {
+    const sb = await supabaseServer();
+    return (check(await sb.from("fraud_flags").select("*, affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
+      .map((r) => ({ id: r.id, type: r.type, severity: r.severity, affiliateName: r.affiliates?.profiles?.full_name ?? null, entity: r.entity, entityId: r.entity_id, signals: r.signals, status: r.status, decisionNote: r.decision_note, createdAt: r.created_at }));
+  },
+  async adminReviewFraudFlag(_s, id, status, note) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_review_fraud_flag", { p_flag_id: id, p_status: status, p_note: note }));
+  },
+  async adminListAuditLogs() {
+    const sb = await supabaseServer();
+    return (check(await sb.from("audit_logs").select("*, profiles(full_name)").order("created_at", { ascending: false }).limit(300)) as any[])
+      .map((r) => ({ id: String(r.id), actor: r.profiles?.full_name ?? "system", action: r.action, entity: r.entity, entityId: r.entity_id, reason: r.reason, before: r.before, after: r.after, createdAt: r.created_at }));
+  },
+  async adminUpdateSettings(s, patch) {
+    const sb = await supabaseServer();
+    const map: Record<string, [string, unknown]> = {};
+    if (patch.attributionWindowDays !== undefined) map.a = ["attribution.window_days", patch.attributionWindowDays];
+    if (patch.attributionModel !== undefined) map.b = ["attribution.model", patch.attributionModel];
+    if (patch.commissionValidationDays !== undefined) map.c = ["commission.validation_days", patch.commissionValidationDays];
+    if (patch.payoutMinimumCents !== undefined) map.d = ["payout.minimum_cents", patch.payoutMinimumCents];
+    if (patch.leaderboardEnabled !== undefined) map.e = ["leaderboard.enabled", patch.leaderboardEnabled];
+    if (patch.autoApprove !== undefined) map.f = ["affiliates.auto_approve", patch.autoApprove];
+    for (const [key, value] of Object.values(map)) {
+      check(await sb.from("settings").update({ value, updated_by: s.userId, updated_at: new Date().toISOString() }).eq("key", key));
+    }
+    await supabaseService().from("audit_logs").insert({ actor_id: s.userId, action: "settings.update", entity: "settings", entity_id: "global", after: patch });
+  },
+
+  async adminListMarkets() {
+    const sb = await supabaseServer();
+    const rows = check(await sb.from("markets").select("*").order("sort")) as any[];
+    return rows.map((r) => ({ id: r.id, slug: r.slug, icon: r.icon ?? "sparkles", sort: r.sort, content: r.content, active: r.is_active }));
+  },
+
+  async adminUpdateMarket(s, marketId, locale, content, isActive) {
+    const sb = await supabaseServer();
+    const row = check(await sb.from("markets").select("content").eq("id", marketId).single()) as any;
+    check(await sb.from("markets").update({ content: { ...row.content, [locale]: content }, is_active: isActive }).eq("id", marketId));
+    await supabaseService().from("audit_logs").insert({ actor_id: s.userId, action: "market.update", entity: "market", entity_id: marketId, before: row.content?.[locale] ?? null, after: content });
+  },
+};

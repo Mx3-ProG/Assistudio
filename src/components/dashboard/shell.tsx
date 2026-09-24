@@ -1,0 +1,171 @@
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import {
+  LayoutGrid, Link2, Megaphone, Users, Compass, MessageSquareText, Package, ShoppingBag, Wallet, Repeat,
+  Banknote, BarChart3, Trophy, Bell, Settings, Shield, MoreHorizontal, X, LogOut,
+} from "lucide-react";
+import { useI18n } from "@/components/providers";
+import { Logo } from "@/components/marketing/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LocaleSwitcher } from "@/components/ui/locale-switcher";
+import { signOut } from "@/app/actions/auth";
+import { cn } from "@/lib/cn";
+
+type Item = { href: string; label: string; icon: typeof LayoutGrid; badge?: number };
+
+export function DashboardShell({ children, userName, unread, isStaff, leaderboard }: {
+  children: React.ReactNode; userName: string; unread: number; isStaff: boolean; leaderboard: boolean;
+}) {
+  const { t, locale } = useI18n();
+  const pathname = usePathname();
+  const [more, setMore] = useState(false);
+  const base = `/${locale}/dashboard`;
+  const n = t.dash.nav;
+
+  const groups: { label?: string; items: Item[] }[] = [
+    { items: [{ href: base, label: n.overview, icon: LayoutGrid }] },
+    {
+      label: n.groupSell,
+      items: [
+        { href: `${base}/link`, label: n.link, icon: Link2 },
+        { href: `${base}/campaigns`, label: n.campaigns, icon: Megaphone },
+        { href: `${base}/prospects`, label: n.prospects, icon: Users },
+        { href: `${base}/find`, label: n.find, icon: Compass },
+        { href: `${base}/sales-kit`, label: n.salesKit, icon: MessageSquareText },
+        { href: `${base}/product`, label: n.product, icon: Package },
+      ],
+    },
+    {
+      label: n.groupEarn,
+      items: [
+        { href: `${base}/sales`, label: n.sales, icon: ShoppingBag },
+        { href: `${base}/commissions`, label: n.commissions, icon: Wallet },
+        { href: `${base}/recurring`, label: n.recurring, icon: Repeat },
+        { href: `${base}/payouts`, label: n.payouts, icon: Banknote },
+        { href: `${base}/analytics`, label: n.analytics, icon: BarChart3 },
+        ...(leaderboard ? [{ href: `${base}/leaderboard`, label: n.leaderboard, icon: Trophy }] : []),
+      ],
+    },
+    {
+      label: n.groupAccount,
+      items: [
+        { href: `${base}/notifications`, label: n.notifications, icon: Bell, badge: unread },
+        { href: `${base}/settings`, label: n.settings, icon: Settings },
+        ...(isStaff ? [{ href: `/${locale}/admin`, label: n.admin, icon: Shield }] : []),
+      ],
+    },
+  ];
+  const isActive = (href: string) => (href === base ? pathname === base : pathname.startsWith(href));
+  const tabs: Item[] = [
+    { href: base, label: n.overview, icon: LayoutGrid },
+    { href: `${base}/prospects`, label: n.prospects, icon: Users },
+    { href: `${base}/link`, label: n.link, icon: Link2 },
+    { href: `${base}/commissions`, label: n.commissions, icon: Wallet },
+  ];
+
+  const nav = (onNavigate?: () => void) => (
+    <nav className="flex flex-col gap-6">
+      {groups.map((g, i) => (
+        <div key={i}>
+          {g.label && <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{g.label}</p>}
+          <ul className="grid gap-0.5">
+            {g.items.map(({ href, label, icon: Icon, badge }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  onClick={onNavigate}
+                  aria-current={isActive(href) ? "page" : undefined}
+                  className={cn(
+                    "flex h-9 items-center gap-3 rounded-xl px-3 text-[14px] transition",
+                    isActive(href) ? "bg-surface text-fg shadow-sm ring-1 ring-line" : "text-fg-2 hover:bg-surface-2 hover:text-fg",
+                  )}
+                >
+                  <Icon className={cn("size-4", isActive(href) ? "text-accent" : "text-muted")} />
+                  <span className="flex-1 truncate">{label}</span>
+                  {!!badge && <span className="tabular grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg">{badge}</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+
+  return (
+    <div className="min-h-dvh lg:grid lg:grid-cols-[256px_1fr]">
+      {/* Sidebar (desktop) */}
+      <aside className="sticky top-0 hidden h-dvh flex-col border-e border-line bg-bg-elevated/60 px-3 py-5 lg:flex">
+        <Link href={base} className="mb-7 px-3"><Logo /></Link>
+        <div className="no-scrollbar -mx-1 flex-1 overflow-y-auto px-1">{nav()}</div>
+        <div className="mt-4 flex items-center justify-between gap-2 border-t border-line px-2 pt-4">
+          <span className="truncate text-[13px] text-fg-2">{userName}</span>
+          <form action={signOut}>
+            <input type="hidden" name="locale" value={locale} />
+            <button className="grid size-8 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-fg" aria-label={t.auth.logout} title={t.auth.logout}>
+              <LogOut className="flip-rtl size-4" />
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <div className="min-w-0">
+        {/* Top bar */}
+        <header className="glass sticky top-0 z-40 !border-x-0 !border-t-0 border-b !border-b-line">
+          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+            <Link href={base} className="lg:hidden"><Logo /></Link>
+            <div className="hidden lg:block" />
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex sm:items-center sm:gap-2"><LocaleSwitcher /><ThemeToggle /></div>
+              <Link href={`${base}/notifications`} className="relative grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label={n.notifications}>
+                <Bell className="size-[18px]" />
+                {unread > 0 && <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-accent ring-2 ring-bg" />}
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-16">{children}</main>
+      </div>
+
+      {/* Bottom tab bar (mobile) */}
+      <nav className="glass fixed inset-x-0 bottom-0 z-40 !border-x-0 !border-b-0 border-t pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Primary">
+        <ul className="grid grid-cols-5">
+          {tabs.map(({ href, label, icon: Icon }) => (
+            <li key={href}>
+              <Link href={href} aria-current={isActive(href) ? "page" : undefined} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10.5px] font-medium", isActive(href) ? "text-accent" : "text-muted")}>
+                <Icon className="size-5" />
+                <span className="max-w-full truncate px-1">{label}</span>
+              </Link>
+            </li>
+          ))}
+          <li>
+            <button type="button" onClick={() => setMore(true)} className="flex w-full flex-col items-center gap-1 py-2.5 text-[10.5px] font-medium text-muted">
+              <MoreHorizontal className="size-5" />
+              <span>{t.common.menu}</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      {more && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMore(false)} />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[28px] bg-bg-elevated px-4 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-4 shadow-lift">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2"><LocaleSwitcher /><ThemeToggle /></div>
+              <button onClick={() => setMore(false)} className="grid size-9 place-items-center rounded-full bg-surface-2" aria-label={t.common.close}><X className="size-4" /></button>
+            </div>
+            {nav(() => setMore(false))}
+            <form action={signOut} className="mt-6">
+              <input type="hidden" name="locale" value={locale} />
+              <button className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-surface-2 text-[14px]"><LogOut className="flip-rtl size-4" />{t.auth.logout}</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
