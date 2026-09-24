@@ -48,17 +48,18 @@ select pg_temp.act_as('00000000-0000-0000-0000-0000000000ad');
 select public.staff_create_sale_from_lead((select id from public.leads where email = 'claire@client.invalid'), 'Contract signed');
 
 select pg_temp.assert((select status from public.sales) = 'pending', 'sale starts pending');
-select pg_temp.assert((select status from public.commissions) = 'pending', 'commission pending until payment');
-select pg_temp.assert((select amount_cents from public.commissions) = 150000, '50% of €3,000 = €1,500');
-select pg_temp.assert((select lifetime_earned_cents from public.affiliate_balances b join public.commissions c on c.affiliate_id = b.affiliate_id) = 0,
-  'nothing is "earned" before payment');
+-- V0.2: a commission only exists once its payment is confirmed.
+select pg_temp.assert((select count(*) from public.commissions) = 0, 'no commission before payment (V0.2)');
 
 -- ---------------------------------------------------------------- payment collected
 select public.staff_set_sale_status((select id from public.sales), 'paid', 'Payment received');
-select pg_temp.assert((select status from public.commissions) = 'in_validation', 'paid → commission in validation');
+select pg_temp.assert((select status from public.commissions) = 'pending', 'paid → commission pending (validation period)');
+select pg_temp.assert((select amount_cents from public.commissions) = 150000, '50% of €3,000 = €1,500');
+select pg_temp.assert((select lifetime_earned_cents from public.affiliate_balances b join public.commissions c on c.affiliate_id = b.affiliate_id) = 0,
+  'pending money is never counted as earned');
 select pg_temp.assert((select hold_until::date from public.commissions) = (now() + interval '30 days')::date, 'validation window from settings (30d)');
 select pg_temp.assert((select count(*) from public.subscriptions where status = 'active') = 1, 'first payment opens the annual subscription');
-select pg_temp.assert((select count(*) from public.notifications where title_key = 'notifications.paymentConfirmed') = 1, 'affiliate notified of payment');
+select pg_temp.assert((select count(*) from public.notifications where title_key = 'notifications.salePending') = 1, 'affiliate notified of payment');
 
 -- Nothing released before the window ends
 select pg_temp.act_as(null);
