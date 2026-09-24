@@ -24,7 +24,7 @@ function preferredLocale(req: NextRequest): Locale {
 }
 
 const PRIVATE_AREA = /^\/[a-z]{2}\/(dashboard|admin)(\/|$)/;
-const NOINDEX_AREA = /^\/[a-z]{2}\/(dashboard|admin|p|login|register|forgot)(\/|$)/;
+const NOINDEX_AREA = /^\/[a-z]{2}\/(dashboard|admin|p|login|register|forgot|buy|success)(\/|$)/;
 
 export async function proxy(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;

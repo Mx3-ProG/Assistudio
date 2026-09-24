@@ -49,10 +49,20 @@ export async function correctAttribution(_: AdminState, f: FormData) {
 
 export async function commissionAction(_: AdminState, f: FormData) {
   const s = await staff();
-  const op = z.enum(["hold", "unhold", "reverse"]).parse(f.get("op"));
+  const op = z.enum(["dispute", "undispute", "reverse", "validate"]).parse(f.get("op"));
   return run(() =>
-    op === "reverse" ? repo().adminReverseCommission(s, id(f), reason(f)) : repo().adminHoldCommission(s, id(f), op === "hold", reason(f)),
+    op === "reverse" ? repo().adminReverseCommission(s, id(f), reason(f))
+      : op === "validate" ? repo().adminValidateCommission(s, id(f), reason(f))
+      : repo().adminHoldCommission(s, id(f), op === "dispute", reason(f)),
   );
+}
+
+/** Manual ledger entry (bonus, correction, write-off). Never silent: reason + audit log. */
+export async function adjustLedger(_: AdminState, f: FormData) {
+  const s = await staff();
+  const amount = z.coerce.number().int().refine((n) => n !== 0 && Math.abs(n) <= 100_000_000).parse(f.get("amountCents"));
+  const currency = z.string().regex(/^[A-Z]{3}$/).parse(String(f.get("currency") ?? "EUR").toUpperCase());
+  return run(() => repo().adminAdjustLedger(s, id(f, "affiliateId"), amount, currency, reason(f)));
 }
 
 export async function releaseDue() {
@@ -82,7 +92,9 @@ export async function updateSettings(_: AdminState, f: FormData) {
   const s = await staff();
   const d = z.object({
     attributionWindowDays: z.coerce.number().int().min(1).max(730),
-    attributionModel: z.enum(["first_click", "last_click"]),
+    attributionModel: z.enum(["first_click", "last_click", "manual"]),
+    refundPartialPolicy: z.enum(["manual_review", "proportional", "full_reversal"]),
+    billingEmailsOwner: z.enum(["stripe", "studio"]),
     commissionValidationDays: z.coerce.number().int().min(0).max(365),
     payoutMinimumEuros: z.coerce.number().min(0).max(100_000),
   }).parse(Object.fromEntries(f));
@@ -93,6 +105,10 @@ export async function updateSettings(_: AdminState, f: FormData) {
     payoutMinimumCents: Math.round(d.payoutMinimumEuros * 100),
     leaderboardEnabled: f.get("leaderboardEnabled") === "on",
     autoApprove: f.get("autoApprove") === "on",
+    refundPartialPolicy: d.refundPartialPolicy,
+    billingEmailsOwner: d.billingEmailsOwner,
+    connectEnabled: f.get("connectEnabled") === "on",
+    checkoutEnabled: f.get("checkoutEnabled") === "on",
   }));
 }
 

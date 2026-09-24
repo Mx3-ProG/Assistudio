@@ -1,6 +1,7 @@
 import type {
   Session, Settings, Offer, Overview, TrackingLink, LinkStats, PrivatePage, Prospect, ProspectInput,
-  SaleRow, CommissionRow, RecurringBook, Payout, Notification, LeaderboardRow, AnalyticsData,
+  SaleRow, CommissionRow, RecurringBook, Payout, Notification, NotificationStatus, LeaderboardRow, AnalyticsData,
+  FinancialOverview, ConnectStatus, AdminFinanceFilters, AdminFinanceSummary, AdminFinanceOptions,
   ReferralTarget, LeadInput, ClickInput, Market, SalesAsset, AdminOverview, AdminAffiliateRow,
   AdminCommissionRow, AdminSaleRow, AdminLeadRow, FraudFlag, FraudStatus, AuditLog, AdminPayoutCandidate, AffiliateStatus,
 } from "./types";
@@ -35,6 +36,7 @@ export interface Repo {
   // ------------------------------------------------------------- affiliate
   getOverview(s: Session, range: Range): Promise<Overview>;
   getBalances(s: Session): Promise<Balances>;
+  getFinancialOverview(s: Session): Promise<FinancialOverview>;
   getDefaultLink(s: Session): Promise<TrackingLink>;
   getLinkStats(s: Session): Promise<LinkStats>;
   listLinks(s: Session): Promise<TrackingLink[]>;
@@ -50,8 +52,10 @@ export interface Repo {
   listCommissions(s: Session): Promise<CommissionRow[]>;
   getRecurringBook(s: Session): Promise<RecurringBook>;
   listPayouts(s: Session): Promise<Payout[]>;
-  listNotifications(s: Session): Promise<Notification[]>;
+  listNotifications(s: Session, status?: NotificationStatus | "inbox"): Promise<Notification[]>;
   markNotificationsRead(s: Session): Promise<void>;
+  setNotificationStatus(s: Session, id: string, status: NotificationStatus): Promise<void>;
+  getConnectStatus(s: Session): Promise<ConnectStatus>;
   getLeaderboard(s: Session): Promise<LeaderboardRow[]>;
   getAnalytics(s: Session, range: Range): Promise<AnalyticsData>;
   listSalesAssets(s: Session, locale: Locale): Promise<SalesAsset[]>;
@@ -74,6 +78,10 @@ export interface Repo {
   adminHoldCommission(s: Session, id: string, hold: boolean, reason: string): Promise<void>;
   adminReverseCommission(s: Session, id: string, reason: string): Promise<void>;
   adminReleaseDue(s: Session): Promise<number>;
+  adminValidateCommission(s: Session, id: string, reason: string): Promise<void>;
+  adminAdjustLedger(s: Session, affiliateId: string, amountCents: number, currency: string, reason: string): Promise<void>;
+  adminFinanceSummary(s: Session, filters: AdminFinanceFilters): Promise<AdminFinanceSummary>;
+  adminFinanceOptions(s: Session): Promise<AdminFinanceOptions>;
   adminPayoutCandidates(s: Session): Promise<AdminPayoutCandidate[]>;
   adminListPayouts(s: Session): Promise<(Payout & { affiliateName: string })[]>;
   adminCreatePayout(s: Session, affiliateId: string): Promise<void>;

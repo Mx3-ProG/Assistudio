@@ -1,18 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- rows are untyped until `supabase gen types` is wired in */
 import "server-only";
 import { supabaseServer, supabaseService } from "@/lib/supabase/server";
-import { computeCommissionCents, summarize, type Balances } from "@/lib/commission";
+import { type Balances } from "@/lib/commission";
 import { defaultMarkets, type Market } from "@/content/markets";
 import { assetsFor, type SalesAsset } from "@/content/sales-kit";
 import { resolveLocale } from "@/i18n/config";
 import { isValidCode } from "@/lib/attribution";
 import type { Repo, Range } from "./repo";
+import { summarizeBook } from "./book";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
-  ReferralTarget, AdminAffiliateRow,
+  ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
 } from "./types";
 
 const DAY = 86_400_000;
+
 const rangeStart = (r: Range) => new Date(Date.now() - { "7d": 7, "30d": 30, "90d": 90, "1y": 365, all: 3650 }[r] * DAY).toISOString();
 
 function check<T>(res: { data: T; error: any }): T {
@@ -47,7 +49,7 @@ const toPage = (r: any): PrivatePage => ({
   displayName: r.display_name, visibility: r.visibility, isActive: r.is_active, viewCount: r.view_count, createdAt: r.created_at,
 });
 const toCommission = (r: any): CommissionRow => ({
-  id: r.id, saleRef: r.sales?.public_ref ?? "—", customerRef: r.sales?.customer_ref ?? "—",
+  id: r.id, kind: r.kind ?? null, saleRef: r.sales?.public_ref ?? "—", customerRef: r.sales?.customer_ref ?? "—",
   grossCents: r.base_amount_cents, amountCents: r.amount_cents, status: r.status, validatedAt: r.validated_at,
   holdUntil: r.hold_until, expectedPaymentDate: r.expected_payment_date, paidAt: r.paid_at,
   reversalReason: r.reversal_reason, createdAt: r.created_at,
@@ -79,11 +81,15 @@ export const supabaseRepo: Repo = {
     const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     return {
       attributionWindowDays: Number(v["attribution.window_days"] ?? 90),
-      attributionModel: v["attribution.model"] === "first_click" ? "first_click" : "last_click",
+      attributionModel: v["attribution.model"] === "first_click" ? "first_click" : v["attribution.model"] === "manual" ? "manual" : "last_click",
       commissionValidationDays: Number(v["commission.validation_days"] ?? 30),
       payoutMinimumCents: Number(v["payout.minimum_cents"] ?? 5000),
       leaderboardEnabled: Boolean(v["leaderboard.enabled"]),
       autoApprove: Boolean(v["affiliates.auto_approve"]),
+      refundPartialPolicy: (["proportional", "full_reversal"].includes(v["refund.partial_policy"]) ? v["refund.partial_policy"] : "manual_review"),
+      billingEmailsOwner: v["emails.customer_billing_owner"] === "studio" ? "studio" : "stripe",
+      connectEnabled: v["payouts.connect_enabled"] === true,
+      checkoutEnabled: v["checkout.enabled"] !== false,
     };
   },
 
@@ -149,6 +155,13 @@ export const supabaseRepo: Repo = {
     }));
     if (!i.isBot) {
       await sb.from("activity_events").insert({ affiliate_id: i.affiliateId, type: count ? "click" : "visitor", payload: { source: i.utm.source ?? null } });
+      // Server-side attribution record (the cookie only carries the visitor id).
+      const { error: touchError } = await sb.rpc("record_referral_touch", { p: {
+        session_key: i.visitorId, affiliate_id: i.affiliateId, referral_code: i.referralCode ?? "",
+        link_id: i.linkId, campaign_id: i.campaignId, private_page_id: i.privatePageId,
+        landing_page: i.landingPath, utm: i.utm,
+      } });
+      if (touchError) console.error(JSON.stringify({ level: "error", scope: "attribution", message: "touch not recorded", error: touchError.message }));
     }
     // Abnormal click burst → flag for human review (never auto-block).
     const since = new Date(Date.now() - 3600_000).toISOString();
@@ -206,9 +219,44 @@ export const supabaseRepo: Repo = {
   // ------------------------------------------------------------- affiliate
   async getBalances(s): Promise<Balances> {
     const sb = await supabaseServer();
-    const rows = check(await sb.from("commissions").select("status, amount_cents").eq("affiliate_id", mustAffiliate(s))) as any[];
-    const claw = check(await sb.from("commission_ledger").select("amount_cents").eq("affiliate_id", mustAffiliate(s)).eq("entry_type", "clawback").is("payout_id", null)) as any[];
-    return summarize(rows.map((r) => ({ status: r.status, amountCents: r.amount_cents })), claw.reduce((a, r) => a + r.amount_cents, 0));
+    const aff = mustAffiliate(s);
+    // affiliate_balances nets unsettled clawbacks / adjustments into `available` (security_invoker: RLS applies).
+    const [b, reversed] = await Promise.all([
+      sb.from("affiliate_balances").select("*").eq("affiliate_id", aff).maybeSingle(),
+      sb.from("commissions").select("amount_cents").eq("affiliate_id", aff).eq("status", "reversed"),
+    ]);
+    const r = (check(b) ?? {}) as any;
+    return {
+      awaitingPaymentCents: Number(r.awaiting_payment_cents ?? 0), pendingCents: Number(r.pending_cents ?? 0),
+      disputedCents: Number(r.disputed_cents ?? 0), availableCents: Number(r.available_cents ?? 0),
+      paidCents: Number(r.paid_cents ?? 0), lifetimeEarnedCents: Number(r.lifetime_earned_cents ?? 0),
+      reversedCents: (check(reversed) as any[]).reduce((a, x) => a + x.amount_cents, 0),
+    };
+  },
+
+  async getFinancialOverview(s): Promise<FinancialOverview> {
+    const sb = await supabaseServer();
+    const aff = mustAffiliate(s);
+    const [balances, sales, book, latest] = await Promise.all([
+      supabaseRepo.getBalances(s),
+      sb.from("sales").select("gross_amount_cents, currency").eq("affiliate_id", aff).in("status", ["paid", "partially_refunded", "disputed"]),
+      supabaseRepo.getRecurringBook(s),
+      sb.from("sales").select("public_ref, kind, gross_amount_cents, paid_at, commissions(amount_cents, status)").eq("affiliate_id", aff)
+        .not("paid_at", "is", null).order("paid_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    const currency = book.currency;
+    const l = check(latest) as any;
+    return {
+      currency,
+      revenueGeneratedCents: (check(sales) as any[]).filter((x) => x.currency === currency).reduce((a, x) => a + x.gross_amount_cents, 0),
+      balances,
+      recurringContracts: book.activeCount,
+      potentialNext12mCents: book.contracts.reduce((a, c) => a + c.projected12mCents, 0),
+      latestSale: l ? {
+        ref: l.public_ref, kind: l.kind, grossCents: l.gross_amount_cents, at: l.paid_at,
+        commissionCents: l.commissions?.[0]?.amount_cents ?? null, commissionStatus: l.commissions?.[0]?.status ?? null,
+      } : null,
+    };
   },
 
   async getOverview(s, range) {
@@ -332,24 +380,23 @@ export const supabaseRepo: Repo = {
     return (check(rows) as any[]).map((r) => toCommission({ ...r, sales: { ...r.sales, customer_ref: cmap.get(r.sales?.customer_id) } }));
   },
 
-  async getRecurringBook(s) {
+  async getRecurringBook(s): Promise<RecurringBook> {
     const sb = await supabaseServer();
-    const [subs, customers, balances] = await Promise.all([
-      sb.from("subscriptions").select("*, offers(price_cents, commission_rate, commission_recurring)").eq("affiliate_id", mustAffiliate(s)).order("current_period_end"),
-      sb.from("my_customers").select("*"),
+    const aff = mustAffiliate(s);
+    const [rows, balances, offer] = await Promise.all([
+      sb.rpc("affiliate_recurring_book", { p_affiliate_id: aff }),
       supabaseRepo.getBalances(s),
+      supabaseRepo.getOffer(),
     ]);
-    const cmap = new Map((check(customers) as any[]).map((c) => [c.id, c]));
-    const contracts = (check(subs) as any[]).map((r) => ({
-      subscriptionId: r.id, customerRef: cmap.get(r.customer_id)?.public_ref ?? "—", customerName: cmap.get(r.customer_id)?.company_name ?? null,
-      startedAt: r.started_at, renewalDate: r.current_period_end, annualCents: r.offers.price_cents,
-      commissionCents: r.offers.commission_recurring ? computeCommissionCents(r.offers.price_cents, s.affiliate!.commissionRate) : 0,
-      status: r.status,
+    const contracts = (check(rows) as any[]).map((r): RecurringContract => ({
+      subscriptionId: r.subscription_id, customerRef: r.customer_ref, customerName: r.customer_name, productName: r.product_name,
+      startedAt: r.started_at, renewalDate: r.next_renewal_at, annualCents: Number(r.annual_amount_cents), currency: String(r.currency).trim(),
+      status: r.status, cancelling: r.cancelling, ruleLabel: r.rule_label, ruleRate: r.rule_rate != null ? Number(r.rule_rate) : null,
+      ruleDurationMonths: r.rule_duration_months, nextCommissionEligible: !!r.next_commission_eligible,
+      nextCommissionReason: r.next_commission_reason, nextCommissionCents: Number(r.next_commission_cents ?? 0),
+      projected12mCents: Number(r.projected_12m_cents ?? 0), renewalsCount: r.renewals_count ?? 0, lastPaidAt: r.last_paid_at,
     }));
-    return {
-      contracts, earnedCents: balances.lifetimeEarnedCents,
-      potentialAnnualCents: contracts.filter((c) => c.status === "active").reduce((a, c) => a + c.commissionCents, 0),
-    };
+    return summarizeBook(contracts, offer.currency, balances.lifetimeEarnedCents);
   },
 
   async listPayouts(s) {
@@ -358,14 +405,37 @@ export const supabaseRepo: Repo = {
       .map((r) => ({ id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path }));
   },
 
-  async listNotifications(s) {
+  async listNotifications(s, status = "inbox") {
     const sb = await supabaseServer();
-    return (check(await sb.from("notifications").select("*").eq("profile_id", s.userId).order("created_at", { ascending: false }).limit(100)) as any[])
-      .map((r) => ({ id: r.id, type: r.type, titleKey: String(r.title_key).replace(/^notifications\./, ""), params: r.params, href: r.href, readAt: r.read_at, createdAt: r.created_at }));
+    let q = sb.from("notifications").select("*").eq("profile_id", s.userId);
+    q = status === "inbox" ? q.neq("status", "archived") : q.eq("status", status);
+    return (check(await q.order("created_at", { ascending: false }).limit(100)) as any[])
+      .map((r) => ({ id: r.id, type: r.type, titleKey: String(r.title_key).replace(/^notifications\./, ""), params: r.params, href: r.href, readAt: r.read_at, status: r.status, createdAt: r.created_at }));
   },
   async markNotificationsRead(s) {
     const sb = await supabaseServer();
     check(await sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("profile_id", s.userId).is("read_at", null));
+  },
+  async setNotificationStatus(s, id, status) {
+    const sb = await supabaseServer();
+    const nowIso = new Date().toISOString();
+    const patch = status === "archived" ? { archived_at: nowIso, read_at: nowIso }
+      : status === "read" ? { read_at: nowIso, archived_at: null } : { read_at: null, archived_at: null };
+    check(await sb.from("notifications").update(patch).eq("id", id).eq("profile_id", s.userId));
+  },
+
+  async getConnectStatus(s) {
+    const sb = await supabaseServer();
+    const [a, settings] = await Promise.all([
+      sb.from("affiliates").select("stripe_connected_account_id, connect_onboarding_status, payouts_enabled, connect_requirements_status, connect_updated_at").eq("id", mustAffiliate(s)).single(),
+      supabaseRepo.getSettings(),
+    ]);
+    const r = check(a) as any;
+    return {
+      enabled: settings.connectEnabled, providerConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
+      accountConnected: !!r.stripe_connected_account_id, onboardingStatus: r.connect_onboarding_status,
+      payoutsEnabled: r.payouts_enabled, requirementsStatus: r.connect_requirements_status, updatedAt: r.connect_updated_at,
+    };
   },
 
   async getLeaderboard() {
@@ -460,7 +530,7 @@ export const supabaseRepo: Repo = {
       sb.from("clicks").select("id", { count: "exact", head: true }).gte("occurred_at", since30),
       sb.from("leads").select("id", { count: "exact", head: true }).is("deleted_at", null),
       sb.from("sales").select("gross_amount_cents").eq("status", "paid"),
-      sb.from("commissions").select("amount_cents").in("status", ["in_validation", "on_hold", "available"]),
+      sb.from("commissions").select("amount_cents").in("status", ["pending", "disputed", "available"]),
       sb.from("payouts").select("amount_cents").eq("status", "paid"),
       sb.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "active").lte("current_period_end", in60),
       sb.from("fraud_flags").select("id", { count: "exact", head: true }).in("status", ["open", "reviewing"]),
@@ -527,7 +597,11 @@ export const supabaseRepo: Repo = {
   async adminListCommissions() {
     const sb = await supabaseServer();
     const rows = check(await sb.from("commissions").select("*, sales(public_ref, customers(public_ref)), affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(500)) as any[];
-    return rows.map((r) => ({ ...toCommission({ ...r, sales: { public_ref: r.sales?.public_ref, customer_ref: r.sales?.customers?.public_ref } }), affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
+    return rows.map((r) => ({
+      ...toCommission({ ...r, sales: { public_ref: r.sales?.public_ref, customer_ref: r.sales?.customers?.public_ref } }),
+      affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—", kind: r.kind ?? null,
+      currency: String(r.currency).trim(), disputeReason: r.dispute_reason ?? null, recoveryStatus: r.recovery_status ?? null,
+    }));
   },
 
   async adminHoldCommission(_s, id, hold, reason) {
@@ -540,6 +614,47 @@ export const supabaseRepo: Repo = {
   },
   async adminReleaseDue() {
     return Number(check(await supabaseService().rpc("release_due_commissions")));
+  },
+  async adminValidateCommission(_s, id, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_validate_commission", { p_commission_id: id, p_reason: reason }));
+  },
+  async adminAdjustLedger(_s, affiliateId, amountCents, currency, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_ledger_adjustment", { p_affiliate_id: affiliateId, p_amount_cents: amountCents, p_currency: currency, p_reason: reason }));
+  },
+  async adminFinanceSummary(_s, f): Promise<AdminFinanceSummary> {
+    const sb = await supabaseServer();
+    const r = check(await sb.rpc("admin_finance_summary", {
+      p_from: f.from || null, p_to: f.to || null, p_affiliate_id: f.affiliateId || null, p_product_id: f.productId || null,
+      p_status: f.status || null, p_country: f.country || null, p_campaign_id: f.campaignId || null, p_currency: f.currency ?? "EUR",
+    })) as any;
+    const n = (k: string) => Number(r?.[k] ?? 0);
+    return {
+      currency: r.currency, grossRevenueCents: n("gross_revenue_cents"), attributedRevenueCents: n("attributed_revenue_cents"),
+      salesCount: n("sales_count"), renewalsCount: n("renewals_count"), pendingCommissionsCents: n("pending_commissions_cents"),
+      disputedCommissionsCents: n("disputed_commissions_cents"), availableCommissionsCents: n("available_commissions_cents"),
+      paidCommissionsCents: n("paid_commissions_cents"), reversedCommissionsCents: n("reversed_commissions_cents"),
+      recoveryRequiredCount: n("recovery_required_count"), refundsCents: n("refunds_cents"), chargebacksCount: n("chargebacks_count"),
+      chargebacksCents: n("chargebacks_cents"), openDisputesCount: n("open_disputes_count"), activeSubscriptions: n("active_subscriptions"),
+      upcomingRenewals60d: n("upcoming_renewals_60d"), cancellingSubscriptions: n("cancelling_subscriptions"),
+      webhooksFailed: n("webhooks_failed"), webhooksLastReceivedAt: r.webhooks_last_received_at ?? null, emailsFailed: n("emails_failed"),
+    };
+  },
+  async adminFinanceOptions() {
+    const sb = await supabaseServer();
+    const [affs, products, campaigns, countries] = await Promise.all([
+      sb.from("affiliates").select("id, profiles(full_name)").is("deleted_at", null),
+      sb.from("products").select("id, name").is("deleted_at", null).order("sort"),
+      sb.from("campaigns").select("id, name").is("archived_at", null).order("name").limit(500),
+      sb.from("customers").select("country").not("country", "is", null).limit(5000),
+    ]);
+    return {
+      affiliates: (check(affs) as any[]).map((a) => ({ id: a.id, name: a.profiles?.full_name || a.id.slice(0, 8) })).sort((a, b) => a.name.localeCompare(b.name)),
+      products: (check(products) as any[]).map((p) => ({ id: p.id, name: p.name })),
+      campaigns: (check(campaigns) as any[]).map((c) => ({ id: c.id, name: c.name })),
+      countries: [...new Set((check(countries) as any[]).map((c) => String(c.country).trim()))].sort(),
+    };
   },
 
   async adminPayoutCandidates() {
@@ -593,6 +708,10 @@ export const supabaseRepo: Repo = {
     if (patch.payoutMinimumCents !== undefined) map.d = ["payout.minimum_cents", patch.payoutMinimumCents];
     if (patch.leaderboardEnabled !== undefined) map.e = ["leaderboard.enabled", patch.leaderboardEnabled];
     if (patch.autoApprove !== undefined) map.f = ["affiliates.auto_approve", patch.autoApprove];
+    if (patch.refundPartialPolicy !== undefined) map.g = ["refund.partial_policy", patch.refundPartialPolicy];
+    if (patch.billingEmailsOwner !== undefined) map.h = ["emails.customer_billing_owner", patch.billingEmailsOwner];
+    if (patch.connectEnabled !== undefined) map.i = ["payouts.connect_enabled", patch.connectEnabled];
+    if (patch.checkoutEnabled !== undefined) map.j = ["checkout.enabled", patch.checkoutEnabled];
     for (const [key, value] of Object.values(map)) {
       check(await sb.from("settings").update({ value, updated_by: s.userId, updated_at: new Date().toISOString() }).eq("key", key));
     }

@@ -8,6 +8,7 @@ import { formatMoney, formatNumber, formatPercent } from "@/lib/money";
 import { PageHeader, Card, Notice } from "@/components/ui/primitives";
 import { SharePanel } from "@/components/dashboard/share-panel";
 import { SlugForm, PrivatePages } from "@/components/dashboard/link-forms";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** Question: "Where is my traffic coming from?" */
 export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/link">) {
@@ -17,6 +18,8 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
   const r = repo();
   const [stats, pages, markets, links] = await Promise.all([r.getLinkStats(s), r.listPrivatePages(s), r.listMarkets(), r.listLinks(s)]);
   const url = `${env.siteUrl}/s/${s.affiliate.slug ?? s.affiliate.code}`;
+  // Dashboard CTA: the click is recorded by /s/, then the visitor lands on checkout.
+  const checkoutUrl = `${url}?to=${encodeURIComponent(`/${locale}/buy?via=dashboard`)}`;
   const qr = await QRCode.toDataURL(url, { margin: 1, width: 336, color: { dark: "#111114", light: "#ffffff" } });
   const L = t.dash.link.stats;
   const cells = [
@@ -34,6 +37,14 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
       <PageHeader title={t.dash.nav.link} subtitle={t.dash.link.subtitle} />
       {s.affiliate.status !== "approved" && <div className="mb-6"><Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice></div>}
       <SharePanel url={url} qrDataUrl={qr} />
+      <Card className="mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:p-6">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-semibold">{t.dash.link.checkoutTitle}</h2>
+          <p className="mt-0.5 text-[13px] text-muted">{t.dash.link.checkoutHint}</p>
+          <p className="mt-2 truncate font-mono text-[12px] text-fg-2">{checkoutUrl}</p>
+        </div>
+        <CopyButton value={checkoutUrl} />
+      </Card>
       <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
         {cells.map(([label, value]) => (
           <div key={label} className="card p-4">

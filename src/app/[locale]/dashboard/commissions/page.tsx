@@ -15,8 +15,10 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
   const [rows, b] = await Promise.all([repo().listCommissions(s), repo().getBalances(s)]);
   const C = t.dash.commissions;
 
+  // The lifecycle in order. `disputed` only appears when something is under review.
   const pipeline: [keyof typeof C.statuses, number][] = [
-    ["pending", b.pendingPaymentCents], ["in_validation", b.inValidationCents], ["available", b.availableCents], ["paid", b.paidCents],
+    ["pending", b.pendingCents], ...(b.disputedCents ? [["disputed", b.disputedCents] as [keyof typeof C.statuses, number]] : []),
+    ["available", b.availableCents], ["paid", b.paidCents],
   ];
 
   return (
@@ -24,13 +26,13 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
       <PageHeader title={C.title} subtitle={C.subtitle} />
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label={C.available} value={formatMoney(b.availableCents, locale)} tone="accent" />
-        <Stat label={C.pending} value={formatMoney(b.pendingPaymentCents + b.inValidationCents, locale)} tone="warning" />
+        <Stat label={C.pending} value={formatMoney(b.pendingCents + b.disputedCents, locale)} tone="warning" />
         <Stat label={C.paid} value={formatMoney(b.paidCents, locale)} tone="success" />
         <Stat label={C.lifetime} value={formatMoney(b.lifetimeEarnedCents, locale)} />
       </section>
 
       {/* The lifecycle, made visible */}
-      <ol className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <ol className={`mt-6 grid grid-cols-2 gap-2 ${pipeline.length === 5 ? "sm:grid-cols-5" : pipeline.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         {pipeline.map(([k, cents], i) => (
           <li key={k} className="relative rounded-2xl border border-line bg-surface-2/60 p-4">
             <span className="tabular text-[11px] font-semibold text-muted">0{i + 1}</span>
@@ -49,7 +51,7 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
               {rows.map((c) => (
                 <li key={c.id} className="flex items-center gap-3 p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{c.saleRef} <span className="text-muted">· {c.customerRef}</span></p>
+                    <p className="font-medium">{c.saleRef} <span className="text-muted">· {c.customerRef}{c.kind === "renewal" ? ` · ${C.kinds.renewal}` : ""}</span></p>
                     <p className="text-[12px] text-muted">{C.expectedPayment}: {formatDate(c.expectedPaymentDate, locale, "short")}</p>
                   </div>
                   <div className="text-end">
@@ -71,7 +73,7 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
                 <tbody className="divide-y divide-line">
                   {rows.map((c) => (
                     <tr key={c.id}>
-                      <td className="px-4 py-3 font-medium">{c.saleRef}</td>
+                      <td className="px-4 py-3 font-medium">{c.saleRef}{c.kind === "renewal" && <span className="ms-2 text-[12px] font-normal text-muted">{C.kinds.renewal}</span>}</td>
                       <td className="px-4 py-3 text-fg-2">{c.customerRef}</td>
                       <td className="tabular px-4 py-3 text-end text-fg-2">{formatMoney(c.grossCents, locale)}</td>
                       <td className="tabular px-4 py-3 text-end font-semibold">{formatMoney(c.amountCents, locale)}</td>

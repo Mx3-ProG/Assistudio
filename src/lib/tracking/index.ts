@@ -58,6 +58,7 @@ export async function trackReferral(req: NextRequest, res: NextResponse, opts: T
 
   await repo().recordClick({
     affiliateId: target.affiliateId,
+    referralCode: target.linkCode ?? target.affiliateCode,
     linkId: target.linkId,
     campaignId: target.campaignId,
     privatePageId: opts.privatePageId ?? null,

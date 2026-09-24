@@ -5,6 +5,8 @@ import { repo } from "@/lib/data";
 import { REF_COOKIE, VISITOR_COOKIE, decodeRefCookie, resolveAttribution, isValidCode } from "@/lib/attribution";
 import { isLocale } from "@/i18n/config";
 import type { ReferralTarget } from "@/lib/data/types";
+import { isDemoMode } from "@/lib/env";
+import { resolveForConversion } from "@/lib/services/attribution";
 
 const schema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -47,10 +49,17 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
     }
   }
 
-  // 2. Otherwise the cookie, under the admin-configured model and window.
+  // 2. Otherwise the server-side touches of this visitor, under the admin-configured
+  //    model and window. The cookie only carries the visitor id; the demo store
+  //    (no database) falls back to the signed-less cookie touches.
   const cookie = decodeRefCookie(jar.get(REF_COOKIE)?.value);
   const touch = resolveAttribution(cookie, settings.attributionModel, settings.attributionWindowDays);
-  if (!target && touch) {
+  if (!target && !isDemoMode) {
+    const a = await resolveForConversion({ sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null });
+    if (a.affiliateId) {
+      target = { affiliateId: a.affiliateId, affiliateCode: "", linkId: a.linkId, linkCode: null, campaignId: a.campaignId, displayName: null, active: true };
+    }
+  } else if (!target && touch) {
     const t = await r.resolveReferral(touch.link ?? touch.ref);
     if (t?.active) target = t;
   }

@@ -7,10 +7,11 @@ import {
 import { defaultMarkets, type Market, type MarketContent } from "@/content/markets";
 import { assetsFor } from "@/content/sales-kit";
 import type { Repo, Range } from "./repo";
+import { summarizeBook } from "./book";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow,
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
-  ClickInput, LeadInput, ReferralTarget, LinkStats,
+  ClickInput, LeadInput, ReferralTarget, LinkStats, RecurringContract, SubscriptionStatus,
 } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -64,13 +65,15 @@ interface DemoCampaign { id: string; affiliateId: string; name: string; source: 
 interface DemoClick { id: string; affiliateId: string; linkId: string | null; visitorId: string; at: string; country: string; device: string; isBot: boolean }
 interface DemoLead { id: string; fullName?: string; affiliateId: string | null; linkId: string | null; campaignId: string | null; email: string; profession: string | null; company: string | null; status: string; createdAt: string }
 interface DemoCustomer { id: string; ref: string; name: string; email: string }
-interface DemoSubscription { id: string; customerId: string; affiliateId: string; startedAt: string; periodEnd: string; status: "active" | "past_due" | "cancelled" | "expired" }
+interface DemoSubscription { id: string; customerId: string; affiliateId: string; startedAt: string; periodEnd: string; status: SubscriptionStatus; cancelling: boolean }
 interface DemoSale {
   id: string; ref: string; customerId: string; affiliateId: string | null; subscriptionId: string | null;
   linkId: string | null; campaignId: string | null; kind: "new" | "renewal"; status: SaleStatus;
   amountCents: number; createdAt: string; paidAt: string | null;
 }
-interface DemoCommission extends CommissionState { id: string; affiliateId: string; saleId: string; payoutId: string | null; expectedPaymentDate: string | null; createdAt: string }
+interface DemoCommission extends CommissionState { id: string; affiliateId: string; saleId: string; payoutId: string | null; expectedPaymentDate: string | null; createdAt: string; kind: "new" | "renewal"; disputeReason: string | null }
+/** Clawbacks (negative) and manual adjustments not tied to a commission status — netted into `available`. */
+interface DemoLedgerExtra { id: string; affiliateId: string; amountCents: number; type: "clawback" | "adjustment"; reason: string; settledBy: string | null; createdAt: string }
 interface DemoPayout { id: string; ref: string; affiliateId: string; amountCents: number; status: Payout["status"]; scheduledFor: string; paidAt: string | null }
 interface DemoActivity extends ActivityEvent { affiliateId: string }
 interface DemoNotification extends Notification { userId: string }
@@ -90,6 +93,7 @@ interface Store {
   subscriptions: DemoSubscription[];
   sales: DemoSale[];
   commissions: DemoCommission[];
+  ledgerExtras: DemoLedgerExtra[];
   payouts: DemoPayout[];
   pages: PrivatePage[];
   activity: DemoActivity[];
@@ -109,6 +113,10 @@ function seed(): Store {
     payoutMinimumCents: 5000,
     leaderboardEnabled: true,
     autoApprove: false,
+    refundPartialPolicy: "manual_review",
+    billingEmailsOwner: "stripe",
+    connectEnabled: false,
+    checkoutEnabled: true,
   };
   const offer: Offer = {
     id: "offer_studio_annual", productId: "prod_studio", productName: "STUDIO",
@@ -118,7 +126,7 @@ function seed(): Store {
   const s: Store = {
     markets: structuredClone(defaultMarkets).map((m) => ({ ...m, active: true })),
     settings, offer, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
-    prospects: [], customers: [], subscriptions: [], sales: [], commissions: [], payouts: [], pages: [],
+    prospects: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
     activity: [], notifications: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
   };
 
@@ -194,32 +202,16 @@ function seed(): Store {
 
   // Sales for the demo affiliate — reproduces the spec example:
   // €4,500 earned (€3,000 paid + €1,500 available), €1,500 pending, 3 active clients.
-  const mkSale = (
-    affiliateId: string, customerName: string, createdDaysAgo: number, paidDaysAgo: number | null,
-    status: SaleStatus, opts: { payout?: boolean; linkIdx?: number } = {},
-  ) => {
-    const cust: DemoCustomer = { id: id("cus"), ref: `CUS-${String(s.customers.length + 1).padStart(4, "0")}`, name: customerName, email: `${customerName.toLowerCase().replace(/\W+/g, ".")}@example.invalid` };
-    s.customers.push(cust);
-    const link = opts.linkIdx !== undefined ? campaignLinks[opts.linkIdx] : null;
-    const sub: DemoSubscription | null = status === "paid"
-      ? { id: id("sub"), customerId: cust.id, affiliateId, startedAt: daysAgo(paidDaysAgo!), periodEnd: iso(now() - paidDaysAgo! * DAY + 365 * DAY), status: "active" }
-      : null;
-    if (sub) s.subscriptions.push(sub);
-    const sale: DemoSale = {
-      id: id("sal"), ref: `SAL-${String(s.sales.length + 1).padStart(4, "0")}`, customerId: cust.id, affiliateId,
-      subscriptionId: sub?.id ?? null, linkId: link?.lid ?? null, campaignId: link?.cid ?? null, kind: "new", status,
-      amountCents: offer.priceCents, createdAt: daysAgo(createdDaysAgo), paidAt: paidDaysAgo !== null ? daysAgo(paidDaysAgo) : null,
-    };
-    s.sales.push(sale);
-    let { state } = newCommission(computeCommissionCents(sale.amountCents, offer.commissionRate));
-    if (sale.paidAt) {
-      ({ state } = transition(state, { type: "sale_status", status: "paid", at: sale.paidAt, validationDays: settings.commissionValidationDays }));
-      ({ state } = transition(state, { type: "release", at: iso(now()) }));
-      if (state.status === "available") state = { ...state, availableAt: iso(Date.parse(state.holdUntil!)) };
-    }
+  // V0.2: a commission exists only once the payment is confirmed; it is
+  // `pending` during the validation period, then `available`, then `paid`.
+  const mkCommission = (affiliateId: string, sale: DemoSale, opts: { payout?: boolean } = {}) => {
+    let { state } = newCommission(computeCommissionCents(sale.amountCents, offer.commissionRate), sale.paidAt!,
+      settings.commissionValidationDays, { renewal: sale.kind === "renewal" });
+    ({ state } = transition(state, { type: "release", at: iso(now()) }));
+    if (state.status === "available") state = { ...state, availableAt: state.holdUntil };
     const com: DemoCommission = {
-      ...state, id: id("com"), affiliateId, saleId: sale.id, payoutId: null, createdAt: sale.createdAt,
-      expectedPaymentDate: state.holdUntil ? iso(Date.parse(state.holdUntil) + 7 * DAY).slice(0, 10) : null,
+      ...state, id: id("com"), affiliateId, saleId: sale.id, payoutId: null, createdAt: sale.paidAt!, kind: sale.kind, disputeReason: null,
+      expectedPaymentDate: iso(Date.parse(state.holdUntil!) + 7 * DAY).slice(0, 10),
     };
     if (opts.payout && com.status === "available") {
       const paidAt = iso(Date.parse(com.availableAt!) + 5 * DAY);
@@ -228,26 +220,51 @@ function seed(): Store {
       Object.assign(com, transition(com, { type: "payout_paid", at: paidAt }).state, { payoutId: p.id });
     }
     s.commissions.push(com);
-    return { sale, com };
+    return com;
+  };
+  const mkSale = (
+    affiliateId: string, customerName: string, paidDaysAgo: number, opts: { payout?: boolean; linkIdx?: number } = {},
+  ) => {
+    const cust: DemoCustomer = { id: id("cus"), ref: `CUS-${String(s.customers.length + 1).padStart(4, "0")}`, name: customerName, email: `${customerName.toLowerCase().replace(/\W+/g, ".")}@example.invalid` };
+    s.customers.push(cust);
+    const link = opts.linkIdx !== undefined ? campaignLinks[opts.linkIdx] : null;
+    const sub: DemoSubscription = {
+      id: id("sub"), customerId: cust.id, affiliateId, startedAt: daysAgo(paidDaysAgo),
+      periodEnd: iso(now() - paidDaysAgo * DAY + 365 * DAY), status: "active", cancelling: false,
+    };
+    s.subscriptions.push(sub);
+    const sale: DemoSale = {
+      id: id("sal"), ref: `SAL-${String(s.sales.length + 1).padStart(4, "0")}`, customerId: cust.id, affiliateId,
+      subscriptionId: sub.id, linkId: link?.lid ?? null, campaignId: link?.cid ?? null, kind: "new", status: "paid",
+      amountCents: offer.priceCents, createdAt: daysAgo(paidDaysAgo), paidAt: daysAgo(paidDaysAgo),
+    };
+    s.sales.push(sale);
+    const com = mkCommission(affiliateId, sale, opts);
+    return { sale, com, sub };
+  };
+  /** A renewal only exists once its payment is collected — same pipeline, kind = renewal. */
+  const mkRenewal = (first: { sale: DemoSale; sub: DemoSubscription }, paidDaysAgo: number) => {
+    const sale: DemoSale = { ...first.sale, id: id("sal"), ref: `SAL-${String(s.sales.length + 1).padStart(4, "0")}`, kind: "renewal", createdAt: daysAgo(paidDaysAgo), paidAt: daysAgo(paidDaysAgo) };
+    s.sales.push(sale);
+    first.sub.periodEnd = iso(now() - paidDaysAgo * DAY + 365 * DAY);
+    return mkCommission(first.sale.affiliateId!, sale);
   };
 
-  mkSale(me, "Atelier Lumière", 165, 160, "paid", { payout: true, linkIdx: 0 });
-  mkSale(me, "Maison Verdier Architecture", 120, 115, "paid", { payout: true, linkIdx: 2 });
-  mkSale(me, "Bloom Wedding Co.", 70, 62, "paid", { linkIdx: 3 });
-  mkSale(me, "Studio Horizon", 6, 4, "paid", { linkIdx: 4 }); // in validation (still pending)
-  // Make the last one pending payment instead, so active clients = 3 and pending = €1,500:
-  const last = s.sales[s.sales.length - 1];
-  last.status = "pending"; last.paidAt = null;
-  s.subscriptions = s.subscriptions.filter((x) => x.id !== last.subscriptionId);
-  last.subscriptionId = null;
-  Object.assign(s.commissions[s.commissions.length - 1], newCommission(150_000).state);
+  mkSale(me, "Atelier Lumière", 160, { payout: true, linkIdx: 0 });
+  const verdier = mkSale(me, "Maison Verdier Architecture", 115, { payout: true, linkIdx: 2 });
+  verdier.sub.cancelling = true; // cancellation scheduled: no renewal projected
+  mkSale(me, "Bloom Wedding Co.", 62, { linkIdx: 3 });
+  const horizon = mkSale(me, "Studio Horizon", 4, { linkIdx: 4 }); // paid 4 days ago → commission pending (validation period)
+  const delorme = mkSale(me, "Cabinet Delorme", 380, { linkIdx: 1 });
+  const delormeRenewal = mkRenewal(delorme, 15); // renewed 15 days ago → renewal commission pending
 
   // Other affiliates (leaderboard + admin)
-  for (let i = 0; i < 14; i++) mkSale(alex, `Alex Client ${i + 1}`, 140 - i * 3, 135 - i * 3 > 1 ? Math.min(135 - i * 3, 25 - i) : 1, "paid", {});
-  for (let i = 0; i < 8; i++) mkSale(sofia, `Sofia Client ${i + 1}`, 90 - i * 2, Math.max(1, 20 - i * 2), "paid", {});
-  mkSale(marc, "Marc Client 1", 40, 12, "paid", {});
-  const refunded = mkSale(marc, "Marc Client 2", 30, 20, "paid", {});
+  for (let i = 0; i < 14; i++) mkSale(alex, `Alex Client ${i + 1}`, Math.max(1, Math.min(135 - i * 3, 25 - i)));
+  for (let i = 0; i < 8; i++) mkSale(sofia, `Sofia Client ${i + 1}`, Math.max(1, 20 - i * 2));
+  mkSale(marc, "Marc Client 1", 12);
+  const refunded = mkSale(marc, "Marc Client 2", 20);
   refunded.sale.status = "refunded";
+  refunded.sub.status = "cancelled";
   Object.assign(refunded.com, transition(refunded.com, { type: "sale_status", status: "refunded", at: daysAgo(10), validationDays: 30 }).state);
 
   // Prospects (14 open opportunities + won/lost)
@@ -288,17 +305,23 @@ function seed(): Store {
   // Activity feed for the demo affiliate
   const acts: [ActivityType, number, Record<string, unknown>][] = [
     ["click", 0.02, { source: "instagram" }], ["visitor", 0.05, { country: "FR" }],
-    ["sale_pending", 4, { sale_ref: last.ref, amount_cents: 150_000 }], ["lead", 1, { profession: "Architect" }],
-    ["appointment", 2, { profession: "Wedding planner" }], ["commission_validated", 32, { amount_cents: 150_000 }],
-    ["payment_confirmed", 62, { sale_ref: "SAL-0003" }], ["commission_paid", 80, { amount_cents: 150_000 }],
+    ["payment_confirmed", 4, { sale_ref: horizon.sale.ref, gross_cents: 300_000, currency: "EUR" }],
+    ["commission_pending", 4, { sale_ref: horizon.sale.ref, commission_cents: horizon.com.amountCents, currency: "EUR" }],
+    ["renewal_confirmed", 15, { sale_ref: delorme.sale.ref, gross_cents: 300_000, currency: "EUR" }],
+    ["commission_pending", 15, { commission_cents: delormeRenewal.amountCents, currency: "EUR" }],
+    ["lead", 1, { profession: "Architect" }],
+    ["appointment", 2, { profession: "Wedding planner" }], ["commission_available", 32, { commission_cents: 150_000, currency: "EUR" }],
+    ["payment_confirmed", 62, { sale_ref: "SAL-0003" }], ["payout_completed", 80, { amount_cents: 150_000, currency: "EUR" }],
     ["click", 0.2, { source: "linkedin" }], ["lead", 6, { profession: "Photographer" }],
   ];
   for (const [type, ago, payload] of acts) s.activity.push({ id: id("act"), affiliateId: me, type, occurredAt: daysAgo(ago), payload });
 
   s.notifications.push(
-    { id: id("ntf"), userId: "usr_mathieu", type: "lead", titleKey: "newLead", params: { profession: "Architect" }, href: "/dashboard", readAt: null, createdAt: daysAgo(1) },
-    { id: id("ntf"), userId: "usr_mathieu", type: "commission", titleKey: "commissionAvailable", params: { amount: "€1,500" }, href: "/dashboard/commissions", readAt: null, createdAt: daysAgo(32) },
-    { id: id("ntf"), userId: "usr_mathieu", type: "payout", titleKey: "payoutPaid", params: { amount: "€1,500" }, href: "/dashboard/payouts", readAt: daysAgo(70), createdAt: daysAgo(80) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "lead", titleKey: "newLead", params: { profession: "Architect" }, href: "/dashboard", readAt: null, status: "unread", createdAt: daysAgo(1) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "sale", titleKey: "salePending", params: { sale_ref: horizon.sale.ref, commission_cents: 150_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: null, status: "unread", createdAt: daysAgo(4) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "renewal", titleKey: "renewalPending", params: { sale_ref: delorme.sale.ref, commission_cents: 150_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: null, status: "unread", createdAt: daysAgo(15) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "commission", titleKey: "commissionAvailable", params: { commission_cents: 150_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: daysAgo(30), status: "read", createdAt: daysAgo(32) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "payout", titleKey: "payoutPaid", params: { amount_cents: 150_000, currency: "EUR" }, href: "/dashboard/payouts", readAt: daysAgo(70), status: "archived", createdAt: daysAgo(80) },
   );
 
   s.fraud.push(
@@ -313,7 +336,7 @@ function seed(): Store {
 }
 
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
-const STORE_VERSION = 2;
+const STORE_VERSION = 3;
 const g = globalThis as unknown as { __studioDemo?: Store & { v?: number } };
 function db(): Store {
   if (g.__studioDemo?.v !== STORE_VERSION) g.__studioDemo = Object.assign(seed(), { v: STORE_VERSION });
@@ -374,13 +397,25 @@ function commissionRow(c: DemoCommission): CommissionRow {
   const sale = st.sales.find((x) => x.id === c.saleId)!;
   const cust = st.customers.find((x) => x.id === sale.customerId)!;
   return {
-    id: c.id, saleRef: sale.ref, customerRef: cust.ref, grossCents: sale.amountCents, amountCents: c.amountCents,
+    id: c.id, kind: c.kind, saleRef: sale.ref, customerRef: cust.ref, grossCents: sale.amountCents, amountCents: c.amountCents,
     status: c.status, validatedAt: c.validatedAt, holdUntil: c.holdUntil, expectedPaymentDate: c.expectedPaymentDate,
     paidAt: c.paidAt, reversalReason: c.reversalReason, createdAt: c.createdAt,
   };
 }
 function applyCommissionEvent(c: DemoCommission, e: CommissionEvent) {
-  Object.assign(c, transition(c, e).state);
+  const { state, moves } = transition(c, e);
+  Object.assign(c, state);
+  for (const m of moves) {
+    if (m.type === "clawback") {
+      db().ledgerExtras.push({ id: id("led"), affiliateId: c.affiliateId, amountCents: m.amountCents, type: "clawback", reason: m.note ?? "", settledBy: null, createdAt: iso(now()) });
+    }
+  }
+}
+function unsettled(affiliateId: string) {
+  return db().ledgerExtras.filter((x) => x.affiliateId === affiliateId && !x.settledBy).reduce((a, x) => a + x.amountCents, 0);
+}
+function balancesOf(affiliateId: string) {
+  return summarize(db().commissions.filter((c) => c.affiliateId === affiliateId), unsettled(affiliateId));
 }
 function affiliateName(affId: string | null) {
   if (!affId) return null;
@@ -450,7 +485,7 @@ export const demoRepo: Repo = {
     if (input.affiliateId) {
       st.activity.push({ id: id("act"), affiliateId: input.affiliateId, type: "lead", occurredAt: iso(now()), payload: { profession: input.profession } });
       const aff = st.affiliates.find((a) => a.id === input.affiliateId);
-      if (aff) st.notifications.unshift({ id: id("ntf"), userId: aff.userId, type: "lead", titleKey: "newLead", params: { profession: input.profession ?? "—" }, href: "/dashboard", readAt: null, createdAt: iso(now()) });
+      if (aff) st.notifications.unshift({ id: id("ntf"), userId: aff.userId, type: "lead", titleKey: "newLead", params: { profession: input.profession ?? "—" }, href: "/dashboard", readAt: null, status: "unread", createdAt: iso(now()) });
     }
     return { id: lead.id };
   },
@@ -475,8 +510,27 @@ export const demoRepo: Repo = {
   },
 
   async getBalances(s) {
+    return balancesOf(mustAffiliate(s));
+  },
+
+  async getFinancialOverview(s) {
     const aff = mustAffiliate(s);
-    return summarize(db().commissions.filter((c) => c.affiliateId === aff));
+    const st = db();
+    const book = await demoRepo.getRecurringBook(s);
+    const mine = st.sales.filter((x) => x.affiliateId === aff);
+    const latest = mine.filter((x) => x.paidAt).sort((a, b) => b.paidAt!.localeCompare(a.paidAt!))[0];
+    const latestCom = latest ? st.commissions.find((c) => c.saleId === latest.id) : null;
+    return {
+      currency: st.offer.currency,
+      revenueGeneratedCents: mine.filter((x) => x.status === "paid" || x.status === "partially_refunded" || x.status === "disputed").reduce((a, x) => a + x.amountCents, 0),
+      balances: balancesOf(aff),
+      recurringContracts: book.activeCount,
+      potentialNext12mCents: book.contracts.reduce((a, c) => a + c.projected12mCents, 0),
+      latestSale: latest ? {
+        ref: latest.ref, kind: latest.kind, grossCents: latest.amountCents, at: latest.paidAt!,
+        commissionCents: latestCom?.amountCents ?? null, commissionStatus: latestCom?.status ?? null,
+      } : null,
+    };
   },
 
   async getOverview(s, range) {
@@ -490,7 +544,7 @@ export const demoRepo: Repo = {
       .sort((a, b) => a.date.localeCompare(b.date));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     return {
-      balances: summarize(mine),
+      balances: balancesOf(aff),
       activeClients: st.subscriptions.filter((x) => x.affiliateId === aff && x.status === "active").length,
       opportunities: st.prospects.filter((p) => p.affiliateId === aff && !p.deletedAt && p.stage !== "won" && p.stage !== "lost").length,
       clicks: st.clicks.filter((c) => c.affiliateId === aff && !c.isBot && Date.parse(c.at) >= start).length,
@@ -580,31 +634,49 @@ export const demoRepo: Repo = {
   async getRecurringBook(s) {
     const aff = mustAffiliate(s);
     const st = db();
-    const contracts = st.subscriptions.filter((x) => x.affiliateId === aff).map((sub) => {
+    const commission = computeCommissionCents(st.offer.priceCents, st.offer.commissionRate);
+    const contracts = st.subscriptions.filter((x) => x.affiliateId === aff).map((sub): RecurringContract => {
       const cust = st.customers.find((c) => c.id === sub.customerId)!;
+      const sales = st.sales.filter((x) => x.subscriptionId === sub.id && x.status === "paid");
+      const renewing = (sub.status === "active" || sub.status === "past_due") && !sub.cancelling;
+      const within12m = renewing && Date.parse(sub.periodEnd) <= now() + 365 * DAY;
       return {
-        subscriptionId: sub.id, customerRef: cust.ref, customerName: cust.name, startedAt: sub.startedAt,
-        renewalDate: sub.periodEnd, annualCents: st.offer.priceCents,
-        commissionCents: computeCommissionCents(st.offer.priceCents, st.offer.commissionRate), status: sub.status,
+        subscriptionId: sub.id, customerRef: cust.ref, customerName: cust.name, productName: st.offer.productName,
+        startedAt: sub.startedAt, renewalDate: sub.periodEnd, annualCents: st.offer.priceCents, currency: st.offer.currency,
+        status: sub.status, cancelling: sub.cancelling, ruleLabel: "STUDIO — default affiliate commission",
+        ruleRate: st.offer.commissionRate, ruleDurationMonths: null,
+        nextCommissionEligible: renewing, nextCommissionReason: renewing ? null : "not_renewing",
+        nextCommissionCents: renewing ? commission : 0, projected12mCents: within12m ? commission : 0,
+        renewalsCount: sales.filter((x) => x.kind === "renewal").length,
+        lastPaidAt: sales.map((x) => x.paidAt!).sort().at(-1) ?? null,
       };
-    }).sort((a, b) => a.renewalDate.localeCompare(b.renewalDate));
-    const active = contracts.filter((c) => c.status === "active");
-    return {
-      contracts,
-      earnedCents: summarize(st.commissions.filter((c) => c.affiliateId === aff)).lifetimeEarnedCents,
-      potentialAnnualCents: active.reduce((a, c) => a + c.commissionCents, 0),
-    };
+    }).sort((a, b) => Number(b.status === "active") - Number(a.status === "active") || a.renewalDate.localeCompare(b.renewalDate));
+    return summarizeBook(contracts, st.offer.currency, balancesOf(aff).lifetimeEarnedCents);
   },
   async listPayouts(s) {
     const aff = mustAffiliate(s);
     return db().payouts.filter((p) => p.affiliateId === aff).map((p) => ({ id: p.id, ref: p.ref, amountCents: p.amountCents, status: p.status, scheduledFor: p.scheduledFor, paidAt: p.paidAt, documentPath: null }))
       .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor));
   },
-  async listNotifications(s) {
-    return db().notifications.filter((n) => n.userId === s.userId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  async listNotifications(s, status = "inbox") {
+    return db().notifications
+      .filter((n) => n.userId === s.userId && (status === "inbox" ? n.status !== "archived" : n.status === status))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
   async markNotificationsRead(s) {
-    for (const n of db().notifications) if (n.userId === s.userId && !n.readAt) n.readAt = iso(now());
+    for (const n of db().notifications) if (n.userId === s.userId && !n.readAt) { n.readAt = iso(now()); if (n.status === "unread") n.status = "read"; }
+  },
+  async setNotificationStatus(s, nid, status) {
+    const n = db().notifications.find((x) => x.id === nid && x.userId === s.userId);
+    if (!n) return;
+    n.status = status;
+    n.readAt = status === "unread" ? null : n.readAt ?? iso(now());
+  },
+  async getConnectStatus() {
+    return {
+      enabled: db().settings.connectEnabled, providerConfigured: false, accountConnected: false,
+      onboardingStatus: "not_started", payoutsEnabled: false, requirementsStatus: null, updatedAt: null,
+    };
   },
   async getLeaderboard(s) {
     const st = db();
@@ -686,7 +758,7 @@ export const demoRepo: Repo = {
       leads: st.leads.length,
       sales: st.sales.filter((x) => x.status === "paid").length,
       revenueCents: st.sales.filter((x) => x.status === "paid").reduce((a, x) => a + x.amountCents, 0),
-      commissionsOwedCents: b.availableCents + b.inValidationCents,
+      commissionsOwedCents: b.availableCents + b.pendingCents + b.disputedCents,
       paidOutCents: st.payouts.filter((p) => p.status === "paid").reduce((a, p) => a + p.amountCents, 0),
       renewals60d: st.subscriptions.filter((x) => x.status === "active" && Date.parse(x.periodEnd) <= now() + 60 * DAY).length,
       openFraudFlags: st.fraud.filter((f) => f.status === "open" || f.status === "reviewing").length,
@@ -700,7 +772,7 @@ export const demoRepo: Repo = {
       return {
         id: a.id, name: u.fullName, email: u.email, code: a.code, status: a.status, country: a.country,
         sales: st.sales.filter((x) => x.affiliateId === a.id && x.status === "paid").length,
-        availableCents: summarize(st.commissions.filter((c) => c.affiliateId === a.id)).availableCents,
+        availableCents: balancesOf(a.id).availableCents,
         createdAt: a.createdAt, application: a.application,
       };
     }).sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0) || b.createdAt.localeCompare(a.createdAt));
@@ -733,9 +805,8 @@ export const demoRepo: Repo = {
       amountCents: st.offer.priceCents, createdAt: iso(now()), paidAt: null,
     };
     st.sales.push(sale);
+    // V0.2: no commission until the payment is confirmed.
     if (lead.affiliateId) {
-      const { state } = newCommission(computeCommissionCents(sale.amountCents, st.offer.commissionRate));
-      st.commissions.push({ ...state, id: id("com"), affiliateId: lead.affiliateId, saleId: sale.id, payoutId: null, expectedPaymentDate: null, createdAt: sale.createdAt });
       st.activity.push({ id: id("act"), affiliateId: lead.affiliateId, type: "sale_pending", occurredAt: iso(now()), payload: { sale_ref: sale.ref } });
     }
     lead.status = "converted";
@@ -755,7 +826,7 @@ export const demoRepo: Repo = {
     sale.status = status;
     if (status === "paid") {
       sale.paidAt = iso(now());
-      const sub: DemoSubscription = { id: id("sub"), customerId: sale.customerId, affiliateId: sale.affiliateId!, startedAt: sale.paidAt, periodEnd: iso(now() + 365 * DAY), status: "active" };
+      const sub: DemoSubscription = { id: id("sub"), customerId: sale.customerId, affiliateId: sale.affiliateId!, startedAt: sale.paidAt, periodEnd: iso(now() + 365 * DAY), status: "active", cancelling: false };
       if (sale.affiliateId && !sale.subscriptionId) { st.subscriptions.push(sub); sale.subscriptionId = sub.id; }
     } else if (sale.subscriptionId) {
       const sub = st.subscriptions.find((x) => x.id === sale.subscriptionId);
@@ -764,10 +835,15 @@ export const demoRepo: Repo = {
     const com = st.commissions.find((c) => c.saleId === sale.id);
     if (com) {
       applyCommissionEvent(com, { type: "sale_status", status, at: iso(now()), validationDays: st.settings.commissionValidationDays });
-      if (com.holdUntil && !com.expectedPaymentDate) com.expectedPaymentDate = iso(Date.parse(com.holdUntil) + 7 * DAY).slice(0, 10);
+    } else if (status === "paid" && sale.affiliateId) {
+      // Payment confirmed → the commission is created now, pending validation.
+      const { state } = newCommission(computeCommissionCents(sale.amountCents, st.offer.commissionRate), sale.paidAt!, st.settings.commissionValidationDays);
+      st.commissions.push({ ...state, id: id("com"), affiliateId: sale.affiliateId, saleId: sale.id, payoutId: null, kind: sale.kind, disputeReason: null,
+        expectedPaymentDate: iso(Date.parse(state.holdUntil!) + 7 * DAY).slice(0, 10), createdAt: sale.paidAt! });
+      st.activity.push({ id: id("act"), affiliateId: sale.affiliateId, type: "commission_pending", occurredAt: iso(now()), payload: { sale_ref: sale.ref, commission_cents: state.amountCents, currency: "EUR" } });
     }
     if (sale.affiliateId && status === "paid") {
-      st.activity.push({ id: id("act"), affiliateId: sale.affiliateId, type: "payment_confirmed", occurredAt: iso(now()), payload: { sale_ref: sale.ref } });
+      st.activity.push({ id: id("act"), affiliateId: sale.affiliateId, type: "payment_confirmed", occurredAt: iso(now()), payload: { sale_ref: sale.ref, gross_cents: sale.amountCents, currency: "EUR" } });
     }
   },
   async adminCorrectAttribution(s, saleId, affId, reason) {
@@ -780,23 +856,27 @@ export const demoRepo: Repo = {
     audit(s, "attribution.correct", "sale", sale.ref, { affiliate: affiliateName(sale.affiliateId) }, { affiliate: affiliateName(affId) }, reason);
     if (com) applyCommissionEvent(com, { type: "reverse", at: iso(now()), reason: `attribution corrected: ${reason}` });
     sale.affiliateId = affId;
-    if (com) {
-      let { state } = newCommission(com.amountCents);
-      if (sale.paidAt) ({ state } = transition(state, { type: "sale_status", status: "paid", at: sale.paidAt, validationDays: st.settings.commissionValidationDays }));
-      st.commissions.push({ ...state, id: id("com"), affiliateId: affId, saleId, payoutId: null, expectedPaymentDate: com.expectedPaymentDate, createdAt: iso(now()) });
+    if (com && sale.paidAt) {
+      const { state } = newCommission(com.amountCents, sale.paidAt, st.settings.commissionValidationDays, { renewal: sale.kind === "renewal" });
+      st.commissions.push({ ...state, id: id("com"), affiliateId: affId, saleId, payoutId: null, kind: sale.kind, disputeReason: null, expectedPaymentDate: com.expectedPaymentDate, createdAt: iso(now()) });
     }
   },
   async adminListCommissions(s) {
     mustStaff(s);
-    return db().commissions.map((c) => ({ ...commissionRow(c), affiliateId: c.affiliateId, affiliateName: affiliateName(c.affiliateId) ?? "—" }))
+    return db().commissions.map((c) => ({
+      ...commissionRow(c), affiliateId: c.affiliateId, affiliateName: affiliateName(c.affiliateId) ?? "—", kind: c.kind, currency: "EUR",
+      disputeReason: c.disputeReason, recoveryStatus: c.recoveryRequired ? (db().ledgerExtras.some((x) => x.affiliateId === c.affiliateId && x.type === "clawback" && !x.settledBy) ? "required" as const : "recovered" as const) : null,
+    }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
   async adminHoldCommission(s, cid, hold, reason) {
     mustStaff(s);
     const c = db().commissions.find((x) => x.id === cid);
     if (!c) throw new Error("not_found");
-    audit(s, hold ? "commission.hold" : "commission.unhold", "commission", cid, { status: c.status }, null, reason);
-    applyCommissionEvent(c, hold ? { type: "hold", reason } : { type: "unhold", at: iso(now()), reason });
+    const before = c.status;
+    applyCommissionEvent(c, hold ? { type: "dispute", reason } : { type: "restore", at: iso(now()), reason });
+    c.disputeReason = hold ? reason : null;
+    audit(s, hold ? "commission.dispute" : "commission.undispute", "commission", cid, { status: before }, { status: c.status }, reason);
   },
   async adminReverseCommission(s, cid, reason) {
     mustStaff(s);
@@ -815,12 +895,66 @@ export const demoRepo: Repo = {
     }
     return n;
   },
+  async adminValidateCommission(s, cid, reason) {
+    mustStaff(s);
+    const c = db().commissions.find((x) => x.id === cid);
+    if (!c) throw new Error("not_found");
+    if (c.status !== "pending") throw new Error("only a pending commission can be validated");
+    audit(s, "commission.validate", "commission", cid, { status: c.status }, { status: "available" }, reason);
+    Object.assign(c, { status: "available", availableAt: iso(now()) });
+  },
+  async adminAdjustLedger(s, affId, amountCents, currency, reason) {
+    mustStaff(s);
+    if (!reason.trim()) throw new Error("reason required");
+    if (!amountCents) throw new Error("amount must not be zero");
+    db().ledgerExtras.push({ id: id("led"), affiliateId: affId, amountCents, type: "adjustment", reason, settledBy: null, createdAt: iso(now()) });
+    audit(s, "ledger.adjustment", "affiliate", affId, null, { amount_cents: amountCents, currency }, reason);
+  },
+  async adminFinanceSummary(s, f) {
+    mustStaff(s);
+    const st = db();
+    const from = f.from ? Date.parse(f.from) : -Infinity;
+    const to = f.to ? Date.parse(f.to) : Infinity;
+    const sales = st.sales.filter((x) => x.paidAt && Date.parse(x.paidAt) >= from && Date.parse(x.paidAt) < to
+      && (!f.affiliateId || x.affiliateId === f.affiliateId) && (!f.status || x.status === f.status)
+      && (!f.campaignId || x.campaignId === f.campaignId));
+    const coms = st.commissions.filter((c) => sales.some((x) => x.id === c.saleId));
+    const sum = (st2: string) => coms.filter((c) => c.status === st2).reduce((a, c) => a + c.amountCents, 0);
+    const subs = st.subscriptions.filter((x) => !f.affiliateId || x.affiliateId === f.affiliateId);
+    return {
+      currency: "EUR",
+      grossRevenueCents: sales.reduce((a, x) => a + x.amountCents, 0),
+      attributedRevenueCents: sales.filter((x) => x.affiliateId).reduce((a, x) => a + x.amountCents, 0),
+      salesCount: sales.length, renewalsCount: sales.filter((x) => x.kind === "renewal").length,
+      pendingCommissionsCents: sum("pending"), disputedCommissionsCents: sum("disputed"), availableCommissionsCents: sum("available"),
+      paidCommissionsCents: sum("paid"), reversedCommissionsCents: sum("reversed"),
+      recoveryRequiredCount: coms.filter((c) => c.recoveryRequired).length,
+      refundsCents: sales.filter((x) => x.status === "refunded").reduce((a, x) => a + x.amountCents, 0),
+      chargebacksCount: sales.filter((x) => x.status === "chargeback").length,
+      chargebacksCents: sales.filter((x) => x.status === "chargeback").reduce((a, x) => a + x.amountCents, 0),
+      openDisputesCount: sales.filter((x) => x.status === "disputed").length,
+      activeSubscriptions: subs.filter((x) => x.status === "active").length,
+      upcomingRenewals60d: subs.filter((x) => x.status === "active" && !x.cancelling && Date.parse(x.periodEnd) <= now() + 60 * DAY).length,
+      cancellingSubscriptions: subs.filter((x) => x.status === "active" && x.cancelling).length,
+      webhooksFailed: 0, webhooksLastReceivedAt: null, emailsFailed: 0,
+    };
+  },
+  async adminFinanceOptions(s) {
+    mustStaff(s);
+    const st = db();
+    return {
+      affiliates: st.affiliates.map((a) => ({ id: a.id, name: affiliateName(a.id) ?? a.code })),
+      products: [{ id: st.offer.productId, name: st.offer.productName }],
+      campaigns: st.campaigns.map((c) => ({ id: c.id, name: c.name })),
+      countries: ["BE", "CH", "FR"],
+    };
+  },
   async adminPayoutCandidates(s) {
     mustStaff(s);
     const st = db();
     return st.affiliates.map((a) => ({
       affiliateId: a.id, affiliateName: affiliateName(a.id) ?? "—",
-      availableCents: st.commissions.filter((c) => c.affiliateId === a.id && c.status === "available" && !c.payoutId).reduce((x, c) => x + c.amountCents, 0),
+      availableCents: st.commissions.filter((c) => c.affiliateId === a.id && c.status === "available" && !c.payoutId).reduce((x, c) => x + c.amountCents, 0) + unsettled(a.id),
     })).filter((x) => x.availableCents >= st.settings.payoutMinimumCents);
   },
   async adminListPayouts(s) {
@@ -832,11 +966,13 @@ export const demoRepo: Repo = {
     mustStaff(s);
     const st = db();
     const coms = st.commissions.filter((c) => c.affiliateId === affId && c.status === "available" && !c.payoutId);
-    const total = coms.reduce((a, c) => a + c.amountCents, 0);
-    if (total < st.settings.payoutMinimumCents) throw new Error("below_minimum");
+    const extras = st.ledgerExtras.filter((x) => x.affiliateId === affId && !x.settledBy);
+    const total = coms.reduce((a, c) => a + c.amountCents, 0) + extras.reduce((a, x) => a + x.amountCents, 0);
+    if (total <= 0 || total < st.settings.payoutMinimumCents) throw new Error("below_minimum");
     const p: DemoPayout = { id: id("pay"), ref: `PAY-${String(st.payouts.length + 1).padStart(4, "0")}`, affiliateId: affId, amountCents: total, status: "scheduled", scheduledFor: iso(now()).slice(0, 10), paidAt: null };
     st.payouts.push(p);
     for (const c of coms) c.payoutId = p.id;
+    for (const x of extras) x.settledBy = p.id;
     audit(s, "payout.create", "payout", p.ref, null, { amount_cents: total }, null);
   },
   async adminMarkPayoutPaid(s, pid, providerRef) {
@@ -847,7 +983,7 @@ export const demoRepo: Repo = {
     audit(s, "payout.paid", "payout", p.ref, { status: p.status }, { status: "paid", provider_ref: providerRef }, null);
     p.status = "paid"; p.paidAt = iso(now());
     for (const c of st.commissions.filter((x) => x.payoutId === p.id && x.status === "available")) applyCommissionEvent(c, { type: "payout_paid", at: p.paidAt });
-    st.activity.push({ id: id("act"), affiliateId: p.affiliateId, type: "commission_paid", occurredAt: p.paidAt, payload: { amount_cents: p.amountCents } });
+    st.activity.push({ id: id("act"), affiliateId: p.affiliateId, type: "payout_completed", occurredAt: p.paidAt, payload: { amount_cents: p.amountCents, currency: "EUR" } });
   },
   async adminListFraudFlags(s) { mustStaff(s); return db().fraud; },
   async adminReviewFraudFlag(s, fid, status, note) {

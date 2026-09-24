@@ -1,5 +1,6 @@
 import {
   MousePointerClick, UserRound, Inbox, CalendarCheck, Hourglass, CreditCard, BadgeCheck, Banknote, Repeat, UserMinus,
+  ShoppingCart, CircleSlash, ShieldAlert, AlertTriangle,
 } from "lucide-react";
 import type { Dictionary } from "@/i18n/types";
 import type { Locale } from "@/i18n/config";
@@ -18,7 +19,27 @@ const META: Record<ActivityType, { icon: typeof Inbox; tone: string }> = {
   commission_paid: { icon: Banknote, tone: "bg-success-soft text-success" },
   renewal: { icon: Repeat, tone: "bg-success-soft text-success" },
   customer_lost: { icon: UserMinus, tone: "bg-danger-soft text-danger" },
+  checkout_started: { icon: ShoppingCart, tone: "bg-accent-soft text-accent" },
+  commission_pending: { icon: Hourglass, tone: "bg-warning-soft text-warning" },
+  commission_available: { icon: BadgeCheck, tone: "bg-success-soft text-success" },
+  commission_reversed: { icon: CircleSlash, tone: "bg-danger-soft text-danger" },
+  commission_disputed: { icon: ShieldAlert, tone: "bg-warning-soft text-warning" },
+  payout_completed: { icon: Banknote, tone: "bg-success-soft text-success" },
+  renewal_confirmed: { icon: Repeat, tone: "bg-success-soft text-success" },
+  payment_failed: { icon: AlertTriangle, tone: "bg-danger-soft text-danger" },
 };
+
+/** Money first (in the event currency), then a non-personal detail. */
+function detailOf(p: Record<string, unknown>, locale: Locale): string | null {
+  const cur = typeof p.currency === "string" ? p.currency : "EUR";
+  for (const k of ["commission_cents", "amount_cents", "gross_cents"]) {
+    if (typeof p[k] === "number") return formatMoney(p[k] as number, locale, cur);
+  }
+  for (const k of ["profession", "sale_ref", "customer_ref", "source"]) {
+    if (typeof p[k] === "string" && p[k]) return p[k] as string;
+  }
+  return null;
+}
 
 /** Live activity. Payloads carry no unnecessary personal data (profession, refs, amounts only). */
 export function ActivityFeed({ events, t, locale }: { events: ActivityEvent[]; t: Dictionary; locale: Locale }) {
@@ -26,12 +47,8 @@ export function ActivityFeed({ events, t, locale }: { events: ActivityEvent[]; t
   return (
     <ul className="divide-y divide-line">
       {events.map((e) => {
-        const m = META[e.type];
-        const detail =
-          typeof e.payload.amount_cents === "number" ? formatMoney(e.payload.amount_cents, locale)
-          : typeof e.payload.profession === "string" ? e.payload.profession
-          : typeof e.payload.sale_ref === "string" ? e.payload.sale_ref
-          : typeof e.payload.source === "string" ? e.payload.source : null;
+        const m = META[e.type] ?? META.click;
+        const detail = detailOf(e.payload, locale);
         return (
           <li key={e.id} className="flex items-center gap-3 px-5 py-3 sm:px-6">
             <span className={cn("grid size-8 shrink-0 place-items-center rounded-full", m.tone)}><m.icon className="size-4" /></span>

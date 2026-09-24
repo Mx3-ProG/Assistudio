@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut } from "lucide-react";
+import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -19,6 +19,7 @@ export function AdminShell({ children, hasAffiliate }: { children: React.ReactNo
     { href: `${base}/affiliates`, label: A.affiliates, icon: Users },
     { href: `${base}/leads`, label: A.leads, icon: Inbox },
     { href: `${base}/sales`, label: A.sales, icon: ShoppingBag },
+    { href: `${base}/finance`, label: A.finance, icon: Landmark },
     { href: `${base}/commissions`, label: A.commissions, icon: Wallet },
     { href: `${base}/payouts`, label: A.payouts, icon: Banknote },
     { href: `${base}/fraud`, label: A.fraud, icon: ShieldAlert },

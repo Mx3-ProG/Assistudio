@@ -9,8 +9,12 @@ export type AffiliateStatus = "pending" | "approved" | "rejected" | "suspended";
 export type ProspectStage = "new" | "contacted" | "interested" | "appointment" | "proposal" | "won" | "lost";
 export type PayoutStatus = "scheduled" | "processing" | "paid" | "failed" | "cancelled";
 export type ActivityType =
-  | "click" | "visitor" | "lead" | "appointment" | "sale_pending" | "payment_confirmed"
-  | "commission_validated" | "commission_paid" | "renewal" | "customer_lost";
+  | "click" | "visitor" | "lead" | "appointment" | "checkout_started" | "sale_pending" | "payment_confirmed"
+  | "commission_pending" | "commission_validated" | "commission_available" | "commission_reversed"
+  | "commission_disputed" | "commission_paid" | "payout_completed" | "renewal" | "renewal_confirmed"
+  | "payment_failed" | "customer_lost";
+export type NotificationStatus = "unread" | "read" | "archived";
+export type SubscriptionStatus = "active" | "past_due" | "cancelled" | "expired" | "incomplete" | "unpaid" | "paused";
 export type FraudType =
   | "duplicate_lead" | "self_referral" | "suspicious_traffic" | "bot_traffic"
   | "abnormal_clicks" | "duplicate_account" | "commission_dispute" | "manual_review";
@@ -52,6 +56,10 @@ export interface Settings {
   payoutMinimumCents: number;
   leaderboardEnabled: boolean;
   autoApprove: boolean;
+  refundPartialPolicy: "manual_review" | "proportional" | "full_reversal";
+  billingEmailsOwner: "stripe" | "studio";
+  connectEnabled: boolean;
+  checkoutEnabled: boolean;
 }
 
 export interface Offer {
@@ -166,6 +174,7 @@ export interface SaleRow {
 
 export interface CommissionRow {
   id: string;
+  kind?: "new" | "renewal" | "upgrade" | "downgrade" | null;
   saleRef: string;
   customerRef: string;
   grossCents: number;
@@ -179,21 +188,63 @@ export interface CommissionRow {
   createdAt: string;
 }
 
+/** One attributed contract. Every "next"/"projected" value is a projection, never earned money. */
 export interface RecurringContract {
   subscriptionId: string;
   customerRef: string;
   customerName: string | null;
+  productName: string;
   startedAt: string;
   renewalDate: string;
   annualCents: number;
-  commissionCents: number;
-  status: "active" | "past_due" | "cancelled" | "expired";
+  currency: string;
+  status: SubscriptionStatus;
+  /** Cancellation scheduled: will not renew. */
+  cancelling: boolean;
+  ruleLabel: string | null;
+  ruleRate: number | null;
+  ruleDurationMonths: number | null;
+  nextCommissionEligible: boolean;
+  nextCommissionReason: string | null;
+  /** Potential commission on the next renewal payment (0 when not eligible). */
+  nextCommissionCents: number;
+  projected12mCents: number;
+  renewalsCount: number;
+  lastPaidAt: string | null;
 }
 
 export interface RecurringBook {
   contracts: RecurringContract[];
+  currency: string;
+  activeCount: number;
+  annualRevenueCents: number;
+  potentialRenewalCommissionsCents: number;
+  upcoming60dCount: number;
+  renewedCount: number;
+  cancelledCount: number;
   earnedCents: number;
-  potentialAnnualCents: number;
+}
+
+/** "What did I sell, generate, earn, get paid — and what might renew?" */
+export interface FinancialOverview {
+  currency: string;
+  /** Collected revenue of the affiliate's sales (refunded / charged-back sales excluded). */
+  revenueGeneratedCents: number;
+  balances: Balances;
+  recurringContracts: number;
+  /** Mathematical projection of known renewals over 12 months. NOT guaranteed. */
+  potentialNext12mCents: number;
+  latestSale: { ref: string; kind: "new" | "renewal" | "upgrade" | "downgrade"; grossCents: number; commissionCents: number | null; commissionStatus: CommissionStatus | null; at: string } | null;
+}
+
+export interface ConnectStatus {
+  enabled: boolean;
+  providerConfigured: boolean;
+  accountConnected: boolean;
+  onboardingStatus: "not_started" | "pending" | "complete" | "restricted";
+  payoutsEnabled: boolean;
+  requirementsStatus: string | null;
+  updatedAt: string | null;
 }
 
 export interface Payout {
@@ -213,6 +264,7 @@ export interface Notification {
   params: Record<string, string | number>;
   href: string | null;
   readAt: string | null;
+  status: NotificationStatus;
   createdAt: string;
 }
 
@@ -262,6 +314,8 @@ export interface LeadInput {
 
 export interface ClickInput {
   affiliateId: string;
+  /** Code the visitor came through (link code or affiliate code). */
+  referralCode?: string;
   linkId: string | null;
   campaignId: string | null;
   privatePageId: string | null;
@@ -306,6 +360,52 @@ export interface AdminAffiliateRow {
 export interface AdminCommissionRow extends CommissionRow {
   affiliateId: string;
   affiliateName: string;
+  kind: "new" | "renewal" | "upgrade" | "downgrade" | null;
+  currency: string;
+  disputeReason: string | null;
+  recoveryStatus: "required" | "recovered" | "written_off" | null;
+}
+
+export interface AdminFinanceFilters {
+  from?: string | null;
+  to?: string | null;
+  affiliateId?: string | null;
+  productId?: string | null;
+  status?: string | null;
+  country?: string | null;
+  campaignId?: string | null;
+  currency?: string;
+}
+
+export interface AdminFinanceSummary {
+  currency: string;
+  grossRevenueCents: number;
+  attributedRevenueCents: number;
+  salesCount: number;
+  renewalsCount: number;
+  pendingCommissionsCents: number;
+  disputedCommissionsCents: number;
+  availableCommissionsCents: number;
+  paidCommissionsCents: number;
+  reversedCommissionsCents: number;
+  recoveryRequiredCount: number;
+  refundsCents: number;
+  chargebacksCount: number;
+  chargebacksCents: number;
+  openDisputesCount: number;
+  activeSubscriptions: number;
+  upcomingRenewals60d: number;
+  cancellingSubscriptions: number;
+  webhooksFailed: number;
+  webhooksLastReceivedAt: string | null;
+  emailsFailed: number;
+}
+
+export interface AdminFinanceOptions {
+  affiliates: { id: string; name: string }[];
+  products: { id: string; name: string }[];
+  campaigns: { id: string; name: string }[];
+  countries: string[];
 }
 
 export interface AdminSaleRow extends SaleRow {

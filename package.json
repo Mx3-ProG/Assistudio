@@ -1,6 +1,6 @@
 {
   "name": "studio-affiliate-platform",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,11 @@
     "db:seed:generate": "node scripts/generate-seed.ts",
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked > src/lib/supabase/database.types.ts",
-    "db:test": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/pipeline_test.sql"
+    "db:test": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/pipeline_test.sql -f supabase/tests/stripe_pipeline_test.sql",
+    "db:test:local": "PATH=\"$(brew --prefix postgresql@16 2>/dev/null)/bin:$PATH\" ./supabase/tests/harness/run.sh",
+    "stripe:setup": "node scripts/stripe-setup.ts",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
+    "check": "npm run typecheck && npm run lint && npm test && npm run db:test:local"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

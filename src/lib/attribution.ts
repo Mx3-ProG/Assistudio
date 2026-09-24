@@ -12,7 +12,8 @@ export const VISITOR_COOKIE = "studio_vid";
 /** Technical lifetime of the cookie. The business window is enforced server-side. */
 export const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
 
-export type AttributionModel = "first_click" | "last_click";
+/** `manual`: no automatic cookie attribution — explicit context (private page) or staff only. */
+export type AttributionModel = "first_click" | "last_click" | "manual";
 
 export interface Touch {
   /** Affiliate referral code (?ref=) */
@@ -76,7 +77,7 @@ export function resolveAttribution(
   windowDays: number,
   now: Date = new Date(),
 ): Touch | null {
-  if (!cookie) return null;
+  if (!cookie || model === "manual") return null;
   const touch = model === "first_click" ? cookie.first : cookie.last;
   const age = now.getTime() - new Date(touch.at).getTime();
   if (Number.isNaN(age) || age < 0 || age > windowDays * 86_400_000) return null;

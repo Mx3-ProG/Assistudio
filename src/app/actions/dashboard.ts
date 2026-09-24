@@ -134,6 +134,16 @@ export async function markNotificationsRead() {
   refresh();
 }
 
+/** Unread / read / archived. The row is always scoped to the session user (and RLS). */
+export async function setNotificationStatus(form: FormData) {
+  const s = await getSession();
+  if (!s) throw new Error("Unauthorized");
+  const id = z.string().min(1).max(64).parse(form.get("id"));
+  const status = z.enum(["unread", "read", "archived"]).parse(form.get("status"));
+  await repo().setNotificationStatus(s, id, status);
+  refresh();
+}
+
 export async function updateProfile(_: FormState, form: FormData): Promise<FormState> {
   const s = await getSession();
   if (!s) throw new Error("Unauthorized");

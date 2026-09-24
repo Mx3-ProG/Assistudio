@@ -142,6 +142,7 @@ export function StudioContent({ t, locale, priceCents, page, referrerName, marke
               ))}
             </ul>
             <a href="#request" className="mt-8 flex h-12 items-center justify-center rounded-full bg-fg text-[15px] font-medium text-bg hover:opacity-90">{cta}</a>
+            <a href={`/${locale}/buy${page ? `?page=${page}` : ""}`} className="mt-3 flex h-12 items-center justify-center rounded-full border border-line bg-surface text-[15px] font-medium hover:bg-surface-2">{t.checkout.title}</a>
             <p className="mt-4 text-center text-[12px] text-muted">{s.pricingNote}</p>
           </div>
         </div>
