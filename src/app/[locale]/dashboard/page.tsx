@@ -13,6 +13,8 @@ import { LinkButton } from "@/components/ui/button";
 import { EarningsChart } from "@/components/dashboard/earnings-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { GoalCard } from "@/components/dashboard/goal-card";
+import { QuickActions } from "@/components/sales-center/quick-actions";
+import { salesContext } from "@/lib/sales/server";
 
 function greeting(t: Awaited<ReturnType<typeof getDictionary>>, name: string) {
   const h = new Date().getHours();
@@ -25,7 +27,7 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
   const { locale } = (await params) as { locale: Locale };
   const s = await requireAffiliate(locale);
   const t = await getDictionary(locale);
-  const [o, offer, fin] = await Promise.all([repo().getOverview(s, "all"), repo().getOffer(), repo().getFinancialOverview(s)]);
+  const [o, offer, fin, sales] = await Promise.all([repo().getOverview(s, "all"), repo().getOffer(), repo().getFinancialOverview(s), salesContext(s, locale)]);
   const b = fin.balances;
   const cur = fin.currency;
   const first = (s.displayName || s.fullName).split(" ")[0];
@@ -65,6 +67,12 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
         </Link>
       )}
       {s.affiliate.status === "pending" && <Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice>}
+
+      <section className="grid gap-3 md:grid-cols-2">
+        <Link href={`${base}/sales-center`} className="card group p-5 transition hover:-translate-y-0.5 hover:shadow-md sm:p-6"><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">{t.sc.home.sell}</p><h2 className="mt-2 text-[22px] font-semibold">{t.sc.title}</h2><p className="mt-1 text-[14px] text-muted">{t.sc.subtitle}</p><span className="mt-5 flex items-center gap-1 text-[13px] font-medium text-accent">{t.sc.startSelling}<ArrowRight className="flip-rtl size-4"/></span></Link>
+        <Link href={`${base}/commissions`} className="card group p-5 transition hover:-translate-y-0.5 hover:shadow-md sm:p-6"><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-success">{t.sc.home.earn}</p><h2 className="mt-2 text-[22px] font-semibold">{formatMoney(b.lifetimeEarnedCents,locale,cur)}</h2><p className="mt-1 text-[14px] text-muted">{t.sc.home.flow}</p><span className="mt-5 flex items-center gap-1 text-[13px] font-medium text-accent">{t.sc.quick.commissions}<ArrowRight className="flip-rtl size-4"/></span></Link>
+      </section>
+      <QuickActions link={sales.defaultLink} pageUrl={sales.pageForTarget(null) ? sales.urlForTarget(null) : null} />
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" aria-label={t.dash.nav.commissions}>
         {money.map((k, i) => (

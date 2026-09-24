@@ -9,6 +9,8 @@ import { PageHeader, Card, Notice } from "@/components/ui/primitives";
 import { SharePanel } from "@/components/dashboard/share-panel";
 import { SlugForm, PrivatePages } from "@/components/dashboard/link-forms";
 import { CopyButton } from "@/components/ui/copy-button";
+import { LinkForm } from "@/components/sales-center/link-form";
+import { marketContent } from "@/content/markets";
 
 /** Question: "Where is my traffic coming from?" */
 export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/link">) {
@@ -34,7 +36,7 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
 
   return (
     <>
-      <PageHeader title={t.dash.nav.link} subtitle={t.dash.link.subtitle} />
+      <PageHeader title={t.sc.links.title} subtitle={t.sc.links.subtitle} action={<LinkForm pages={pages.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, label: p.pathKey ?? p.slug }))} targets={markets.map((m) => ({ id: m.id, name: marketContent(m, locale).name }))} />} />
       {s.affiliate.status !== "approved" && <div className="mb-6"><Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice></div>}
       <SharePanel url={url} qrDataUrl={qr} />
       <Card className="mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:p-6">
@@ -53,6 +55,7 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
           </div>
         ))}
       </section>
+      {links.length > 0 && <Card className="mt-6 overflow-hidden"><ul className="divide-y divide-line">{links.map((l) => <li key={l.id} className="flex flex-wrap items-center gap-3 p-4"><div className="min-w-0 flex-1"><p className="font-medium">{l.name}</p><p className="truncate font-mono text-[12px] text-muted">{env.siteUrl}/s/{l.code}</p></div><span className="text-[12px] text-muted">{l.stats.uniqueVisitors} {t.sc.links.funnel.visitors} · {l.stats.conversions} {t.sc.links.funnel.sales}</span><CopyButton value={`${env.siteUrl}/s/${l.code}`} /></li>)}</ul></Card>}
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
         <Card className="p-5 sm:p-6"><SlugForm current={s.affiliate.slug} siteUrl={env.siteUrl} /></Card>
         <Card className="p-5 sm:p-6">

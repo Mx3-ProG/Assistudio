@@ -30,7 +30,15 @@ export async function createCampaign(_: FormState, form: FormData): Promise<Form
   const s = await affiliateSession();
   const name = z.string().trim().min(1).max(120).safeParse(form.get("name"));
   if (!name.success) return { error: "name" };
-  await repo().createCampaignLink(s, { name: name.data, source: str(form.get("source")), marketId: str(form.get("marketId")) });
+  const messageKey = str(form.get("messageKey"));
+  try {
+    await repo().createCampaignLink(s, {
+      name: name.data, source: str(form.get("source")), marketId: str(form.get("marketId")),
+      pageId: str(form.get("pageId")), messageKey: messageKey && /^[a-z0-9][a-z0-9_.:-]{0,79}$/.test(messageKey) ? messageKey : null,
+    });
+  } catch {
+    return { error: "invalid" };
+  }
   refresh();
   return { ok: true };
 }

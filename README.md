@@ -1,6 +1,6 @@
 # STUDIO — Affiliate Commerce Platform (V0.2)
 
-A premium platform to recruit, equip and pay an international network of partners who sell **one product: STUDIO (€3,000 / year, 50% recurring commission)**.
+A premium platform to recruit, equip and pay an international network of partners who sell **one product: STUDIO (€6,000 / year, 25% recurring direct commission + 5% direct-sponsor commission, uncapped)**.
 
 The critical pipeline — and the thing this V0 is built around:
 

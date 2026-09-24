@@ -2,24 +2,24 @@ import type { Locale } from "@/i18n/config";
 import { requireAffiliate } from "@/lib/auth";
 import { repo } from "@/lib/data";
 import { env } from "@/lib/env";
-import { computeCommissionCents } from "@/lib/commission";
-import { Onboarding } from "@/components/dashboard/onboarding";
+import { marketContent } from "@/content/markets";
+import { formatMoney } from "@/lib/money";
+import { salesContext, ofKind, salesPageUrl } from "@/lib/sales/server";
+import { SalesOnboarding } from "@/components/sales-center/sales-onboarding";
+import { getDictionary } from "@/i18n";
 
-/** First run: product → market → link → message → prospect, in under 5 minutes. */
+/** Seven-step first run: understand → target → pitch → page → message → prospect. */
 export default async function Welcome({ params }: PageProps<"/[locale]/dashboard/welcome">) {
   const { locale } = (await params) as { locale: Locale };
   const s = await requireAffiliate(locale);
-  const [markets, offer] = await Promise.all([repo().listMarkets(), repo().getOffer()]);
-  return (
-    <div className="py-4 sm:py-10">
-      <Onboarding
-        markets={markets}
-        link={`${env.siteUrl}/s/${s.affiliate.slug ?? s.affiliate.code}`}
-        priceCents={offer.priceCents}
-        commissionCents={computeCommissionCents(offer.priceCents, s.affiliate.commissionRate)}
-        startStep={s.affiliate.onboardingCompletedAt ? 0 : s.affiliate.onboardingStep}
-        pending={s.affiliate.status !== "approved"}
-      />
-    </div>
-  );
+  const [ctx, offer, t] = await Promise.all([salesContext(s, locale), repo().getOffer(), getDictionary(locale)]);
+  const knowledge = ofKind(ctx.content, "knowledge");
+  const productLine = knowledge.find((x) => x.body.section === "what_it_is")?.body.items[0]?.body ?? offer.productName;
+  const template = ofKind(ctx.content, "page_template")[0];
+  const pageBase = `${env.siteUrl}/a/${s.affiliate.slug ?? s.affiliate.code}`;
+  const existingPages = Object.fromEntries(ctx.pages.filter((p) => p.pathKey).map((p) => [ctx.markets.find((m) => m.id === p.marketId)?.slug ?? "", salesPageUrl(s.affiliate, p.pathKey)]));
+  return <div className="py-4 sm:py-10"><SalesOnboarding productLine={productLine} offerLine={`${formatMoney(offer.priceCents, locale, offer.currency)} ${t.sc.product.perInterval.year}`}
+    targets={ctx.markets.map((m) => ({ id: m.id, slug: m.slug, icon: m.icon, relevance: m.relevance ?? 3, c: marketContent(m, locale) }))}
+    messages={ofKind(ctx.content, "message")} templateKey={template?.key ?? null} pageBase={pageBase} existingPages={existingPages}
+    startStep={s.affiliate.onboardingCompletedAt ? 0 : s.affiliate.onboardingStep} pending={s.affiliate.status !== "approved"} advisorName={ctx.advisorName}/></div>;
 }

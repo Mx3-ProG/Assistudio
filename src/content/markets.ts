@@ -4,6 +4,7 @@
  * Rule: no invented revenue / ROI figures.
  */
 import type { Locale } from "@/i18n/config";
+import { salesTargets } from "./sales-center/targets.ts";
 
 export interface MarketContent {
   name: string;
@@ -13,6 +14,13 @@ export interface MarketContent {
   angle: string;
   message: string;
   searches: string[];
+  /** V0.3 Sales Center (optional: older markets may not have them yet). */
+  pains?: string[];
+  needs?: string[];
+  outcomes?: string[];
+  discovery?: string[];
+  /** What NOT to sell this target (e.g. "a small website"). */
+  avoid?: string;
 }
 
 export interface Market {
@@ -20,6 +28,8 @@ export interface Market {
   slug: string;
   icon: string;
   sort: number;
+  /** 1–5: how well STUDIO fits this target (admin-set). */
+  relevance?: number;
   content: Partial<Record<Locale, MarketContent>> & { en: MarketContent };
 }
 
@@ -31,7 +41,7 @@ const m = (slug: string, icon: string, sort: number, en: MarketContent, fr: Mark
   content: { en, fr },
 });
 
-export const defaultMarkets: Market[] = [
+const baseMarkets: Market[] = [
   m("photographers", "camera", 1,
     {
       name: "Photographers",
@@ -261,6 +271,8 @@ export const defaultMarkets: Market[] = [
       searches: ["traiteur événementiel [ville]", "lieu de réception [ville]", "agence événementielle [ville]"],
     }),
 ];
+
+export const defaultMarkets: Market[] = [...salesTargets, ...baseMarkets];
 
 export function marketContent(market: Market, locale: Locale): MarketContent {
   return market.content[locale] ?? market.content.en;

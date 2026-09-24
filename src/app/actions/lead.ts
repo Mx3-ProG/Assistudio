@@ -19,6 +19,8 @@ const schema = z.object({
   consent: z.literal("on"),
   locale: z.string(),
   page: z.string().optional().default(""),
+  requestType: z.enum(["info", "call", "question", "quote"]).optional(),
+  advisorConsent: z.string().optional().transform((v) => v === "on"),
   // Honeypot: real users never fill it.
   company_url: z.string().max(0).optional().default(""),
 });
@@ -83,6 +85,8 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
     firstClickAt: cookie?.first.at ?? null,
     lastClickAt: cookie?.last.at ?? null,
     utm: (touch?.utm ?? {}) as Record<string, string>,
+    requestType: d.requestType ?? null,
+    advisorConsent: d.advisorConsent,
   });
   return { status: "success" };
 }

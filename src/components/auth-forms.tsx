@@ -103,7 +103,7 @@ export function LoginForm({ demo, next }: { demo: boolean; next?: string }) {
   );
 }
 
-export function RegisterForm({ demo }: { demo: boolean }) {
+export function RegisterForm({ demo, sponsorCode, sponsorName }: { demo: boolean; sponsorCode?: string | null; sponsorName?: string | null }) {
   const { t, locale } = useI18n();
   const [state, action, pending] = useActionState<AuthState, FormData>(signUp, { status: "idle" });
   return (
@@ -111,6 +111,8 @@ export function RegisterForm({ demo }: { demo: boolean }) {
       {state.status === "sent" ? <Sent /> : demo ? <Notice>{t.auth.demoBody}</Notice> : (
         <form action={action} className="grid gap-4">
           <input type="hidden" name="locale" value={locale} />
+          {sponsorCode && <input type="hidden" name="sponsorCode" value={sponsorCode} />}
+          {sponsorCode && <Notice>{sponsorName ? t.auth.sponsorInvite.replace("{name}", sponsorName) : t.auth.sponsorInviteGeneric}</Notice>}
           <Field label={t.auth.fullName}><input name="fullName" required autoComplete="name" className={inputClass} /></Field>
           <Field label={t.auth.email}><input name="email" type="email" required autoComplete="email" className={inputClass} /></Field>
           <Field label={t.auth.password} hint="10+"><input name="password" type="password" required minLength={10} autoComplete="new-password" className={inputClass} /></Field>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the SQL test suites against a throwaway local Postgres cluster:
-#   stub (auth schema, roles) → every migration in order → every *_test.sql.
+#   stub (auth schema, roles) → every migration in order → seed → every *_test.sql.
 # Nothing touches a real database. Requires a local Postgres ≥ 15 (initdb, pg_ctl, psql).
 #
 #   npm run db:test:local
@@ -33,6 +33,9 @@ for m in "$ROOT"/supabase/migrations/*.sql; do
   echo "migrate  $(basename "$m")"
   "${PSQL[@]}" -f "$m" >/dev/null
 done
+
+echo "seed     seed.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/seed.sql" >/dev/null
 
 failed=0
 for t in "$ROOT"/supabase/tests/*_test.sql; do

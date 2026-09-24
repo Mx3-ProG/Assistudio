@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Camera, Gem, Video, Ruler, Sofa, Hammer, CookingPot, Leaf, Waves, Briefcase, Users, Sparkles, X, ArrowUpRight,
+  Wrench, Car, HardHat, HeartPulse, Megaphone, Store, User, Handshake,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -10,6 +11,7 @@ import { marketContent, type Market } from "@/content/markets";
 const ICONS: Record<string, typeof Camera> = {
   camera: Camera, rings: Gem, video: Video, ruler: Ruler, sofa: Sofa, hammer: Hammer, kitchen: CookingPot,
   leaf: Leaf, waves: Waves, briefcase: Briefcase, users: Users, sparkles: Sparkles,
+  wrench: Wrench, car: Car, hardhat: HardHat, health: HeartPulse, megaphone: Megaphone, store: Store, user: User, handshake: Handshake,
 };
 export function MarketIcon({ name, className }: { name: string; className?: string }) {
   const Icon = ICONS[name] ?? Sparkles;

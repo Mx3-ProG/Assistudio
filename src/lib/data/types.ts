@@ -3,10 +3,12 @@ import type { AttributionModel } from "@/lib/attribution";
 import type { Market } from "@/content/markets";
 import type { SalesAsset } from "@/content/sales-kit";
 import type { Locale } from "@/i18n/config";
+import type { ContentKind, Channel, FunnelStage, CtaMode } from "@/lib/sales/content";
 
 export type Role = "super_admin" | "admin" | "affiliate_manager" | "agency" | "sales_closer" | "affiliate";
 export type AffiliateStatus = "pending" | "approved" | "rejected" | "suspended";
-export type ProspectStage = "new" | "contacted" | "interested" | "appointment" | "proposal" | "won" | "lost";
+/** "interested" is legacy (V0.1): migrated to "qualified", never offered anymore. */
+export type ProspectStage = "new" | "contacted" | "replied" | "qualified" | "interested" | "appointment" | "proposal" | "checkout" | "won" | "lost";
 export type PayoutStatus = "scheduled" | "processing" | "paid" | "failed" | "cancelled";
 export type ActivityType =
   | "click" | "visitor" | "lead" | "appointment" | "checkout_started" | "sale_pending" | "payment_confirmed"
@@ -20,7 +22,7 @@ export type FraudType =
   | "abnormal_clicks" | "duplicate_account" | "commission_dispute" | "manual_review";
 export type FraudStatus = "open" | "reviewing" | "dismissed" | "confirmed";
 
-export const PROSPECT_STAGES: ProspectStage[] = ["new", "contacted", "interested", "appointment", "proposal", "won", "lost"];
+export const PROSPECT_STAGES: ProspectStage[] = ["new", "contacted", "replied", "qualified", "appointment", "proposal", "checkout", "won", "lost"];
 export const STAFF_ROLES: Role[] = ["super_admin", "admin"];
 
 export interface Session {
@@ -47,6 +49,7 @@ export interface Affiliate {
   payoutProvider: string | null;
   payoutAccountRef: string | null;
   createdAt: string;
+  sponsorId: string | null;
 }
 
 export interface Settings {
@@ -106,6 +109,8 @@ export interface TrackingLink {
   isDefault: boolean;
   createdAt: string;
   stats: LinkStats;
+  pageId?: string | null;
+  channel?: string | null;
 }
 
 export interface LinkStats {
@@ -131,6 +136,88 @@ export interface PrivatePage {
   isActive: boolean;
   viewCount: number;
   createdAt: string;
+  // V0.3 — affiliate sales pages (/a/{affiliate}/{pathKey})
+  pathKey: string | null;
+  templateKey: string | null;
+  angleKey: string | null;
+  productId: string | null;
+  ctaMode: CtaMode;
+  showAdvisor: boolean;
+  advisor: Record<string, string>;
+  indexable: boolean;
+  archivedAt: string | null;
+}
+
+export interface SalesPageInput {
+  marketId: string | null;
+  pathKey: string;
+  locale: Locale;
+  templateKey: string;
+  angleKey: string | null;
+  ctaMode: CtaMode;
+  showAdvisor: boolean;
+  advisor: Record<string, string>;
+  campaignId: string | null;
+}
+
+/** Funnel row from public.affiliate_performance — each stage from its own source. */
+export interface PerformanceRow {
+  dimension: "total" | "page" | "link" | "campaign";
+  refId: string | null;
+  clicks: number;
+  visitors: number;
+  ctaClicks: number;
+  leads: number;
+  checkouts: number;
+  sales: number;
+  revenueCents: number;
+  /** Non-reversed commissions, INCLUDING pending ones (see commissionPendingCents). */
+  commissionCents: number;
+  commissionPendingCents: number;
+}
+
+export interface ProductView {
+  id: string;
+  slug: string;
+  name: string;
+  active: boolean;
+  offer: { priceCents: number; currency: string; interval: "month" | "year" | "one_time"; checkoutReady: boolean } | null;
+}
+
+export interface SalesEventInput {
+  event: "cta_click" | "content_view" | "content_copy" | "page_share" | "start_selling" | "playbook_open";
+  affiliateId: string | null;
+  visitorId?: string | null;
+  privatePageId?: string | null;
+  linkId?: string | null;
+  campaignId?: string | null;
+  contentKind?: string | null;
+  contentKey?: string | null;
+  targetKey?: string | null;
+  channel?: string | null;
+  meta?: Record<string, string | number | boolean>;
+}
+
+export interface SalesContentInput {
+  kind: ContentKind;
+  key: string;
+  locale: Locale;
+  title: string;
+  summary: string | null;
+  targetKey: string | null;
+  channel: Channel | null;
+  stage: FunnelStage | null;
+  tags: string[];
+  sort: number;
+  body: unknown;
+}
+
+export interface SalesAnalytics {
+  content: { kind: string; key: string; views: number; copies: number; affiliates: number }[];
+  targets: { target: string; pages: number; visitors: number; leads: number }[];
+  pages: { id: string; slug: string; path_key: string | null; template_key: string | null; target: string | null; cta_mode: string; visitors: number; leads: number; checkouts: number; sales: number }[];
+  campaigns: { id: string; name: string; source: string | null; target: string | null; leads: number; sales: number }[];
+  objections: { key: string; views: number }[];
 }
 
 export interface Prospect {
@@ -150,9 +237,11 @@ export interface Prospect {
   nextActionAt: string | null;
   potentialValueCents: number | null;
   createdAt: string;
+  stageChangedAt?: string | null;
+  leadId?: string | null;
 }
 
-export type ProspectInput = Omit<Prospect, "id" | "createdAt">;
+export type ProspectInput = Omit<Prospect, "id" | "createdAt" | "stageChangedAt" | "leadId">;
 
 export interface SaleRow {
   id: string;
@@ -294,6 +383,23 @@ export interface ReferralTarget {
   active: boolean;
 }
 
+export interface ReferralDashboard {
+  code: string;
+  slug: string | null;
+  sponsor: { name: string } | null;
+  recruits: {
+    id: string;
+    name: string;
+    status: AffiliateStatus;
+    joinedAt: string;
+    sales: number;
+    commissionCents: number;
+  }[];
+  totalCommissionCents: number;
+  pendingCommissionCents: number;
+  availableCommissionCents: number;
+}
+
 export interface LeadInput {
   fullName: string;
   company: string | null;
@@ -312,6 +418,10 @@ export interface LeadInput {
   firstClickAt: string | null;
   lastClickAt: string | null;
   utm: Record<string, string>;
+  /** V0.3: what the visitor asked for on a sales page. */
+  requestType?: "info" | "call" | "question" | "quote" | null;
+  /** V0.3: explicit consent to be contacted by the page's advisor → lead reaches the affiliate CRM. */
+  advisorConsent?: boolean;
 }
 
 export interface ClickInput {

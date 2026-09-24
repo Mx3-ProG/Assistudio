@@ -9,7 +9,7 @@ import { Field, inputClass, Notice } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
 import { MarketIcon } from "@/components/marketing/markets-grid";
 import { marketContent, type Market } from "@/content/markets";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, formatPercent } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
 export function Onboarding({ markets, link, priceCents, commissionCents, startStep, pending }: {
@@ -74,7 +74,7 @@ export function Onboarding({ markets, link, priceCents, commissionCents, startSt
           <>
             <p className="mt-2 text-[15px] text-fg-2">{O.productBody}</p>
             <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-              {[[formatMoney(priceCents, locale), t.home.statPriceLabel], ["50%", t.home.statRateLabel], [formatMoney(commissionCents, locale), t.dash.product.potential]].map(([v, l]) => (
+              {[[formatMoney(priceCents, locale), t.home.statPriceLabel], [priceCents ? formatPercent(commissionCents / priceCents, locale, 0) : "—", t.home.statRateLabel], [formatMoney(commissionCents, locale), t.dash.product.potential]].map(([v, l]) => (
                 <div key={l} className="rounded-2xl bg-surface-2 p-4">
                   <div className="tabular text-[20px] font-semibold sm:text-[24px]">{v}</div>
                   <div className="mt-1 text-[11px] text-muted sm:text-[12px]">{l}</div>

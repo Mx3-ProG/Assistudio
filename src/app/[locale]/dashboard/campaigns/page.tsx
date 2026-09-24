@@ -9,18 +9,19 @@ import { marketContent } from "@/content/markets";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui/primitives";
 import { CopyButton } from "@/components/ui/copy-button";
 import { CampaignForm } from "@/components/dashboard/campaign-form";
+import { salesContext, ofKind } from "@/lib/sales/server";
 
 export default async function Campaigns({ params }: PageProps<"/[locale]/dashboard/campaigns">) {
   const { locale } = (await params) as { locale: Locale };
   const s = await requireAffiliate(locale);
   const t = await getDictionary(locale);
-  const [links, markets] = await Promise.all([repo().listLinks(s), repo().listMarkets()]);
+  const [links, markets, ctx] = await Promise.all([repo().listLinks(s), repo().listMarkets(), salesContext(s, locale)]);
   const c = t.dash.campaigns;
 
   return (
     <>
       <PageHeader title={c.title} subtitle={c.subtitle} />
-      <div className="mb-6"><CampaignForm markets={markets} /></div>
+      <div className="mb-6"><CampaignForm markets={markets} pages={ctx.pages.map((p) => ({ id: p.id, label: p.pathKey ?? p.slug }))} messages={ofKind(ctx.content, "message").map((m) => ({ key: m.key, title: m.title }))} /></div>
       <Card className="overflow-hidden">
         {links.length === 0 ? (
           <EmptyState icon={<Megaphone className="size-5" />} title={c.empty} />

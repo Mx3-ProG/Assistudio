@@ -10,6 +10,8 @@ import { computeCommissionCents } from "@/lib/commission";
 import { Navbar } from "@/components/marketing/navbar";
 import { HeroScene } from "@/components/marketing/hero-scene";
 import { EarningsLadder } from "@/components/marketing/earnings-ladder";
+import { SuccessStories } from "@/components/marketing/success-stories";
+import { UncappedBand } from "@/components/marketing/uncapped-band";
 import { ProductMockup } from "@/components/marketing/product-mockup";
 import { MarketsGrid } from "@/components/marketing/markets-grid";
 import { LinkButton } from "@/components/ui/button";
@@ -100,6 +102,24 @@ export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
             <EarningsLadder priceCents={offer.priceCents} rate={offer.commissionRate} />
           </div>
           <p className="mx-auto mt-5 max-w-2xl text-center text-[12px] leading-relaxed text-muted">{t.common.illustrationOnly}</p>
+        </section>
+
+        {/* ---------------------------------------------------------------- STORIES */}
+        <section id="stories" className="scroll-mt-20 bg-surface-2/60 py-20 sm:py-28">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-2xl">
+              <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-accent">{t.home.storiesEyebrow}</p>
+              <h2 className="display mt-3 text-[36px] sm:text-[56px]">{t.home.storiesTitle}</h2>
+              <p className="mt-4 text-[17px] text-muted sm:text-[19px]">{t.home.storiesSubtitle}</p>
+            </div>
+            <SuccessStories t={t} locale={locale} priceCents={offer.priceCents} rate={offer.commissionRate} />
+            <p className="mt-6 max-w-3xl text-[12px] leading-relaxed text-muted">{t.home.storiesDisclaimer}</p>
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------------- UNCAPPED */}
+        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+          <UncappedBand t={t} locale={locale} rate={offer.commissionRate} />
         </section>
 
         {/* ---------------------------------------------------------------- HOW */}

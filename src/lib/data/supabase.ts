@@ -7,10 +7,12 @@ import { assetsFor, type SalesAsset } from "@/content/sales-kit";
 import { resolveLocale } from "@/i18n/config";
 import { isValidCode } from "@/lib/attribution";
 import type { Repo, Range } from "./repo";
+import type { SalesContent } from "@/lib/sales/content";
 import { summarizeBook } from "./book";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
+  PerformanceRow, ProductView, SalesAnalytics,
 } from "./types";
 
 const DAY = 86_400_000;
@@ -31,6 +33,7 @@ const toProspect = (r: any): Prospect => ({
   website: r.website, notes: r.notes, source: r.source, campaignId: r.campaign_id, marketId: r.market_id,
   stage: r.stage, nextAction: r.next_action, nextActionAt: r.next_action_at,
   potentialValueCents: r.potential_value_cents, createdAt: r.created_at,
+  stageChangedAt: r.stage_changed_at ?? null, leadId: r.lead_id ?? null,
 });
 const fromProspect = (p: Partial<Prospect>) => {
   const out: Record<string, unknown> = {};
@@ -47,7 +50,20 @@ const toPage = (r: any): PrivatePage => ({
   id: r.id, slug: r.slug, affiliateId: r.affiliate_id, marketId: r.market_id, campaignId: r.campaign_id,
   locale: resolveLocale(r.locale) ?? "en", pitchVariant: r.pitch_variant, ctaVariant: r.cta_variant,
   displayName: r.display_name, visibility: r.visibility, isActive: r.is_active, viewCount: r.view_count, createdAt: r.created_at,
+  pathKey: r.path_key ?? null, templateKey: r.template_key ?? null, angleKey: r.angle_key ?? null, productId: r.product_id ?? null,
+  ctaMode: r.cta_mode ?? "lead", showAdvisor: !!r.show_advisor, advisor: r.advisor ?? {}, indexable: !!r.indexable, archivedAt: r.archived_at ?? null,
 });
+const toContent = (r: any): SalesContent => ({
+  id: r.id, kind: r.kind, key: r.key, locale: r.locale, version: r.version, status: r.status, productId: r.product_id,
+  targetKey: r.target_key, channel: r.channel, stage: r.stage, title: r.title, summary: r.summary, body: r.body,
+  tags: r.tags ?? [], sort: r.sort, publishedAt: r.published_at, updatedAt: r.updated_at,
+});
+const fromPageInput = (i: import("./types").SalesPageInput) => ({
+  market_id: i.marketId, path_key: i.pathKey, locale: i.locale, template_key: i.templateKey, angle_key: i.angleKey,
+  cta_mode: i.ctaMode, show_advisor: i.showAdvisor, advisor: i.advisor, campaign_id: i.campaignId,
+  cta_variant: i.ctaMode === "call" ? "call" : "request", visibility: "unlisted",
+});
+const CONTENT_COLS = "id, kind, key, locale, version, status, product_id, target_key, channel, stage, title, summary, body, tags, sort, published_at, updated_at";
 const toCommission = (r: any): CommissionRow => ({
   id: r.id, kind: r.kind ?? null, saleRef: r.sales?.public_ref ?? "—", customerRef: r.sales?.customer_ref ?? "—",
   grossCents: r.base_amount_cents, amountCents: r.amount_cents, status: r.status, validatedAt: r.validated_at,
@@ -106,7 +122,57 @@ export const supabaseRepo: Repo = {
     const sb = supabaseService();
     const rows = check(await sb.from("markets").select("*").eq("is_active", true).order("sort")) as any[];
     if (!rows.length) return defaultMarkets;
-    return rows.map((r) => ({ id: r.id, slug: r.slug, icon: r.icon ?? "sparkles", sort: r.sort, content: r.content }));
+    return rows.map((r) => ({ id: r.id, slug: r.slug, icon: r.icon ?? "sparkles", sort: r.sort, relevance: r.relevance ?? 3, content: r.content }));
+  },
+
+  async listProducts(): Promise<ProductView[]> {
+    const sb = supabaseService();
+    const rows = check(await sb.from("products").select("id, slug, name, is_active, offers(price_cents, currency, billing_interval, is_active, valid_from, stripe_lookup_key)")
+      .is("deleted_at", null).order("sort")) as any[];
+    return rows.map((p) => {
+      const o = (p.offers ?? []).filter((x: any) => x.is_active).sort((a: any, b: any) => b.valid_from.localeCompare(a.valid_from))[0];
+      return {
+        id: p.id, slug: p.slug, name: p.name, active: p.is_active,
+        offer: o ? { priceCents: o.price_cents, currency: o.currency, interval: o.billing_interval, checkoutReady: !!o.stripe_lookup_key } : null,
+      };
+    });
+  },
+
+  async getSalesPage(affiliate, pathKey) {
+    const sb = supabaseService();
+    const key = affiliate.trim();
+    if (!isValidCode(key)) return null;
+    const aff = check(await sb.from("affiliates").select("id, code").or(`code.eq.${key.toUpperCase()},slug.eq.${key.toLowerCase()}`).is("deleted_at", null).maybeSingle()) as any;
+    if (!aff) return null;
+    const r = check(await sb.from("private_sales_pages").select("*").eq("affiliate_id", aff.id).eq("path_key", pathKey ?? "general")
+      .eq("is_active", true).is("archived_at", null).maybeSingle()) as any;
+    if (!r) return null;
+    const referral = await supabaseRepo.resolveReferral(aff.code);
+    return referral ? { ...toPage(r), referral } : null;
+  },
+
+  async listPublishedContent(kinds) {
+    const sb = supabaseService();
+    return (check(await sb.from("sales_content").select(CONTENT_COLS).eq("status", "active").in("kind", kinds).order("sort")) as any[]).map(toContent);
+  },
+
+  async recordSalesEvent(e) {
+    const { error } = await supabaseService().from("sales_events").insert({
+      event: e.event, affiliate_id: e.affiliateId, visitor_id: e.visitorId ?? null, private_page_id: e.privatePageId ?? null,
+      link_id: e.linkId ?? null, campaign_id: e.campaignId ?? null, content_kind: e.contentKind ?? null, content_key: e.contentKey ?? null,
+      target_key: e.targetKey ?? null, channel: e.channel ?? null, meta: e.meta ?? {},
+    });
+    if (error) console.error(JSON.stringify({ level: "warn", scope: "sales_events", message: error.message }));
+  },
+
+  async getSalesSettings() {
+    const sb = supabaseService();
+    const rows = check(await sb.from("settings").select("key, value").in("key", ["crm.follow_up_days", "crm.checkout_check_in_days", "sales_pages.allow_indexing", "sales_pages.advisor_enabled"])) as any[];
+    const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    return {
+      followUpDays: Number(v["crm.follow_up_days"] ?? 3), checkoutCheckInDays: Number(v["crm.checkout_check_in_days"] ?? 2),
+      allowIndexing: v["sales_pages.allow_indexing"] === true, advisorEnabled: v["sales_pages.advisor_enabled"] !== false,
+    };
   },
 
   async resolveReferral(codeOrSlug) {
@@ -186,6 +252,7 @@ export const supabaseRepo: Repo = {
       visitor_id: i.visitorId, attribution_model: i.attributionModel, first_click_at: i.firstClickAt, last_click_at: i.lastClickAt,
       utm: i.utm, full_name: i.fullName, company: i.company, profession: i.profession, email: i.email, phone: i.phone,
       website: i.website, message: i.message, locale: i.locale, consent_at: new Date().toISOString(),
+      request_type: i.requestType ?? null, advisor_consent_at: i.advisorConsent ? new Date().toISOString() : null,
     }).select("id").single()) as any;
     return { id: row.id };
   },
@@ -198,10 +265,10 @@ export const supabaseRepo: Repo = {
     const profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
     if (!profile || profile.deleted_at) return null;
     const aff = check(await sb.from("affiliates").select("*").eq("profile_id", user.id).maybeSingle()) as any;
-    let rate = 0.5;
+    let rate = 0.25;
     if (aff) {
       const offer = await supabaseRepo.getOffer().catch(() => null);
-      rate = aff.commission_rate_override != null ? Number(aff.commission_rate_override) : offer?.commissionRate ?? 0.5;
+      rate = aff.commission_rate_override != null ? Number(aff.commission_rate_override) : offer?.commissionRate ?? 0.25;
     }
     return {
       userId: user.id, email: user.email ?? "", role: profile.role, fullName: profile.full_name ?? "",
@@ -212,6 +279,7 @@ export const supabaseRepo: Repo = {
         onboardingStep: aff.onboarding_step, onboardingCompletedAt: aff.onboarding_completed_at,
         monthlyGoalSales: aff.monthly_goal_sales, payoutProvider: aff.payout_provider,
         payoutAccountRef: aff.payout_account_ref ? "connected" : null, createdAt: aff.created_at,
+        sponsorId: aff.sponsor_id ?? null,
       },
     };
   },
@@ -300,19 +368,22 @@ export const supabaseRepo: Repo = {
 
   async listLinks(s) {
     const sb = await supabaseServer();
-    const rows = check(await sb.from("affiliate_links").select("*, campaigns(name, source, market_id)").eq("affiliate_id", mustAffiliate(s)).eq("is_default", false).is("archived_at", null).order("created_at", { ascending: false })) as any[];
+    const rows = check(await sb.from("affiliate_links").select("*, campaigns(name, source, market_id, private_page_id)").eq("affiliate_id", mustAffiliate(s)).eq("is_default", false).is("archived_at", null).order("created_at", { ascending: false })) as any[];
     return Promise.all(rows.map(async (r): Promise<TrackingLink> => ({
       id: r.id, code: r.code, name: r.name, campaignId: r.campaign_id, campaignName: r.campaigns?.name ?? null,
-      source: r.campaigns?.source ?? null, marketId: r.campaigns?.market_id ?? null, isDefault: false, createdAt: r.created_at,
+      source: r.campaigns?.source ?? r.channel ?? null, marketId: r.campaigns?.market_id ?? r.market_id ?? null, isDefault: false, createdAt: r.created_at,
       stats: await linkStats(sb, { link_id: r.id }),
+      pageId: r.private_page_id ?? r.campaigns?.private_page_id ?? null, channel: r.channel ?? r.campaigns?.source ?? null,
     })));
   },
 
   async createCampaignLink(s, input) {
     const aff = mustAffiliate(s);
     const sb = await supabaseServer();
-    const c = check(await sb.from("campaigns").insert({ affiliate_id: aff, name: input.name, source: input.source, market_id: input.marketId }).select("id").single()) as any;
-    const l = check(await sb.from("affiliate_links").insert({ affiliate_id: aff, campaign_id: c.id, name: input.name }).select("*").single()) as any;
+    const c = check(await sb.from("campaigns").insert({ affiliate_id: aff, name: input.name, source: input.source, market_id: input.marketId,
+      private_page_id: input.pageId ?? null, message_key: input.messageKey ?? null }).select("id").single()) as any;
+    const l = check(await sb.from("affiliate_links").insert({ affiliate_id: aff, campaign_id: c.id, name: input.name, private_page_id: input.pageId ?? null,
+      destination: input.pageId ? "private_page" : "studio", channel: input.source, market_id: input.marketId }).select("*").single()) as any;
     return { id: l.id, code: l.code, name: l.name, campaignId: c.id, campaignName: input.name, source: input.source, marketId: input.marketId, isDefault: false, createdAt: l.created_at, stats: { clicks: 0, uniqueVisitors: 0, leads: 0, conversions: 0, revenueCents: 0, commissionCents: 0 } };
   },
 
@@ -470,12 +541,93 @@ export const supabaseRepo: Repo = {
     };
   },
 
+  async getReferralDashboard(s) {
+    mustAffiliate(s);
+    const sb = await supabaseServer();
+    const r = check(await sb.rpc("affiliate_referral_dashboard")) as any;
+    return {
+      code: r.code,
+      slug: r.slug ?? null,
+      sponsor: r.sponsor ? { name: r.sponsor.name } : null,
+      recruits: (r.recruits ?? []).map((x: any) => ({
+        id: x.id, name: x.name, status: x.status, joinedAt: x.joinedAt,
+        sales: Number(x.sales ?? 0), commissionCents: Number(x.commissionCents ?? 0),
+      })),
+      totalCommissionCents: Number(r.totalCommissionCents ?? 0),
+      pendingCommissionCents: Number(r.pendingCommissionCents ?? 0),
+      availableCommissionCents: Number(r.availableCommissionCents ?? 0),
+    };
+  },
+
   async listSalesAssets(_s, locale): Promise<SalesAsset[]> {
     const sb = await supabaseServer();
     const rows = check(await sb.from("sales_assets").select("*").eq("is_active", true).in("locale", [locale, "en"]).order("sort")) as any[];
     if (!rows.length) return assetsFor(locale);
     const local = rows.filter((r) => r.locale === locale);
     return (local.length ? local : rows).map((r) => ({ id: r.id, type: r.type, locale: r.locale, title: r.title, body: r.body ?? undefined, filePath: r.file_path ?? undefined }));
+  },
+
+  async listSalesContent(s, kinds) {
+    mustAffiliate(s);
+    const sb = await supabaseServer();
+    let q = sb.from("sales_content").select(CONTENT_COLS).eq("status", "active").order("sort");
+    if (kinds) q = q.in("kind", kinds);
+    return (check(await q) as any[]).map(toContent);
+  },
+  async listFavorites(s) {
+    const sb = await supabaseServer();
+    return (check(await sb.from("affiliate_favorites").select("content_kind, content_key").eq("affiliate_id", mustAffiliate(s))) as any[])
+      .map((r) => ({ kind: r.content_kind, key: r.content_key }));
+  },
+  async setFavorite(s, kind, key, on) {
+    const sb = await supabaseServer();
+    const aff = mustAffiliate(s);
+    if (on) check(await sb.from("affiliate_favorites").upsert({ affiliate_id: aff, content_kind: kind, content_key: key }));
+    else check(await sb.from("affiliate_favorites").delete().match({ affiliate_id: aff, content_kind: kind, content_key: key }));
+  },
+  async listProgress(s) {
+    const sb = await supabaseServer();
+    return (check(await sb.from("affiliate_progress").select("item_key").eq("affiliate_id", mustAffiliate(s))) as any[]).map((r) => r.item_key);
+  },
+  async setProgress(s, key, done) {
+    const sb = await supabaseServer();
+    const aff = mustAffiliate(s);
+    if (done) check(await sb.from("affiliate_progress").upsert({ affiliate_id: aff, item_key: key }));
+    else check(await sb.from("affiliate_progress").delete().match({ affiliate_id: aff, item_key: key }));
+  },
+  async getPerformance(s): Promise<PerformanceRow[]> {
+    mustAffiliate(s);
+    const sb = await supabaseServer();
+    return (check(await sb.rpc("affiliate_performance")) as any[]).map((r) => ({
+      dimension: r.dimension, refId: r.ref_id, clicks: Number(r.clicks), visitors: Number(r.visitors), ctaClicks: Number(r.cta_clicks),
+      leads: Number(r.leads), checkouts: Number(r.checkouts), sales: Number(r.sales), revenueCents: Number(r.revenue_cents),
+      commissionCents: Number(r.commission_cents), commissionPendingCents: Number(r.commission_pending_cents),
+    }));
+  },
+  async createSalesPage(s, input) {
+    const sb = await supabaseServer();
+    const { data, error } = await sb.from("private_sales_pages").insert({ ...fromPageInput(input), affiliate_id: mustAffiliate(s) }).select("*").single();
+    if (error) throw new Error(error.code === "23505" ? "path_taken" : error.message);
+    return toPage(data);
+  },
+  async updateSalesPage(s, id, input) {
+    const sb = await supabaseServer();
+    const { error } = await sb.from("private_sales_pages").update(fromPageInput(input)).eq("id", id).eq("affiliate_id", mustAffiliate(s));
+    if (error) throw new Error(error.code === "23505" ? "path_taken" : error.message);
+  },
+  async archiveSalesPage(s, id) {
+    const sb = await supabaseServer();
+    check(await sb.from("private_sales_pages").update({ archived_at: new Date().toISOString(), is_active: false }).eq("id", id).eq("affiliate_id", mustAffiliate(s)));
+  },
+  async createLink(s, input) {
+    const sb = await supabaseServer();
+    const l = check(await sb.from("affiliate_links").insert({
+      affiliate_id: mustAffiliate(s), name: input.name, private_page_id: input.pageId, market_id: input.marketId, channel: input.channel,
+      destination: input.pageId ? "private_page" : "studio",
+    }).select("*").single()) as any;
+    return { id: l.id, code: l.code, name: l.name, campaignId: null, campaignName: null, source: input.channel, marketId: input.marketId, isDefault: false,
+      createdAt: l.created_at, pageId: input.pageId, channel: input.channel,
+      stats: { clicks: 0, uniqueVisitors: 0, leads: 0, conversions: 0, revenueCents: 0, commissionCents: 0 } };
   },
 
   async setMonthlyGoal(s, target) {
@@ -729,5 +881,57 @@ export const supabaseRepo: Repo = {
     const row = check(await sb.from("markets").select("content").eq("id", marketId).single()) as any;
     check(await sb.from("markets").update({ content: { ...row.content, [locale]: content }, is_active: isActive }).eq("id", marketId));
     await supabaseService().from("audit_logs").insert({ actor_id: s.userId, action: "market.update", entity: "market", entity_id: marketId, before: row.content?.[locale] ?? null, after: content });
+  },
+
+  async adminListSalesContent() {
+    const sb = await supabaseServer();
+    return (check(await sb.from("sales_content").select(CONTENT_COLS).order("kind").order("sort").order("key").order("version", { ascending: false })) as any[]).map(toContent);
+  },
+  async adminGetSalesContent(_s, id) {
+    const sb = await supabaseServer();
+    const r = check(await sb.from("sales_content").select(CONTENT_COLS).eq("id", id).maybeSingle());
+    return r ? toContent(r) : null;
+  },
+  async adminSaveSalesContent(s, id, i) {
+    const sb = await supabaseServer();
+    const row = {
+      kind: i.kind, key: i.key, locale: i.locale, title: i.title, summary: i.summary, target_key: i.targetKey, channel: i.channel,
+      stage: i.stage, tags: i.tags, sort: i.sort, body: i.body, updated_by: s.userId,
+    };
+    if (id) {
+      // RLS: staff only; guard_sales_content rejects edits of published rows.
+      check(await sb.from("sales_content").update(row).eq("id", id).eq("status", "draft"));
+      return { id };
+    }
+    const { data: prev } = await sb.from("sales_content").select("version").match({ kind: i.kind, key: i.key, locale: i.locale }).order("version", { ascending: false }).limit(1).maybeSingle();
+    const product = check(await sb.from("products").select("id").eq("slug", "studio").single()) as any;
+    const r = check(await sb.from("sales_content").insert({ ...row, version: ((prev as any)?.version ?? 0) + 1, status: "draft", product_id: product.id, created_by: s.userId }).select("id").single()) as any;
+    return { id: r.id };
+  },
+  async adminSetSalesContentStatus(_s, id, status, reason) {
+    const sb = await supabaseServer();
+    check(await sb.rpc(status === "active" ? "staff_publish_sales_content" : "staff_archive_sales_content", { p_id: id, p_reason: reason }));
+  },
+  async adminNewSalesContentVersion(_s, id, locale) {
+    const sb = await supabaseServer();
+    return { id: check(await sb.rpc("staff_new_sales_content_version", { p_from: id, p_locale: locale })) as string };
+  },
+  async adminDeleteSalesContentDraft(_s, id) {
+    const sb = await supabaseServer();
+    check(await sb.from("sales_content").delete().eq("id", id).eq("status", "draft"));
+  },
+  async adminSalesAnalytics(_s, sinceDays): Promise<SalesAnalytics> {
+    const sb = await supabaseServer();
+    return check(await sb.rpc("admin_sales_center_analytics", { p_since: new Date(Date.now() - sinceDays * DAY).toISOString() })) as SalesAnalytics;
+  },
+  async adminListSalesPages() {
+    const sb = await supabaseServer();
+    return (check(await sb.from("private_sales_pages").select("*, affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(500)) as any[])
+      .map((r) => ({ ...toPage(r), affiliateName: r.affiliates?.profiles?.full_name ?? null }));
+  },
+  async adminSetSalesPageActive(s, id, active, reason) {
+    const sb = await supabaseServer();
+    check(await sb.from("private_sales_pages").update({ is_active: active }).eq("id", id));
+    await supabaseService().from("audit_logs").insert({ actor_id: s.userId, action: "sales_page.active", entity: "private_sales_page", entity_id: id, after: { active }, reason });
   },
 };

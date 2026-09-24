@@ -45,6 +45,7 @@ const registerSchema = z.object({
   password: z.string().min(10).max(200),
   country: z.string().trim().max(2).optional().default(""),
   channels: z.string().trim().max(500).optional().default(""),
+  sponsorCode: z.string().trim().regex(/^[A-Za-z0-9-]{3,40}$/).optional(),
   terms: z.literal("on"),
 });
 
@@ -60,7 +61,7 @@ export async function signUp(_prev: AuthState, form: FormData): Promise<AuthStat
     options: {
       emailRedirectTo: callback(`/${locale}/dashboard/welcome`),
       // Read by the handle_new_user() trigger → profile + affiliate application.
-      data: { full_name: d.fullName, locale, country: d.country.toUpperCase() || null, application: { channels: d.channels, terms_accepted_at: new Date().toISOString() } },
+      data: { full_name: d.fullName, locale, country: d.country.toUpperCase() || null, sponsor_code: d.sponsorCode ?? null, application: { channels: d.channels, terms_accepted_at: new Date().toISOString() } },
     },
   });
   return error ? { status: "error", message: error.message } : { status: "sent" };

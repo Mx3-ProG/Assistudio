@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutGrid, Link2, Megaphone, Users, Compass, MessageSquareText, Package, ShoppingBag, Wallet, Repeat,
-  Banknote, BarChart3, Trophy, Bell, Settings, Shield, MoreHorizontal, X, LogOut,
+  Banknote, BarChart3, Trophy, Bell, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
@@ -29,6 +29,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
     {
       label: n.groupSell,
       items: [
+        { href: `${base}/sales-center`, label: t.sc.title, icon: Rocket },
         { href: `${base}/link`, label: n.link, icon: Link2 },
         { href: `${base}/campaigns`, label: n.campaigns, icon: Megaphone },
         { href: `${base}/prospects`, label: n.prospects, icon: Users },
@@ -45,6 +46,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
         { href: `${base}/recurring`, label: n.recurring, icon: Repeat },
         { href: `${base}/payouts`, label: n.payouts, icon: Banknote },
         { href: `${base}/analytics`, label: n.analytics, icon: BarChart3 },
+        { href: `${base}/referrals`, label: n.referrals, icon: Network },
         ...(leaderboard ? [{ href: `${base}/leaderboard`, label: n.leaderboard, icon: Trophy }] : []),
       ],
     },

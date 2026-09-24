@@ -61,7 +61,9 @@ export async function proxy(req: NextRequest) {
   // --- 3. session refresh (only when Supabase is configured)
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (url && key && PRIVATE_AREA.test(pathname)) {
+  // Explicit demo previews use their isolated in-memory session even when
+  // Supabase variables are present in the deployment environment.
+  if (process.env.STUDIO_DEMO_MODE !== "true" && !req.cookies.has("studio_demo_session") && url && key && PRIVATE_AREA.test(pathname)) {
     const sb = createServerClient(url, key, {
       cookies: {
         getAll: () => req.cookies.getAll(),

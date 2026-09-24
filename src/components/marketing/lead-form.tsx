@@ -8,7 +8,7 @@ import { Field, inputClass, textareaClass } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
-export function LeadForm({ page, cta }: { page?: string; cta?: string }) {
+export function LeadForm({ page, cta, requestType, advisorName }: { page?: string; cta?: string; requestType?: "info" | "call" | "question" | "quote"; advisorName?: string | null }) {
   const { t, locale } = useI18n();
   const [state, action, pending] = useActionState<LeadState, FormData>(submitLead, { status: "idle" });
   const f = t.studio.form;
@@ -27,6 +27,7 @@ export function LeadForm({ page, cta }: { page?: string; cta?: string }) {
     <form action={action} className="grid gap-4 sm:grid-cols-2">
       <input type="hidden" name="locale" value={locale} />
       {page && <input type="hidden" name="page" value={page} />}
+      {requestType && <input type="hidden" name="requestType" value={requestType} />}
       <div aria-hidden className="absolute -start-[9999px] h-0 overflow-hidden">
         <label>Website URL<input name="company_url" tabIndex={-1} autoComplete="off" /></label>
       </div>
@@ -58,6 +59,12 @@ export function LeadForm({ page, cta }: { page?: string; cta?: string }) {
           <Link href={`/${locale}/privacy`} className="underline underline-offset-2">{t.footer.privacy}</Link>
         </span>
       </label>
+      {advisorName && (
+        <label className="flex items-start gap-3 text-[13px] leading-relaxed text-fg-2 sm:col-span-2">
+          <input type="checkbox" name="advisorConsent" className="mt-1 size-4 accent-[var(--accent)]" />
+          <span>{t.sc.landing.advisorConsent.replace("{name}", advisorName)}</span>
+        </label>
+      )}
       {state.status === "error" && <p className="text-[13px] text-danger sm:col-span-2">{f.error}</p>}
       <button type="submit" disabled={pending} className={buttonClass("accent", "lg", "sm:col-span-2")}>
         {pending ? t.common.loading : cta ?? f.submit}

@@ -10,20 +10,24 @@ import { formatMoney, formatDate, formatRelative } from "@/lib/money";
 import { PROSPECT_STAGES, type Prospect, type ProspectStage } from "@/lib/data/types";
 import { marketContent, type Market } from "@/content/markets";
 import { cn } from "@/lib/cn";
+import { NextAction } from "@/components/sales-center/next-action";
+import { DEFAULT_RULES, type Rules } from "@/lib/sales/next-action";
 
 const STAGE_TONE: Record<ProspectStage, "neutral" | "accent" | "success" | "warning" | "danger"> = {
-  new: "neutral", contacted: "accent", interested: "accent", appointment: "warning", proposal: "warning", won: "success", lost: "danger",
+  new: "neutral", contacted: "accent", replied: "accent", qualified: "accent", interested: "accent", appointment: "warning", proposal: "warning", checkout: "warning", won: "success", lost: "danger",
 };
 
-export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCents }: {
+export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCents, rules = DEFAULT_RULES, now, initialNew = false, initialMarketId = null }: {
   prospects: Prospect[]; markets: Market[]; campaigns: { id: string; name: string }[]; defaultValueCents: number;
+  rules?: Rules; now: number; initialNew?: boolean; initialMarketId?: string | null;
 }) {
+  const slugOf = (id: string | null) => markets.find((m) => m.id === id)?.slug ?? null;
   const { t, locale } = useI18n();
   const P = t.dash.prospects;
   const [storedView, setStoredView] = useStored("studio-prospects-view", "board");
   const view = storedView === "list" ? "list" : "board";
   const [q, setQ] = useState("");
-  const [editing, setEditing] = useState<Prospect | "new" | null>(null);
+  const [editing, setEditing] = useState<Prospect | "new" | null>(initialNew ? "new" : null);
   const [, startTransition] = useTransition();
   const [optimistic, applyMove] = useOptimistic(prospects, (list, m: { id: string; stage: ProspectStage }) =>
     list.map((p) => (p.id === m.id ? { ...p, stage: m.stage } : p)),
@@ -104,6 +108,7 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
                               {p.nextActionAt && <span className="shrink-0 text-muted">· {formatRelative(p.nextActionAt, locale)}</span>}
                             </p>
                           )}
+                          <NextAction compact prospect={p} rules={rules} now={now} targetSlug={slugOf(p.marketId)} />
                         </button>
                         <select
                           aria-label={P.moveTo}
@@ -150,6 +155,8 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
       {editing && (
         <ProspectDialog
           prospect={editing === "new" ? null : editing}
+          initialMarketId={initialMarketId}
+          nextAction={editing !== "new" ? <NextAction prospect={editing} rules={rules} now={now} targetSlug={slugOf(editing.marketId)} /> : null}
           markets={markets}
           campaigns={campaigns}
           defaultValueCents={defaultValueCents}
@@ -160,8 +167,9 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
   );
 }
 
-function ProspectDialog({ prospect, markets, campaigns, defaultValueCents, onClose }: {
+function ProspectDialog({ prospect, markets, campaigns, defaultValueCents, onClose, nextAction, initialMarketId }: {
   prospect: Prospect | null; markets: Market[]; campaigns: { id: string; name: string }[]; defaultValueCents: number; onClose: () => void;
+  nextAction?: React.ReactNode; initialMarketId?: string | null;
 }) {
   const { t, locale } = useI18n();
   const F = t.dash.prospects.fields;
@@ -194,6 +202,7 @@ function ProspectDialog({ prospect, markets, campaigns, defaultValueCents, onClo
           <h2 className="text-[20px] font-semibold tracking-tight">{prospect ? prospect.name : t.dash.prospects.new}</h2>
           <button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-full bg-surface-2" aria-label={t.common.close}><X className="size-4" /></button>
         </div>
+        {nextAction && <div className="mb-5">{nextAction}</div>}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={F.name}><input name="name" required defaultValue={prospect?.name} className={cn(inputClass, bad("name") && "border-danger")} autoFocus /></Field>
           <Field label={F.company}><input name="company" defaultValue={prospect?.company ?? ""} className={inputClass} /></Field>
@@ -219,7 +228,7 @@ function ProspectDialog({ prospect, markets, campaigns, defaultValueCents, onClo
             </select>
           </Field>
           <Field label={t.dash.link.page.market} className="sm:col-span-2">
-            <select name="marketId" defaultValue={prospect?.marketId ?? ""} className={select}>
+            <select name="marketId" defaultValue={prospect?.marketId ?? initialMarketId ?? ""} className={select}>
               <option value="">—</option>
               {markets.map((m) => <option key={m.id} value={m.id}>{marketContent(m, locale).name}</option>)}
             </select>

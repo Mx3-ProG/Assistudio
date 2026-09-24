@@ -9,7 +9,7 @@ import { marketContent, type Market } from "@/content/markets";
 
 const SOURCES = ["instagram", "linkedin", "email", "whatsapp", "facebook", "x", "tiktok", "website", "event", "other"];
 
-export function CampaignForm({ markets }: { markets: Market[] }) {
+export function CampaignForm({ markets, pages = [], messages = [] }: { markets: Market[]; pages?: { id: string; label: string }[]; messages?: { key: string; title: string }[] }) {
   const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
   const [, action, pending] = useActionState<FormState, FormData>(async (p, f) => {
@@ -20,7 +20,7 @@ export function CampaignForm({ markets }: { markets: Market[] }) {
   const c = t.dash.campaigns;
   if (!open) return <button onClick={() => setOpen(true)} className={buttonClass("primary", "md")}><Plus className="size-4" />{c.new}</button>;
   return (
-    <form action={action} className="card grid w-full gap-4 p-5 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
+    <form action={action} className="card grid w-full gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 lg:items-end">
       <Field label={c.name}><input name="name" required maxLength={120} placeholder={c.namePlaceholder} className={inputClass} autoFocus /></Field>
       <Field label={c.source}>
         <select name="source" className={`${inputClass} appearance-none capitalize`}>
@@ -33,7 +33,9 @@ export function CampaignForm({ markets }: { markets: Market[] }) {
           {markets.map((m) => <option key={m.id} value={m.id}>{marketContent(m, locale).name}</option>)}
         </select>
       </Field>
-      <div className="flex gap-2">
+      <Field label={t.sc.campaigns.page}><select name="pageId" className={`${inputClass} appearance-none`} defaultValue=""><option value="">—</option>{pages.map((p)=><option key={p.id} value={p.id}>{p.label}</option>)}</select></Field>
+      <Field label={t.sc.campaigns.message}><select name="messageKey" className={`${inputClass} appearance-none`} defaultValue=""><option value="">—</option>{messages.map((m)=><option key={m.key} value={m.key}>{m.title}</option>)}</select></Field>
+      <div className="flex gap-2 lg:col-span-3">
         <button disabled={pending} className={buttonClass("primary", "md")}>{t.common.create}</button>
         <button type="button" onClick={() => setOpen(false)} className={buttonClass("ghost", "md")}>{t.common.cancel}</button>
       </div>

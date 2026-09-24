@@ -6,12 +6,15 @@ import {
 } from "@/lib/commission";
 import { defaultMarkets, type Market, type MarketContent } from "@/content/markets";
 import { assetsFor } from "@/content/sales-kit";
+import { defaultSalesContent } from "@/content/sales-center/content";
+import type { SalesContent, ContentKind } from "@/lib/sales/content";
 import type { Repo, Range } from "./repo";
 import { summarizeBook } from "./book";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow,
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
   ClickInput, LeadInput, ReferralTarget, LinkStats, RecurringContract, SubscriptionStatus,
+  PerformanceRow, ProductView,
 } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -59,11 +62,12 @@ interface DemoAffiliate {
   monthlyGoalSales: number | null;
   createdAt: string;
   application: Record<string, unknown>;
+  sponsorId: string | null;
 }
-interface DemoLink { id: string; affiliateId: string; code: string; name: string; campaignId: string | null; isDefault: boolean; createdAt: string }
+interface DemoLink { id: string; affiliateId: string; code: string; name: string; campaignId: string | null; isDefault: boolean; createdAt: string; pageId?: string | null; marketId?: string | null; channel?: string | null }
 interface DemoCampaign { id: string; affiliateId: string; name: string; source: string | null; marketId: string | null; createdAt: string }
-interface DemoClick { id: string; affiliateId: string; linkId: string | null; visitorId: string; at: string; country: string; device: string; isBot: boolean }
-interface DemoLead { id: string; fullName?: string; affiliateId: string | null; linkId: string | null; campaignId: string | null; email: string; profession: string | null; company: string | null; status: string; createdAt: string }
+interface DemoClick { id: string; affiliateId: string; linkId: string | null; visitorId: string; at: string; country: string; device: string; isBot: boolean; pageId?: string | null; campaignId?: string | null }
+interface DemoLead { id: string; fullName?: string; affiliateId: string | null; linkId: string | null; campaignId: string | null; email: string; profession: string | null; company: string | null; status: string; createdAt: string; pageId?: string | null }
 interface DemoCustomer { id: string; ref: string; name: string; email: string }
 interface DemoSubscription { id: string; customerId: string; affiliateId: string; startedAt: string; periodEnd: string; status: SubscriptionStatus; cancelling: boolean }
 interface DemoSale {
@@ -102,6 +106,11 @@ interface Store {
   audit: AuditLog[];
   goals: Record<string, number>;
   privacyRequests: { userId: string; kind: string; at: string }[];
+  // V0.3 Sales Center
+  content: SalesContent[];
+  favorites: { affiliateId: string; kind: string; key: string }[];
+  progress: { affiliateId: string; key: string }[];
+  events: { affiliateId: string | null; event: string; pageId: string | null; linkId: string | null; campaignId: string | null; contentKind: string | null; contentKey: string | null; at: string }[];
 }
 
 function seed(): Store {
@@ -120,7 +129,7 @@ function seed(): Store {
   };
   const offer: Offer = {
     id: "offer_studio_annual", productId: "prod_studio", productName: "STUDIO",
-    priceCents: 300_000, currency: "EUR", commissionRate: 0.5, recurring: true,
+    priceCents: 600_000, currency: "EUR", commissionRate: 0.25, recurring: true,
   };
 
   const s: Store = {
@@ -128,6 +137,12 @@ function seed(): Store {
     settings, offer, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
     prospects: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
     activity: [], notifications: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
+    content: defaultSalesContent.map((c, i) => ({
+      id: `cnt_${i}`, kind: c.kind, key: c.key, locale: c.locale, version: 1, status: c.status, productId: "prod_studio",
+      targetKey: c.targetKey ?? null, channel: c.channel ?? null, stage: c.stage ?? null, title: c.title, summary: c.summary ?? null,
+      body: c.body, tags: c.tags ?? [], sort: c.sort ?? 0, publishedAt: c.status === "active" ? daysAgo(20) : null, updatedAt: daysAgo(20),
+    }) as SalesContent),
+    favorites: [], progress: [], events: [],
   };
 
   const mkAffiliate = (
@@ -140,7 +155,7 @@ function seed(): Store {
     s.affiliates.push({
       id: affId, userId, code, slug, status, country: "FR", createdAt: daysAgo(createdDaysAgo),
       onboardingStep: status === "approved" ? 5 : 0, onboardingCompletedAt: status === "approved" ? daysAgo(createdDaysAgo - 1) : null,
-      monthlyGoalSales: null, application: { channels: "LinkedIn, network", motivation: "Demo application" },
+      monthlyGoalSales: null, application: { channels: "LinkedIn, network", motivation: "Demo application" }, sponsorId: null,
     });
     s.links.push({ id: `lnk_${key}`, affiliateId: affId, code: `${code}01`, name: "Default", campaignId: null, isDefault: true, createdAt: daysAgo(createdDaysAgo) });
     return affId;
@@ -150,6 +165,8 @@ function seed(): Store {
   const alex = mkAffiliate("alex", "Alex Demo", "Alex", "ALX7K9", "alex", "approved", true, "affiliate", 320);
   const sofia = mkAffiliate("sofia", "Sofia Demo", "Sofia", "SOF3P8", null, "approved", true, "affiliate", 260);
   const marc = mkAffiliate("marc", "Marc Demo", null, "MRC5T2", null, "approved", true, "affiliate", 150);
+  s.affiliates.find((a) => a.id === alex)!.sponsorId = me;
+  s.affiliates.find((a) => a.id === sofia)!.sponsorId = me;
   mkAffiliate("jordan", "Jordan Demo", null, "JRD8W4", null, "pending", false, "affiliate", 2);
   mkAffiliate("lea", "Léa Demo", null, "LEA2N6", null, "pending", false, "affiliate", 1);
   s.users.push({ userId: "usr_admin", email: "admin@demo.studio.invalid", role: "super_admin", fullName: "Admin Demo", displayName: null, leaderboardOptIn: false, affiliateId: null });
@@ -201,7 +218,7 @@ function seed(): Store {
   }
 
   // Sales for the demo affiliate — reproduces the spec example:
-  // €4,500 earned (€3,000 paid + €1,500 available), €1,500 pending, 3 active clients.
+  // €5,400 earned (€3,600 paid + €1,800 available), €1,800 pending, 3 active clients.
   // V0.2: a commission exists only once the payment is confirmed; it is
   // `pending` during the validation period, then `available`, then `paid`.
   const mkCommission = (affiliateId: string, sale: DemoSale, opts: { payout?: boolean } = {}) => {
@@ -271,13 +288,13 @@ function seed(): Store {
   const pnames: [string, string, string, Prospect["stage"], number | null][] = [
     ["Claire Martin", "Atelier Claire", "Photographer", "new", 1],
     ["Hugo Bernard", "Bernard Architectes", "Architect", "contacted", 0],
-    ["Inès Petit", "Maison Inès", "Interior designer", "interested", 2],
+    ["Inès Petit", "Maison Inès", "Interior designer", "qualified", 2],
     ["Lucas Moreau", "Moreau Paysages", "Landscaper", "appointment", 3],
     ["Emma Laurent", "Laurent Events", "Event professional", "proposal", 5],
     ["Nathan Roux", "Roux Films", "Videographer", "new", null],
     ["Chloé Fournier", "Fournier Cuisines", "Kitchen designer", "contacted", 4],
     ["Louis Girard", "Girard Piscines", "Pool installer", "new", null],
-    ["Jade Bonnet", "Bonnet Wedding", "Wedding planner", "interested", 1],
+    ["Jade Bonnet", "Bonnet Wedding", "Wedding planner", "replied", 1],
     ["Arthur Dupont", "Dupont Conseil", "B2B consultant", "contacted", 6],
     ["Léna Lambert", "Lambert Rénovation", "Renovation", "new", null],
     ["Raphaël Fontaine", "Fontaine Talent", "Recruitment firm", "appointment", 2],
@@ -291,7 +308,8 @@ function seed(): Store {
       id: `prs_${i}`, affiliateId: me, name, company, profession, email: `${name.split(" ")[0].toLowerCase()}@example.invalid`,
       phone: null, website: null, notes: null, source: i % 3 === 0 ? "Instagram" : i % 3 === 1 ? "LinkedIn" : "Referral",
       campaignId: null, marketId: null, stage, nextAction: next !== null ? (stage === "new" ? "Send first message" : stage === "proposal" ? "Follow up on proposal" : "Call back") : null,
-      nextActionAt: next !== null ? iso(now() + next * DAY) : null, potentialValueCents: 300_000, createdAt: daysAgo(40 - i * 2), deletedAt: null,
+      nextActionAt: next !== null ? iso(now() + next * DAY) : null, potentialValueCents: 600_000, createdAt: daysAgo(40 - i * 2), deletedAt: null,
+      stageChangedAt: daysAgo(Math.max(0, 12 - i)),
     });
   });
 
@@ -300,28 +318,42 @@ function seed(): Store {
     id: "pg_demo", slug: "8FD7K2", affiliateId: me, marketId: "mkt_wedding-planners", campaignId: "cmp_3",
     locale: "fr", pitchVariant: "premium", ctaVariant: "request", displayName: "Mathieu", visibility: "private",
     isActive: true, viewCount: 37, createdAt: daysAgo(35),
+    pathKey: null, templateKey: null, angleKey: null, productId: "prod_studio", ctaMode: "lead", showAdvisor: false, advisor: {}, indexable: false, archivedAt: null,
   });
+  // V0.3 sales page (/a/mathieu/artisans) with a few demo visits and leads — fake, like every demo row.
+  s.pages.push({
+    id: "pg_artisans", slug: "ART5K3", affiliateId: me, marketId: "mkt_artisans", campaignId: null,
+    locale: "fr", pitchVariant: "default", ctaVariant: "request", displayName: null, visibility: "unlisted",
+    isActive: true, viewCount: 0, createdAt: daysAgo(12),
+    pathKey: "artisans", templateKey: "studio-default", angleKey: "professional-presence", productId: "prod_studio", ctaMode: "lead",
+    showAdvisor: true, advisor: { name: "Mathieu", title: "STUDIO advisor", email: "mathieu@demo.studio.invalid" }, indexable: false, archivedAt: null,
+  });
+  for (let i = 0; i < 26; i++) {
+    s.clicks.push({ id: `clk_pg_${i}`, affiliateId: me, linkId: "lnk_mathieu", pageId: "pg_artisans", visitorId: `vis_pg_${i % 19}`, at: daysAgo(Math.floor(r() * 12)), country: "FR", device: "mobile", isBot: false });
+  }
+  s.events.push(...Array.from({ length: 6 }, (_, i) => ({ affiliateId: me, event: "cta_click", pageId: "pg_artisans", linkId: null, campaignId: null, contentKind: null, contentKey: null, at: daysAgo(i) })));
+  s.leads.push({ id: "led_pg_1", affiliateId: me, linkId: null, campaignId: null, pageId: "pg_artisans", email: "plombier@example.invalid", profession: "Plumber", company: "Demo Plomberie", status: "new", createdAt: daysAgo(2) });
 
   // Activity feed for the demo affiliate
   const acts: [ActivityType, number, Record<string, unknown>][] = [
     ["click", 0.02, { source: "instagram" }], ["visitor", 0.05, { country: "FR" }],
-    ["payment_confirmed", 4, { sale_ref: horizon.sale.ref, gross_cents: 300_000, currency: "EUR" }],
+    ["payment_confirmed", 4, { sale_ref: horizon.sale.ref, gross_cents: 600_000, currency: "EUR" }],
     ["commission_pending", 4, { sale_ref: horizon.sale.ref, commission_cents: horizon.com.amountCents, currency: "EUR" }],
-    ["renewal_confirmed", 15, { sale_ref: delorme.sale.ref, gross_cents: 300_000, currency: "EUR" }],
+    ["renewal_confirmed", 15, { sale_ref: delorme.sale.ref, gross_cents: 600_000, currency: "EUR" }],
     ["commission_pending", 15, { commission_cents: delormeRenewal.amountCents, currency: "EUR" }],
     ["lead", 1, { profession: "Architect" }],
-    ["appointment", 2, { profession: "Wedding planner" }], ["commission_available", 32, { commission_cents: 150_000, currency: "EUR" }],
-    ["payment_confirmed", 62, { sale_ref: "SAL-0003" }], ["payout_completed", 80, { amount_cents: 150_000, currency: "EUR" }],
+    ["appointment", 2, { profession: "Wedding planner" }], ["commission_available", 32, { commission_cents: 180_000, currency: "EUR" }],
+    ["payment_confirmed", 62, { sale_ref: "SAL-0003" }], ["payout_completed", 80, { amount_cents: 180_000, currency: "EUR" }],
     ["click", 0.2, { source: "linkedin" }], ["lead", 6, { profession: "Photographer" }],
   ];
   for (const [type, ago, payload] of acts) s.activity.push({ id: id("act"), affiliateId: me, type, occurredAt: daysAgo(ago), payload });
 
   s.notifications.push(
     { id: id("ntf"), userId: "usr_mathieu", type: "lead", titleKey: "newLead", params: { profession: "Architect" }, href: "/dashboard", readAt: null, status: "unread", createdAt: daysAgo(1) },
-    { id: id("ntf"), userId: "usr_mathieu", type: "sale", titleKey: "salePending", params: { sale_ref: horizon.sale.ref, commission_cents: 150_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: null, status: "unread", createdAt: daysAgo(4) },
-    { id: id("ntf"), userId: "usr_mathieu", type: "renewal", titleKey: "renewalPending", params: { sale_ref: delorme.sale.ref, commission_cents: 150_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: null, status: "unread", createdAt: daysAgo(15) },
-    { id: id("ntf"), userId: "usr_mathieu", type: "commission", titleKey: "commissionAvailable", params: { commission_cents: 150_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: daysAgo(30), status: "read", createdAt: daysAgo(32) },
-    { id: id("ntf"), userId: "usr_mathieu", type: "payout", titleKey: "payoutPaid", params: { amount_cents: 150_000, currency: "EUR" }, href: "/dashboard/payouts", readAt: daysAgo(70), status: "archived", createdAt: daysAgo(80) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "sale", titleKey: "salePending", params: { sale_ref: horizon.sale.ref, commission_cents: 180_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: null, status: "unread", createdAt: daysAgo(4) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "renewal", titleKey: "renewalPending", params: { sale_ref: delorme.sale.ref, commission_cents: 180_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: null, status: "unread", createdAt: daysAgo(15) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "commission", titleKey: "commissionAvailable", params: { commission_cents: 180_000, currency: "EUR" }, href: "/dashboard/commissions", readAt: daysAgo(30), status: "read", createdAt: daysAgo(32) },
+    { id: id("ntf"), userId: "usr_mathieu", type: "payout", titleKey: "payoutPaid", params: { amount_cents: 180_000, currency: "EUR" }, href: "/dashboard/payouts", readAt: daysAgo(70), status: "archived", createdAt: daysAgo(80) },
   );
 
   s.fraud.push(
@@ -336,7 +368,7 @@ function seed(): Store {
 }
 
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
-const STORE_VERSION = 3;
+const STORE_VERSION = 4;
 const g = globalThis as unknown as { __studioDemo?: Store & { v?: number } };
 function db(): Store {
   if (g.__studioDemo?.v !== STORE_VERSION) g.__studioDemo = Object.assign(seed(), { v: STORE_VERSION });
@@ -363,8 +395,8 @@ function toLink(l: DemoLink): TrackingLink {
   const c = l.campaignId ? st.campaigns.find((x) => x.id === l.campaignId) : null;
   return {
     id: l.id, code: l.code, name: l.name, campaignId: l.campaignId, campaignName: c?.name ?? null,
-    source: c?.source ?? null, marketId: c?.marketId ?? null, isDefault: l.isDefault, createdAt: l.createdAt,
-    stats: statsFor((x) => x.linkId === l.id),
+    source: c?.source ?? l.channel ?? null, marketId: c?.marketId ?? l.marketId ?? null, isDefault: l.isDefault, createdAt: l.createdAt,
+    stats: statsFor((x) => x.linkId === l.id), pageId: l.pageId ?? null, channel: l.channel ?? c?.source ?? null,
   };
 }
 function statsFor(pred: (x: { linkId: string | null; affiliateId: string | null }) => boolean): LinkStats {
@@ -477,17 +509,61 @@ export const demoRepo: Repo = {
     const lead: DemoLead = {
       id: id("led"), fullName: input.fullName, affiliateId: input.affiliateId, linkId: input.linkId, campaignId: input.campaignId,
       email: input.email.toLowerCase(), profession: input.profession, company: input.company, status: "new", createdAt: iso(now()),
+      pageId: input.privatePageId,
     };
     if (st.leads.some((l) => l.email === lead.email)) {
       st.fraud.unshift({ id: id("frd"), type: "duplicate_lead", severity: 1, affiliateId: input.affiliateId, affiliateName: affiliateName(input.affiliateId), entity: "lead", entityId: lead.id, signals: {}, status: "open", decisionNote: null, createdAt: iso(now()) });
     }
     st.leads.push(lead);
+    // Same rule as SQL on_lead_share_with_advisor: contact details reach the CRM only with explicit consent.
+    if (input.affiliateId && input.advisorConsent) {
+      const page = st.pages.find((p) => p.id === input.privatePageId);
+      st.prospects.push({
+        id: id("prs"), affiliateId: input.affiliateId, name: input.fullName, company: input.company, profession: input.profession,
+        email: lead.email, phone: input.phone, website: input.website, notes: input.message, source: "sales_page",
+        campaignId: input.campaignId, marketId: page?.marketId ?? null, stage: "new", nextAction: null, nextActionAt: iso(now()),
+        potentialValueCents: null, createdAt: iso(now()), stageChangedAt: iso(now()), leadId: lead.id, deletedAt: null,
+      });
+    }
     if (input.affiliateId) {
       st.activity.push({ id: id("act"), affiliateId: input.affiliateId, type: "lead", occurredAt: iso(now()), payload: { profession: input.profession } });
       const aff = st.affiliates.find((a) => a.id === input.affiliateId);
       if (aff) st.notifications.unshift({ id: id("ntf"), userId: aff.userId, type: "lead", titleKey: "newLead", params: { profession: input.profession ?? "—" }, href: "/dashboard", readAt: null, status: "unread", createdAt: iso(now()) });
     }
     return { id: lead.id };
+  },
+
+  async listProducts(): Promise<ProductView[]> {
+    const o = db().offer;
+    return [
+      { id: o.productId, slug: "studio", name: o.productName, active: true, offer: { priceCents: o.priceCents, currency: o.currency, interval: "year", checkoutReady: false } },
+    ];
+  },
+
+  async getSalesPage(affiliate, pathKey) {
+    const st = db();
+    const key = affiliate.toLowerCase();
+    const aff = st.affiliates.find((a) => a.slug === key || a.code.toLowerCase() === key);
+    if (!aff) return null;
+    const p = st.pages.find((x) => x.affiliateId === aff.id && x.isActive && !x.archivedAt && x.pathKey === (pathKey ?? "general"));
+    if (!p) return null;
+    const referral = await demoRepo.resolveReferral(aff.code);
+    return referral ? { ...p, referral } : null;
+  },
+
+  async listPublishedContent(kinds) {
+    return db().content.filter((c) => c.status === "active" && kinds.includes(c.kind));
+  },
+
+  async recordSalesEvent(e) {
+    db().events.push({
+      affiliateId: e.affiliateId, event: e.event, pageId: e.privatePageId ?? null, linkId: e.linkId ?? null, campaignId: e.campaignId ?? null,
+      contentKind: e.contentKind ?? null, contentKey: e.contentKey ?? null, at: iso(now()),
+    });
+  },
+
+  async getSalesSettings() {
+    return { followUpDays: 3, checkoutCheckInDays: 2, allowIndexing: false, advisorEnabled: true };
   },
 
   async getSession() {
@@ -505,6 +581,7 @@ export const demoRepo: Repo = {
         id: aff.id, code: aff.code, slug: aff.slug, status: aff.status, commissionRate: st.offer.commissionRate,
         onboardingStep: aff.onboardingStep, onboardingCompletedAt: aff.onboardingCompletedAt,
         monthlyGoalSales: st.goals[aff.id] ?? null, payoutProvider: null, payoutAccountRef: null, createdAt: aff.createdAt,
+        sponsorId: aff.sponsorId,
       },
     };
   },
@@ -576,9 +653,10 @@ export const demoRepo: Repo = {
     const aff = mustAffiliate(s);
     const st = db();
     const c: DemoCampaign = { id: id("cmp"), affiliateId: aff, name: input.name, source: input.source, marketId: input.marketId, createdAt: iso(now()) };
+    if (input.pageId && !st.pages.some((p) => p.id === input.pageId && p.affiliateId === aff)) throw new Error("forbidden");
     st.campaigns.push(c);
     const code = `${s.affiliate!.code}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
-    const l: DemoLink = { id: id("lnk"), affiliateId: aff, code, name: input.name, campaignId: c.id, isDefault: false, createdAt: iso(now()) };
+    const l: DemoLink = { id: id("lnk"), affiliateId: aff, code, name: input.name, campaignId: c.id, isDefault: false, createdAt: iso(now()), pageId: input.pageId ?? null };
     st.links.push(l);
     return toLink(l);
   },
@@ -596,7 +674,11 @@ export const demoRepo: Repo = {
     const aff = mustAffiliate(s);
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     const slug = Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-    const p: PrivatePage = { ...input, id: id("pg"), slug, affiliateId: aff, isActive: true, viewCount: 0, createdAt: iso(now()) };
+    const p: PrivatePage = {
+      ...input, id: id("pg"), slug, affiliateId: aff, isActive: true, viewCount: 0, createdAt: iso(now()),
+      pathKey: null, templateKey: null, angleKey: null, productId: "prod_studio", ctaMode: input.ctaVariant === "call" ? "call" : "lead",
+      showAdvisor: false, advisor: {}, indexable: false, archivedAt: null,
+    };
     db().pages.push(p);
     return p;
   },
@@ -607,7 +689,7 @@ export const demoRepo: Repo = {
   },
   async createProspect(s, input) {
     const aff = mustAffiliate(s);
-    const p = { ...input, id: id("prs"), createdAt: iso(now()), affiliateId: aff, deletedAt: null };
+    const p = { ...input, id: id("prs"), createdAt: iso(now()), stageChangedAt: iso(now()), affiliateId: aff, deletedAt: null };
     db().prospects.push(p);
     return p;
   },
@@ -615,6 +697,7 @@ export const demoRepo: Repo = {
     const aff = mustAffiliate(s);
     const p = db().prospects.find((x) => x.id === pid && x.affiliateId === aff);
     if (!p) throw new Error("not_found");
+    if (patch.stage && patch.stage !== p.stage) p.stageChangedAt = iso(now());
     Object.assign(p, patch);
   },
   async deleteProspect(s, pid) {
@@ -718,8 +801,128 @@ export const demoRepo: Repo = {
       byDevice: count(clicks.map((c) => c.device)),
     };
   },
+  async getReferralDashboard(s) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    const me = st.affiliates.find((a) => a.id === aff)!;
+    const recruits = st.affiliates.filter((a) => a.sponsorId === aff).map((a) => {
+      const u = st.users.find((x) => x.userId === a.userId)!;
+      const sales = st.sales.filter((x) => x.affiliateId === a.id && x.status === "paid");
+      return {
+        id: a.id, name: u.displayName || u.fullName, status: a.status, joinedAt: a.createdAt,
+        sales: sales.length, commissionCents: sales.reduce((sum, x) => sum + computeCommissionCents(x.amountCents, 0.05), 0),
+      };
+    });
+    const total = recruits.reduce((sum, x) => sum + x.commissionCents, 0);
+    const sponsor = me.sponsorId ? st.affiliates.find((a) => a.id === me.sponsorId) : null;
+    const sponsorUser = sponsor ? st.users.find((u) => u.userId === sponsor.userId) : null;
+    return {
+      code: me.code, slug: me.slug,
+      sponsor: sponsorUser ? { name: sponsorUser.displayName || sponsorUser.fullName } : null,
+      recruits, totalCommissionCents: total, pendingCommissionCents: Math.round(total * 0.35),
+      availableCommissionCents: Math.round(total * 0.25),
+    };
+  },
   async listSalesAssets(_s, locale: Locale) { return assetsFor(locale); },
   async setMonthlyGoal(s, target) { db().goals[mustAffiliate(s)] = target; },
+
+  async listSalesContent(s, kinds?: ContentKind[]) {
+    mustAffiliate(s);
+    return db().content.filter((c) => c.status === "active" && (!kinds || kinds.includes(c.kind)));
+  },
+  async listFavorites(s) {
+    const aff = mustAffiliate(s);
+    return db().favorites.filter((f) => f.affiliateId === aff).map(({ kind, key }) => ({ kind, key }));
+  },
+  async setFavorite(s, kind, key, on) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    st.favorites = st.favorites.filter((f) => !(f.affiliateId === aff && f.kind === kind && f.key === key));
+    if (on) st.favorites.push({ affiliateId: aff, kind, key });
+  },
+  async listProgress(s) {
+    const aff = mustAffiliate(s);
+    return db().progress.filter((p) => p.affiliateId === aff).map((p) => p.key);
+  },
+  async setProgress(s, key, done) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    st.progress = st.progress.filter((p) => !(p.affiliateId === aff && p.key === key));
+    if (done) st.progress.push({ affiliateId: aff, key });
+  },
+  async getPerformance(s) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    // Mirror of public.affiliate_performance: each stage from its own source.
+    type Src = { k: "click" | "cta" | "lead" | "sale"; link: string | null; campaign: string | null; page: string | null; visitor: string | null; amt: number; com: number; pend: number };
+    const src: Src[] = [
+      ...st.clicks.filter((c) => c.affiliateId === aff && !c.isBot).map((c): Src => ({ k: "click", link: c.linkId, campaign: c.campaignId ?? st.links.find((l) => l.id === c.linkId)?.campaignId ?? null, page: c.pageId ?? null, visitor: c.visitorId, amt: 0, com: 0, pend: 0 })),
+      ...st.events.filter((e) => e.affiliateId === aff && e.event === "cta_click").map((e): Src => ({ k: "cta", link: e.linkId, campaign: e.campaignId, page: e.pageId, visitor: null, amt: 0, com: 0, pend: 0 })),
+      ...st.leads.filter((l) => l.affiliateId === aff).map((l): Src => ({ k: "lead", link: l.linkId, campaign: l.campaignId, page: l.pageId ?? null, visitor: null, amt: 0, com: 0, pend: 0 })),
+      ...st.sales.filter((x) => x.affiliateId === aff && x.status === "paid").map((x): Src => {
+        const cs = st.commissions.filter((c) => c.saleId === x.id && c.status !== "reversed");
+        return { k: "sale", link: x.linkId, campaign: x.campaignId, page: null, visitor: null, amt: x.amountCents,
+          com: cs.reduce((a, c) => a + c.amountCents, 0), pend: cs.filter((c) => c.status === "pending" || c.status === "disputed").reduce((a, c) => a + c.amountCents, 0) };
+      }),
+    ];
+    const rows = new Map<string, PerformanceRow & { vis: Set<string> }>();
+    for (const x of src) {
+      for (const [dimension, refId] of [["total", null], ["link", x.link], ["campaign", x.campaign], ["page", x.page]] as const) {
+        if (dimension !== "total" && !refId) continue;
+        const k = `${dimension}:${refId}`;
+        const r = rows.get(k) ?? { dimension, refId, clicks: 0, visitors: 0, ctaClicks: 0, leads: 0, checkouts: 0, sales: 0, revenueCents: 0, commissionCents: 0, commissionPendingCents: 0, vis: new Set<string>() };
+        if (x.k === "click") { r.clicks++; if (x.visitor) r.vis.add(x.visitor); }
+        if (x.k === "cta") r.ctaClicks++;
+        if (x.k === "lead") r.leads++;
+        if (x.k === "sale") { r.sales++; r.revenueCents += x.amt; r.commissionCents += x.com; r.commissionPendingCents += x.pend; }
+        r.visitors = r.vis.size;
+        rows.set(k, r);
+      }
+    }
+    return [...rows.values()].map((row) => {
+      const { vis, ...result } = row;
+      void vis;
+      return result;
+    });
+  },
+  async createSalesPage(s, input) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    if (st.pages.some((p) => p.affiliateId === aff && p.pathKey === input.pathKey && !p.archivedAt)) throw new Error("path_taken");
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const p: PrivatePage = {
+      id: id("pg"), slug: Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(""), affiliateId: aff,
+      marketId: input.marketId, campaignId: input.campaignId, locale: input.locale, pitchVariant: "default", ctaVariant: input.ctaMode === "call" ? "call" : "request",
+      displayName: null, visibility: "unlisted", isActive: true, viewCount: 0, createdAt: iso(now()),
+      pathKey: input.pathKey, templateKey: input.templateKey, angleKey: input.angleKey, productId: "prod_studio", ctaMode: input.ctaMode,
+      showAdvisor: input.showAdvisor, advisor: input.advisor, indexable: false, archivedAt: null,
+    };
+    st.pages.push(p);
+    return p;
+  },
+  async updateSalesPage(s, pid, input) {
+    const aff = mustAffiliate(s);
+    const p = db().pages.find((x) => x.id === pid && x.affiliateId === aff);
+    if (!p) throw new Error("not_found");
+    Object.assign(p, { marketId: input.marketId, locale: input.locale, templateKey: input.templateKey, angleKey: input.angleKey,
+      ctaMode: input.ctaMode, showAdvisor: input.showAdvisor, advisor: input.advisor, campaignId: input.campaignId });
+  },
+  async archiveSalesPage(s, pid) {
+    const aff = mustAffiliate(s);
+    const p = db().pages.find((x) => x.id === pid && x.affiliateId === aff);
+    if (p) { p.archivedAt = iso(now()); p.isActive = false; }
+  },
+  async createLink(s, input) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    if (input.pageId && !st.pages.some((p) => p.id === input.pageId && p.affiliateId === aff)) throw new Error("forbidden");
+    const l: DemoLink = {
+      id: id("lnk"), affiliateId: aff, code: `${s.affiliate!.code}${Math.random().toString(36).slice(2, 5).toUpperCase()}`, name: input.name,
+      campaignId: null, isDefault: false, createdAt: iso(now()), pageId: input.pageId, marketId: input.marketId, channel: input.channel,
+    };
+    st.links.push(l);
+    return toLink(l);
+  },
   async updateProfile(s, patch) {
     const u = db().users.find((x) => x.userId === s.userId)!;
     if (patch.fullName !== undefined) u.fullName = patch.fullName;
@@ -1002,6 +1205,99 @@ export const demoRepo: Repo = {
     Object.assign(st.settings, patch);
   },
   async adminListMarkets(s) { mustStaff(s); return db().markets; },
+  async adminListSalesContent(s) {
+    mustStaff(s);
+    return [...db().content].sort((a, b) => a.kind.localeCompare(b.kind) || a.sort - b.sort || a.key.localeCompare(b.key) || b.version - a.version);
+  },
+  async adminGetSalesContent(s, cid) { mustStaff(s); return db().content.find((c) => c.id === cid) ?? null; },
+  async adminSaveSalesContent(s, cid, input) {
+    mustStaff(s);
+    const st = db();
+    if (cid) {
+      const c = st.content.find((x) => x.id === cid);
+      if (!c) throw new Error("not_found");
+      if (c.status !== "draft") throw new Error("Published content is immutable: create a new version");
+      Object.assign(c, { ...input, updatedAt: iso(now()) });
+      audit(s, "sales_content.update", "sales_content", c.id, null, { title: c.title }, null);
+      return { id: c.id };
+    }
+    const version = 1 + Math.max(0, ...st.content.filter((x) => x.kind === input.kind && x.key === input.key && x.locale === input.locale).map((x) => x.version));
+    const c = { ...input, id: id("cnt"), version, status: "draft", productId: "prod_studio", publishedAt: null, updatedAt: iso(now()) } as SalesContent;
+    st.content.push(c);
+    audit(s, "sales_content.insert", "sales_content", c.id, null, { kind: c.kind, key: c.key, locale: c.locale, version }, null);
+    return { id: c.id };
+  },
+  async adminSetSalesContentStatus(s, cid, status, reason) {
+    mustStaff(s);
+    const st = db();
+    const c = st.content.find((x) => x.id === cid);
+    if (!c) throw new Error("not_found");
+    if (status === "active") {
+      for (const o of st.content) if (o.kind === c.kind && o.key === c.key && o.locale === c.locale && o.status === "active" && o.id !== c.id) o.status = "archived";
+      c.publishedAt = iso(now());
+    }
+    c.status = status;
+    audit(s, `sales_content.${status === "active" ? "publish" : "archive"}`, "sales_content", c.id, null, { version: c.version }, reason);
+  },
+  async adminNewSalesContentVersion(s, cid, locale) {
+    mustStaff(s);
+    const c = db().content.find((x) => x.id === cid);
+    if (!c) throw new Error("not_found");
+    return demoRepo.adminSaveSalesContent(s, null, { kind: c.kind, key: c.key, locale: (locale ?? c.locale) as Locale, title: c.title, summary: c.summary,
+      targetKey: c.targetKey, channel: c.channel, stage: c.stage, tags: c.tags, sort: c.sort, body: structuredClone(c.body) });
+  },
+  async adminDeleteSalesContentDraft(s, cid) {
+    mustStaff(s);
+    const st = db();
+    const c = st.content.find((x) => x.id === cid);
+    if (c?.status !== "draft") throw new Error("Only drafts can be deleted");
+    st.content = st.content.filter((x) => x.id !== cid);
+  },
+  async adminSalesAnalytics(s) {
+    mustStaff(s);
+    const st = db();
+    const byContent = new Map<string, { kind: string; key: string; views: number; copies: number; affiliates: number; who: Set<string> }>();
+    for (const e of st.events) {
+      if (!e.contentKey) continue;
+      const k = `${e.contentKind}:${e.contentKey}`;
+      const r = byContent.get(k) ?? { kind: e.contentKind ?? "", key: e.contentKey, views: 0, copies: 0, affiliates: 0, who: new Set<string>() };
+      if (e.event === "content_view") r.views++;
+      if (e.event === "content_copy") r.copies++;
+      if (e.affiliateId) r.who.add(e.affiliateId);
+      r.affiliates = r.who.size;
+      byContent.set(k, r);
+    }
+    const pages = st.pages.filter((p) => !p.archivedAt).map((p) => ({
+      id: p.id, slug: p.slug, path_key: p.pathKey, template_key: p.templateKey, target: st.markets.find((m) => m.id === p.marketId)?.slug ?? null, cta_mode: p.ctaMode,
+      visitors: new Set(st.clicks.filter((c) => c.pageId === p.id).map((c) => c.visitorId)).size,
+      leads: st.leads.filter((l) => l.pageId === p.id).length, checkouts: 0, sales: 0,
+    }));
+    return {
+      content: [...byContent.values()].map((row) => {
+        const { who, ...result } = row;
+        void who;
+        return result;
+      }).sort((a, b) => b.views + b.copies - a.views - a.copies),
+      targets: st.markets.map((m) => ({ target: m.slug, pages: pages.filter((p) => p.target === m.slug).length,
+        visitors: pages.filter((p) => p.target === m.slug).reduce((a, p) => a + p.visitors, 0), leads: pages.filter((p) => p.target === m.slug).reduce((a, p) => a + p.leads, 0) }))
+        .filter((t) => t.pages > 0),
+      pages,
+      campaigns: st.campaigns.map((c) => ({ id: c.id, name: c.name, source: c.source, target: st.markets.find((m) => m.id === c.marketId)?.slug ?? null,
+        leads: st.leads.filter((l) => l.campaignId === c.id).length, sales: st.sales.filter((x) => x.campaignId === c.id && x.status === "paid").length })),
+      objections: [...byContent.values()].filter((r) => r.kind === "objection").map((r) => ({ key: r.key, views: r.views + r.copies })),
+    };
+  },
+  async adminListSalesPages(s) {
+    mustStaff(s);
+    return db().pages.map((p) => ({ ...p, affiliateName: affiliateName(p.affiliateId) }));
+  },
+  async adminSetSalesPageActive(s, pid, active, reason) {
+    mustStaff(s);
+    const p = db().pages.find((x) => x.id === pid);
+    if (!p) throw new Error("not_found");
+    audit(s, "sales_page.active", "private_sales_page", p.id, { active: p.isActive }, { active }, reason);
+    p.isActive = active;
+  },
   async adminUpdateMarket(s, marketId, locale, content: MarketContent, isActive) {
     mustStaff(s);
     const m = db().markets.find((x) => x.id === marketId);

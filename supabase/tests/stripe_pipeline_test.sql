@@ -74,7 +74,7 @@ begin
     'stripe_subscription_id', 'sub_' || p_n, 'customer', pg_temp.cust('cus_' || p_n, 'client' || p_n || '@client.invalid')));
   perform public.stripe_subscription_sync(pg_temp.sub('sub_' || p_n, 'cus_' || p_n, 'active', p_at, v_checkout));
   v_res := public.stripe_invoice_paid(pg_temp.inv('in_' || p_n, 'cus_' || p_n, 'client' || p_n || '@client.invalid',
-                                                  'sub_' || p_n, 'subscription_create', 300000, 'pi_' || p_n, p_at, v_checkout));
+                                                  'sub_' || p_n, 'subscription_create', 600000, 'pi_' || p_n, p_at, v_checkout));
   return (v_res->>'sale_id')::uuid;
 end $$;
 
@@ -110,11 +110,11 @@ select pg_temp.assert((select count(*) from public.sales where invoice_id is not
 select pg_temp.assert((select s.kind from public.sales s join public.invoices i on i.id = s.invoice_id where i.stripe_invoice_id = 'in_1') = 'new',
   'S1 first invoice = new sale');
 select pg_temp.assert((select status from public.commissions) = 'pending', 'S1 commission pending (validation period)');
-select pg_temp.assert((select amount_cents from public.commissions) = 150000, 'S1 50% of €3,000 = €1,500 (from commission rule)');
+select pg_temp.assert((select amount_cents from public.commissions) = 150000, 'S1 25% of €6,000 = €1,500 (from commission rule)');
 select pg_temp.assert((select rule_id is not null from public.commissions), 'S1 commission records the rule that priced it');
 select pg_temp.assert((select entry_type::text from public.commission_ledger where commission_id is not null order by id limit 1) = 'commission',
   'S1 ledger entry type = commission');
-select pg_temp.assert((select sale_id is not null and invoice_id is not null and gross_amount_cents = 300000
+select pg_temp.assert((select sale_id is not null and invoice_id is not null and gross_amount_cents = 600000
                          from public.commission_ledger where entry_type = 'commission'), 'S1 ledger row is traceable to sale + invoice');
 select pg_temp.assert((select pending_cents from public.affiliate_balances where affiliate_id = pg_temp.aff('alice@test.invalid')) = 150000,
   'S1 balance: €1,500 pending');
@@ -138,7 +138,7 @@ select pg_temp.assert(public.stripe_event_claim('evt_s1_invoice', 'invoice.paid'
   'S2 replayed event id is a duplicate');
 -- A different event about the same invoice (e.g. invoice.payment_succeeded) must not double count either.
 select pg_temp.assert((public.stripe_invoice_paid(pg_temp.inv('in_1', 'cus_1', 'client1@client.invalid', 'sub_1',
-  'subscription_create', 300000, 'pi_1', now())))->>'created' = 'false', 'S2 same invoice processed again → not created');
+  'subscription_create', 600000, 'pi_1', now())))->>'created' = 'false', 'S2 same invoice processed again → not created');
 select pg_temp.assert((select count(*) from public.payments where stripe_payment_intent_id = 'pi_1') = 1, 'S2 exactly 1 payment');
 select pg_temp.assert((select count(*) from public.sales s join public.invoices i on i.id = s.invoice_id where i.stripe_invoice_id = 'in_1') = 1,
   'S2 exactly 1 sale');
@@ -159,13 +159,13 @@ select public.stripe_event_finish('evt_busy', 'processed');
 -- Refunded before validation → commission reversed
 select pg_temp.buy(3, pg_temp.aff('alice@test.invalid'));
 select pg_temp.assert(public.stripe_refund_sync(jsonb_build_object('stripe_refund_id', 're_3', 'stripe_payment_intent_id', 'pi_3',
-  'amount', 300000, 'currency', 'eur', 'status', 'pending')) = 'recorded', 'S3 pending refund recorded, no effect yet');
+  'amount', 600000, 'currency', 'eur', 'status', 'pending')) = 'recorded', 'S3 pending refund recorded, no effect yet');
 select pg_temp.assert((select c.status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_3') = 'pending', 'S3 commission untouched while refund pending');
 select pg_temp.assert(public.stripe_refund_sync(jsonb_build_object('stripe_refund_id', 're_3', 'stripe_payment_intent_id', 'pi_3',
-  'amount', 300000, 'currency', 'eur', 'status', 'succeeded')) = 'applied', 'S3 refund succeeded → applied');
+  'amount', 600000, 'currency', 'eur', 'status', 'succeeded')) = 'applied', 'S3 refund succeeded → applied');
 select pg_temp.assert(public.stripe_refund_sync(jsonb_build_object('stripe_refund_id', 're_3', 'stripe_payment_intent_id', 'pi_3',
-  'amount', 300000, 'currency', 'eur', 'status', 'succeeded')) = 'recorded', 'S3 refund replay applies nothing twice');
+  'amount', 600000, 'currency', 'eur', 'status', 'succeeded')) = 'recorded', 'S3 refund replay applies nothing twice');
 select pg_temp.assert((select c.status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_3') = 'reversed', 'S3 commission reversed');
 select pg_temp.assert((select count(*) from public.commission_ledger l join public.sales s on s.id = l.sale_id join public.invoices i on i.id = s.invoice_id
@@ -183,7 +183,7 @@ select pg_temp.assert(public.release_due_commissions() = 2, 'S4 validation perio
 select pg_temp.assert((select count(*) from public.email_events where template = 'affiliate.commission_available') = 2,
   'S4 "commission available" emails queued');
 select public.stripe_refund_sync(jsonb_build_object('stripe_refund_id', 're_4', 'stripe_payment_intent_id', 'pi_4',
-  'amount', 300000, 'currency', 'eur', 'status', 'succeeded'));
+  'amount', 600000, 'currency', 'eur', 'status', 'succeeded'));
 select pg_temp.assert((select count(*) from public.commission_ledger l join public.sales s on s.id = l.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_4' and l.entry_type = 'reversal' and l.from_bucket = 'available') = 1,
   'S4 compensating reversal from available');
@@ -197,7 +197,7 @@ select public.staff_mark_payout_paid((select id from public.payouts), 'TRF-1');
 select pg_temp.act_as(null);
 select pg_temp.assert((select count(*) from public.email_events where template = 'affiliate.payout_sent') = 1, 'S4b payout email queued');
 select public.stripe_refund_sync(jsonb_build_object('stripe_refund_id', 're_1', 'stripe_payment_intent_id', 'pi_1',
-  'amount', 300000, 'currency', 'eur', 'status', 'succeeded'));
+  'amount', 600000, 'currency', 'eur', 'status', 'succeeded'));
 select pg_temp.assert((select c.recovery_status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_1') = 'required', 'S4b paid commission reversed → recovery required');
 select pg_temp.assert((select amount_cents from public.commission_ledger where entry_type = 'clawback') = -150000, 'S4b clawback entry, history kept');
@@ -226,7 +226,7 @@ select pg_temp.assert((select count(*) from public.commissions c join public.sal
   'S5 before renewal: one commission, no future commission generated in advance');
 select public.stripe_subscription_sync(pg_temp.sub('sub_5', 'cus_5', 'active', now()));
 select pg_temp.assert((public.stripe_invoice_paid(pg_temp.inv('in_5b', 'cus_5', 'client5@client.invalid', 'sub_5',
-  'subscription_cycle', 300000, 'pi_5b', now())))->>'created' = 'true', 'S5 renewal invoice recorded');
+  'subscription_cycle', 600000, 'pi_5b', now())))->>'created' = 'true', 'S5 renewal invoice recorded');
 select pg_temp.assert((select s.kind from public.sales s join public.invoices i on i.id = s.invoice_id where i.stripe_invoice_id = 'in_5b') = 'renewal',
   'S5 renewal sale');
 select pg_temp.assert((select c.status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
@@ -243,7 +243,7 @@ select pg_temp.assert((select count(*) from public.email_events where template =
 -- ============================================================ Scenario 6
 -- Failed renewal → no commission; Stripe later collects → normal pipeline
 select public.stripe_invoice_payment_failed(jsonb_build_object('stripe_invoice_id', 'in_5c', 'customer', pg_temp.cust('cus_5', null),
-  'stripe_subscription_id', 'sub_5', 'billing_reason', 'subscription_cycle', 'currency', 'eur', 'amount_due', 300000,
+  'stripe_subscription_id', 'sub_5', 'billing_reason', 'subscription_cycle', 'currency', 'eur', 'amount_due', 600000,
   'period_start', now() + interval '1 year', 'period_end', now() + interval '2 years', 'attempt_count', 1,
   'next_payment_attempt', now() + interval '3 days', 'stripe_price_id', 'price_test_studio'));
 select public.stripe_subscription_sync(pg_temp.sub('sub_5', 'cus_5', 'past_due', now()));
@@ -254,7 +254,7 @@ select pg_temp.assert((select count(*) from public.commissions c join public.sal
 select pg_temp.assert((select status from public.subscriptions where stripe_subscription_id = 'sub_5') = 'past_due', 'S6 subscription past_due');
 select pg_temp.assert((select status from public.invoices where stripe_invoice_id = 'in_5c') = 'open', 'S6 invoice open, retry scheduled');
 select pg_temp.assert((select count(*) from public.activity_events where type = 'payment_failed') = 1, 'S6 affiliate sees the failed payment');
-select public.stripe_invoice_paid(pg_temp.inv('in_5c', 'cus_5', null, 'sub_5', 'subscription_cycle', 300000, 'pi_5c', now() + interval '1 year'));
+select public.stripe_invoice_paid(pg_temp.inv('in_5c', 'cus_5', null, 'sub_5', 'subscription_cycle', 600000, 'pi_5c', now() + interval '1 year'));
 select pg_temp.assert((select c.status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_5c') = 'pending', 'S6 later successful retry → commission');
 select pg_temp.assert((select status from public.subscriptions where stripe_subscription_id = 'sub_5') = 'active', 'S6 subscription active again');
@@ -323,20 +323,20 @@ select pg_temp.assert((select c.status from public.commissions c join public.sal
 -- ============================================================ Disputes
 select pg_temp.buy(11, pg_temp.aff('alice@test.invalid'));
 select public.stripe_dispute_sync(jsonb_build_object('stripe_dispute_id', 'dp_11', 'stripe_payment_intent_id', 'pi_11',
-  'amount', 300000, 'currency', 'eur', 'status', 'needs_response', 'reason', 'fraudulent'));
+  'amount', 600000, 'currency', 'eur', 'status', 'needs_response', 'reason', 'fraudulent'));
 select pg_temp.assert((select c.status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_11') = 'disputed', 'dispute opened → commission disputed');
 select pg_temp.assert((select count(*) from public.fraud_flags where entity = 'dispute') = 1, 'dispute flagged for admin review');
 select public.stripe_dispute_sync(jsonb_build_object('stripe_dispute_id', 'dp_11', 'stripe_payment_intent_id', 'pi_11',
-  'amount', 300000, 'currency', 'eur', 'status', 'won'));
+  'amount', 600000, 'currency', 'eur', 'status', 'won'));
 select pg_temp.assert((select c.status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_11') = 'pending', 'dispute won → commission restored to pending');
 
 select pg_temp.buy(12, pg_temp.aff('alice@test.invalid'));
 select public.stripe_dispute_sync(jsonb_build_object('stripe_dispute_id', 'dp_12', 'stripe_payment_intent_id', 'pi_12',
-  'amount', 300000, 'currency', 'eur', 'status', 'needs_response'));
+  'amount', 600000, 'currency', 'eur', 'status', 'needs_response'));
 select public.stripe_dispute_sync(jsonb_build_object('stripe_dispute_id', 'dp_12', 'stripe_payment_intent_id', 'pi_12',
-  'amount', 300000, 'currency', 'eur', 'status', 'lost'));
+  'amount', 600000, 'currency', 'eur', 'status', 'lost'));
 select pg_temp.assert((select c.status from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
   where i.stripe_invoice_id = 'in_12') = 'reversed', 'chargeback lost → commission reversed');
 select pg_temp.assert((select s.status from public.sales s join public.invoices i on i.id = s.invoice_id where i.stripe_invoice_id = 'in_12') = 'chargeback',
@@ -353,7 +353,7 @@ select pg_temp.buy(14, pg_temp.aff('alice@test.invalid'));
 select public.stripe_refund_sync(jsonb_build_object('stripe_refund_id', 're_14', 'stripe_payment_intent_id', 'pi_14',
   'amount', 100000, 'currency', 'eur', 'status', 'succeeded'));
 select pg_temp.assert((select c.amount_cents from public.commissions c join public.sales s on s.id = c.sale_id join public.invoices i on i.id = s.invoice_id
-  where i.stripe_invoice_id = 'in_14') = 100000, 'proportional policy: €1,000 refunded → commission €1,500 → €1,000');
+  where i.stripe_invoice_id = 'in_14') = 125000, 'proportional policy: €1,000 of €6,000 refunded → commission €1,500 → €1,250');
 update public.settings set value = '"manual_review"' where key = 'refund.partial_policy';
 
 -- ============================================================ Commission rules
@@ -381,7 +381,7 @@ insert into public.checkout_sessions (id, stripe_checkout_session_id, status, of
 select 'cccccccc-0000-0000-0000-000000000001', 'cs_late', 'open', o.id, o.product_id, pg_temp.aff('alice@test.invalid'), 'first_click'
   from public.offers o where o.stripe_lookup_key = 'studio_yearly_eur';
 select public.stripe_subscription_sync(pg_temp.sub('sub_late', 'cus_late', 'active', now()));
-select public.stripe_invoice_paid(pg_temp.inv('in_late', 'cus_late', 'late@client.invalid', 'sub_late', 'subscription_create', 300000, 'pi_late', now()));
+select public.stripe_invoice_paid(pg_temp.inv('in_late', 'cus_late', 'late@client.invalid', 'sub_late', 'subscription_create', 600000, 'pi_late', now()));
 select pg_temp.assert((select count(*) from public.commissions c join public.sales s on s.id = c.sale_id where s.invoice_id =
   (select id from public.invoices where stripe_invoice_id = 'in_late')) = 0, 'ordering: no attribution known yet');
 select public.stripe_checkout_completed(jsonb_build_object('stripe_checkout_session_id', 'cs_late',

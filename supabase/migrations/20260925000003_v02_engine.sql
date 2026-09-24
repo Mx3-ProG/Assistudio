@@ -1082,7 +1082,7 @@ begin
 
   if v_sale.id is null then  -- replay: already recorded
     select * into v_sale from public.sales where invoice_id = v_invoice;
-    select * into c from public.commissions where sale_id = v_sale.id;
+    select * into c from public.commissions where sale_id = v_sale.id and affiliate_id = v_sale.affiliate_id;
     return jsonb_build_object('invoice_id', v_invoice, 'sale_id', v_sale.id, 'created', false,
                               'commission_id', c.id, 'commission_status', c.status);
   end if;
@@ -1113,7 +1113,7 @@ begin
       'customer.receipt:' || v_sale.id);
   end if;
 
-  select * into c from public.commissions where sale_id = v_sale.id;
+  select * into c from public.commissions where sale_id = v_sale.id and affiliate_id = v_sale.affiliate_id;
   return jsonb_build_object('invoice_id', v_invoice, 'sale_id', v_sale.id, 'created', true,
                             'commission_id', c.id, 'commission_status', c.status);
 end $$;

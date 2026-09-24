@@ -54,7 +54,7 @@ select pg_temp.assert((select count(*) from public.commissions) = 0, 'no commiss
 -- ---------------------------------------------------------------- payment collected
 select public.staff_set_sale_status((select id from public.sales), 'paid', 'Payment received');
 select pg_temp.assert((select status from public.commissions) = 'pending', 'paid → commission pending (validation period)');
-select pg_temp.assert((select amount_cents from public.commissions) = 150000, '50% of €3,000 = €1,500');
+select pg_temp.assert((select amount_cents from public.commissions) = 150000, '25% of €6,000 = €1,500');
 select pg_temp.assert((select lifetime_earned_cents from public.affiliate_balances b join public.commissions c on c.affiliate_id = b.affiliate_id) = 0,
   'pending money is never counted as earned');
 select pg_temp.assert((select hold_until::date from public.commissions) = (now() + interval '30 days')::date, 'validation window from settings (30d)');
