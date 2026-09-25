@@ -19,7 +19,7 @@ export function generateStaticParams() {
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.siteUrl),
-  applicationName: "STUDIO",
+  applicationName: "Studio ATS",
   formatDetection: { telephone: false },
 };
 

@@ -24,12 +24,12 @@ export function ShareSheet({ url, pageId, title }: { url: string; pageId?: strin
         <TrackedCopy value={url} label={P.copyLink} variant="accent" size="md" />
         {canShare && (
           <button type="button" className={buttonClass("secondary", "md")}
-            onClick={() => { log(); navigator.share({ title: title ?? "STUDIO", text: P.shareText, url }).catch(() => undefined); }}>
+            onClick={() => { log(); navigator.share({ title: title ?? "Studio ATS", text: P.shareText, url }).catch(() => undefined); }}>
             <Share2 className="size-4" />{P.nativeShare}
           </button>
         )}
         <a onClick={log} href={`https://wa.me/?text=${e(text)}`} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary", "md")}><MessageCircle className="size-4" />WhatsApp</a>
-        <a onClick={log} href={`mailto:?subject=${e(title ?? "STUDIO")}&body=${e(text)}`} className={buttonClass("secondary", "md")}><Mail className="size-4" />Email</a>
+        <a onClick={log} href={`mailto:?subject=${e(title ?? "Studio ATS")}&body=${e(text)}`} className={buttonClass("secondary", "md")}><Mail className="size-4" />Email</a>
         <a onClick={log} href={`https://www.linkedin.com/sharing/share-offsite/?url=${e(url)}`} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary", "md")}>LinkedIn</a>
         <button type="button" className={buttonClass("secondary", "md")}
           onClick={async () => setQr(qr ? null : await QRCode.toDataURL(url, { margin: 1, width: 320 }))}>

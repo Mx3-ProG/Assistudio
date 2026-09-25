@@ -8,7 +8,7 @@ import { LinkButton } from "@/components/ui/button";
 export async function generateMetadata({ params }: PageProps<"/[locale]/partners">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  return pageMetadata(locale, "/partners", `${t.pages.partners.title} — STUDIO`, t.pages.partners.body);
+  return pageMetadata(locale, "/partners", `${t.pages.partners.title} — Studio ATS`, t.pages.partners.body);
 }
 
 export default async function Partners({ params }: PageProps<"/[locale]/partners">) {

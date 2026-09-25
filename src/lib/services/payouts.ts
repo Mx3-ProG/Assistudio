@@ -11,7 +11,7 @@ import { normalizeAccount } from "@/lib/stripe/normalize";
  * PayoutService — Stripe Connect preparation.
  *
  * Sensitive onboarding (identity, bank account) happens entirely on Stripe's
- * hosted pages; STUDIO only stores the connected account id and the status
+ * hosted pages; Studio ATS only stores the connected account id and the status
  * fields that decide payout eligibility. Payouts themselves stay a deliberate
  * staff action after validation (staff_create_payout) — never automatic.
  */

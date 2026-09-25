@@ -133,11 +133,11 @@ function seed(): Store {
   };
   // Mirrors supabase/migrations/20260928000001_offers_v3.sql (same rate on every offer).
   const offers: Offer[] = [
-    { id: "offer_studio_one", productId: "prod_studio", productName: "STUDIO", tier: "one",
+    { id: "offer_studio_one", productId: "prod_studio", productName: "Studio ATS", tier: "one",
       priceCents: 50_000, currency: "EUR", interval: "one_time", commissionRate: 0.25, recurring: false },
-    { id: "offer_studio_pro", productId: "prod_studio", productName: "STUDIO", tier: "pro",
+    { id: "offer_studio_pro", productId: "prod_studio", productName: "Studio ATS", tier: "pro",
       priceCents: 300_000, currency: "EUR", interval: "year", commissionRate: 0.25, recurring: true },
-    { id: "offer_studio_annual", productId: "prod_studio", productName: "STUDIO", tier: "premium",
+    { id: "offer_studio_annual", productId: "prod_studio", productName: "Studio ATS", tier: "premium",
       priceCents: 600_000, currency: "EUR", interval: "year", commissionRate: 0.25, recurring: true },
   ];
   const offer = maxEarningOffer(offers);
@@ -336,7 +336,7 @@ function seed(): Store {
     locale: "fr", pitchVariant: "default", ctaVariant: "request", displayName: null, visibility: "unlisted",
     isActive: true, viewCount: 0, createdAt: daysAgo(12),
     pathKey: "artisans", templateKey: "studio-default", angleKey: "professional-presence", productId: "prod_studio", ctaMode: "lead",
-    showAdvisor: true, advisor: { name: "Mathieu", title: "STUDIO advisor", email: "mathieu@demo.studio.invalid" }, indexable: false, archivedAt: null,
+    showAdvisor: true, advisor: { name: "Mathieu", title: "Studio ATS advisor", email: "mathieu@demo.studio.invalid" }, indexable: false, archivedAt: null,
   });
   for (let i = 0; i < 26; i++) {
     s.clicks.push({ id: `clk_pg_${i}`, affiliateId: me, linkId: "lnk_mathieu", pageId: "pg_artisans", visitorId: `vis_pg_${i % 19}`, at: daysAgo(Math.floor(r() * 12)), country: "FR", device: "mobile", isBot: false });
@@ -428,7 +428,7 @@ function saleRow(x: DemoSale): SaleRow {
   const sub = x.subscriptionId ? st.subscriptions.find((u) => u.id === x.subscriptionId) : null;
   const cmp = x.campaignId ? st.campaigns.find((c) => c.id === x.campaignId) : null;
   return {
-    id: x.id, ref: x.ref, customerRef: cust.ref, customerName: cust.name, product: "STUDIO", date: x.createdAt,
+    id: x.id, ref: x.ref, customerRef: cust.ref, customerName: cust.name, product: "Studio ATS", date: x.createdAt,
     status: x.status, kind: x.kind, amountCents: x.amountCents, commissionCents: com?.amountCents ?? null,
     commissionStatus: com?.status ?? null, renewalDate: sub?.status === "active" ? sub.periodEnd : null,
     source: cmp?.source ?? (x.linkId ? "link" : null), campaign: cmp?.name ?? null, isDemo: true,
@@ -737,7 +737,7 @@ export const demoRepo: Repo = {
       return {
         subscriptionId: sub.id, customerRef: cust.ref, customerName: cust.name, productName: st.offer.productName,
         startedAt: sub.startedAt, renewalDate: sub.periodEnd, annualCents: st.offer.priceCents, currency: st.offer.currency,
-        status: sub.status, cancelling: sub.cancelling, ruleLabel: "STUDIO — default affiliate commission",
+        status: sub.status, cancelling: sub.cancelling, ruleLabel: "Studio ATS — default affiliate commission",
         ruleRate: st.offer.commissionRate, ruleDurationMonths: null,
         nextCommissionEligible: renewing, nextCommissionReason: renewing ? null : "not_renewing",
         nextCommissionCents: renewing ? commission : 0, projected12mCents: within12m ? commission : 0,

@@ -17,7 +17,7 @@ export function SharePanel({ url, qrDataUrl }: { url: string; qrDataUrl: string 
   const e = encodeURIComponent;
   const shares = [
     { key: "WhatsApp", href: `https://wa.me/?text=${e(msg)}`, icon: Brand.whatsapp },
-    { key: "Email", href: `mailto:?subject=${e("STUDIO")}&body=${e(msg)}`, icon: (p: React.SVGProps<SVGSVGElement>) => <Mail {...(p as object)} /> },
+    { key: "Email", href: `mailto:?subject=${e("Studio ATS")}&body=${e(msg)}`, icon: (p: React.SVGProps<SVGSVGElement>) => <Mail {...(p as object)} /> },
     { key: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${e(url)}`, icon: Brand.linkedin },
     { key: "X", href: `https://x.com/intent/post?text=${e(t.dash.link.shareMessage)}&url=${e(url)}`, icon: Brand.x },
     { key: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${e(url)}`, icon: Brand.facebook },

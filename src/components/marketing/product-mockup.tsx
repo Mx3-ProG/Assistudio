@@ -18,7 +18,7 @@ const FEATURES = [
 ] as const;
 type Key = (typeof FEATURES)[number]["key"];
 
-/** Interactive, illustrative mockup of the STUDIO product (no real data). */
+/** Interactive, illustrative mockup of the Studio ATS product (no real data). */
 export function ProductMockup() {
   const { t } = useI18n();
   const [active, setActive] = useState<Key>("leads");

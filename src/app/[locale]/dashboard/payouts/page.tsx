@@ -14,7 +14,7 @@ import { payoutTone } from "@/components/dashboard/status";
  * Question: "When do I get paid?"
  * Payouts are a deliberate staff action after the validation period — never
  * automatic. The payout account lives at Stripe (Connect); no bank details
- * are ever stored by STUDIO.
+ * are ever stored by Studio ATS.
  */
 export default async function Payouts({ params }: PageProps<"/[locale]/dashboard/payouts">) {
   const { locale } = (await params) as { locale: Locale };

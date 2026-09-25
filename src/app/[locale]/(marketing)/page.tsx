@@ -43,7 +43,7 @@ export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
 
   return (
     <>
-      <JsonLd data={{ "@context": "https://schema.org", "@type": "Organization", name: "STUDIO", url: `${env.siteUrl}/${locale}` }} />
+      <JsonLd data={{ "@context": "https://schema.org", "@type": "Organization", name: "Studio ATS", url: `${env.siteUrl}/${locale}` }} />
       <Navbar />
       <main>
         {/* ---------------------------------------------------------------- HERO */}

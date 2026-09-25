@@ -3,7 +3,7 @@ import type { Locale } from "@/i18n/config";
 import { requireStaff } from "@/lib/auth";
 import { AdminShell } from "@/components/admin/admin-shell";
 
-export const metadata: Metadata = { title: "STUDIO Admin", robots: { index: false, follow: false, nocache: true } };
+export const metadata: Metadata = { title: "Studio ATS Admin", robots: { index: false, follow: false, nocache: true } };
 
 export default async function AdminLayout({ children, params }: LayoutProps<"/[locale]/admin">) {
   const { locale } = (await params) as { locale: Locale };

@@ -2,7 +2,7 @@
  * Message personalisation — pure (unit-tested).
  *
  * Templates use {{variable}} placeholders. Only values the affiliate actually
- * typed (or that STUDIO knows about the affiliate) are injected. Nothing is
+ * typed (or that Studio ATS knows about the affiliate) are injected. Nothing is
  * ever guessed about the prospect: an unknown value stays visible as a
  * [bracketed label] the affiliate must fill before sending.
  */

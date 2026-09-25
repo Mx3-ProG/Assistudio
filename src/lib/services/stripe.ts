@@ -29,7 +29,7 @@ export function stripe(): Stripe {
     throw new Error("Refusing a test Stripe key on the production deployment");
   }
   client = new Stripe(env.stripeSecretKey, {
-    appInfo: { name: "STUDIO", version: "0.2.0" },
+    appInfo: { name: "Studio ATS", version: "0.2.0" },
     maxNetworkRetries: 2,
     timeout: 20_000,
   });

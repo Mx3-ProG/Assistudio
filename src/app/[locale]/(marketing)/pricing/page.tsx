@@ -33,9 +33,9 @@ export default async function PricingPage({ params }: PageProps<"/[locale]/prici
         data={{
           "@context": "https://schema.org",
           "@type": "Product",
-          name: "STUDIO",
+          name: "Studio ATS",
           description: t.meta.studioDescription,
-          brand: { "@type": "Brand", name: "STUDIO" },
+          brand: { "@type": "Brand", name: "Studio ATS" },
           offers: offers.map((o) => ({
             "@type": "Offer",
             name: P.plans[o.tier].name,

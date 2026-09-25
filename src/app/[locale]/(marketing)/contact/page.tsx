@@ -7,7 +7,7 @@ import { InfoPage } from "@/components/marketing/info-page";
 export async function generateMetadata({ params }: PageProps<"/[locale]/contact">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  return pageMetadata(locale, "/contact", `${t.pages.contact.title} — STUDIO`, t.pages.contact.title);
+  return pageMetadata(locale, "/contact", `${t.pages.contact.title} — Studio ATS`, t.pages.contact.title);
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/contact">) {

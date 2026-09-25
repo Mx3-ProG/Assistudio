@@ -12,7 +12,7 @@ test("every template renders in every supported email locale, with a text altern
       const r = renderEmail(id, sale, { ...opts, locale });
       assert.ok(r.subject.length > 3, `${id}/${locale} subject`);
       assert.ok(r.html.includes("<html"), `${id}/${locale} html`);
-      assert.ok(r.text.includes("STUDIO"), `${id}/${locale} text`);
+      assert.ok(r.text.includes("Studio ATS"), `${id}/${locale} text`);
       assert.ok(!/\{\w+\}/.test(r.subject + r.text), `${id}/${locale} has no unfilled placeholder`);
     }
   }

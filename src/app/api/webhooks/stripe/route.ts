@@ -7,7 +7,7 @@ import { verifyStripeEvent, WebhookSignatureError } from "@/lib/stripe/verify";
 import { flushEmailOutbox } from "@/lib/email/service";
 
 /**
- * Stripe webhook — the only way a payment becomes a sale in STUDIO.
+ * Stripe webhook — the only way a payment becomes a sale in Studio ATS.
  *
  *  - raw body + `stripe-signature` verified against the endpoint secret(s)
  *  - 400 on a bad signature (Stripe will not retry a forged request forever)

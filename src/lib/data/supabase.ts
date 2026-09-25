@@ -139,7 +139,7 @@ export const supabaseRepo: Repo = {
     const rows = check(await sb.from("products").select("id, slug, name, is_active, offers(price_cents, currency, billing_interval, is_active, valid_from, stripe_lookup_key)")
       .is("deleted_at", null).order("sort")) as any[];
     return rows.map((p) => {
-      // Several active offers (STUDIO One/Pro/Premium): show the highest price, i.e. the highest commission.
+      // Several active offers (Studio ATS One/Pro/Premium): show the highest price, i.e. the highest commission.
       const o = (p.offers ?? []).filter((x: any) => x.is_active).sort((a: any, b: any) => b.price_cents - a.price_cents || b.valid_from.localeCompare(a.valid_from))[0];
       return {
         id: p.id, slug: p.slug, name: p.name, active: p.is_active,
@@ -443,7 +443,7 @@ export const supabaseRepo: Repo = {
     const cmap = new Map((check(customers) as any[]).map((c) => [c.id, c]));
     return (check(rows) as any[]).map((r): SaleRow => ({
       id: r.id, ref: r.public_ref, customerRef: cmap.get(r.customer_id)?.public_ref ?? "—",
-      customerName: cmap.get(r.customer_id)?.company_name ?? null, product: r.offers?.products?.name ?? "STUDIO",
+      customerName: cmap.get(r.customer_id)?.company_name ?? null, product: r.offers?.products?.name ?? "Studio ATS",
       date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
       commissionCents: r.commissions?.[0]?.amount_cents ?? null, commissionStatus: r.commissions?.[0]?.status ?? null,
       renewalDate: r.subscriptions?.status === "active" ? r.subscriptions.current_period_end : null,
@@ -726,7 +726,7 @@ export const supabaseRepo: Repo = {
     const rows = check(await sb.from("sales").select("*, customers(public_ref, company_name), commissions(amount_cents, status), campaigns(name, source), affiliates(id, profiles(full_name)), subscriptions(current_period_end, status)").order("created_at", { ascending: false }).limit(500)) as any[];
     return rows.map((r) => ({
       id: r.id, ref: r.public_ref, customerRef: r.customers?.public_ref ?? "—", customerName: r.customers?.company_name ?? null,
-      product: "STUDIO", date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
+      product: "Studio ATS", date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
       commissionCents: r.commissions?.[0]?.amount_cents ?? null, commissionStatus: r.commissions?.[0]?.status ?? null,
       renewalDate: r.subscriptions?.status === "active" ? r.subscriptions.current_period_end : null,
       source: r.campaigns?.source ?? null, campaign: r.campaigns?.name ?? null,

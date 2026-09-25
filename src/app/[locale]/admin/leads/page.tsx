@@ -7,7 +7,7 @@ import { createSaleFromLead } from "@/app/actions/admin";
 import { PageHeader, Card, Badge, Notice } from "@/components/ui/primitives";
 import { ReasonAction } from "@/components/admin/reason-action";
 
-/** Inbound "Request STUDIO" leads, with their attribution. Staff convert won leads into sales. */
+/** Inbound "Request Studio ATS" leads, with their attribution. Staff convert won leads into sales. */
 export default async function AdminLeads({ params }: PageProps<"/[locale]/admin/leads">) {
   const { locale } = (await params) as { locale: Locale };
   const s = await requireStaff(locale);

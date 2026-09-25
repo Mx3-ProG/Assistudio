@@ -24,15 +24,15 @@ type Copy = { common: { signature: string; footer: string; pendingNote: string }
 
 const en: Copy = {
   common: {
-    signature: "The STUDIO team",
-    footer: "You receive this email because of your STUDIO account or request. This is a transactional message.",
+    signature: "The Studio ATS team",
+    footer: "You receive this email because of your Studio ATS account or request. This is a transactional message.",
     pendingNote: "A pending commission is not yet acquired: it becomes available once the validation period ends without refund or dispute.",
   },
   templates: {
     "affiliate.welcome": {
-      subject: "Welcome to STUDIO",
+      subject: "Welcome to Studio ATS",
       preheader: "Your partner space is ready.",
-      title: "Welcome to STUDIO.",
+      title: "Welcome to Studio ATS.",
       paragraphs: [
         "Your partner space is ready. Your referral code is {code}.",
         "Share your link, follow your prospects and see every sale, commission and renewal in one place.",
@@ -43,7 +43,7 @@ const en: Copy = {
       subject: "New prospect attributed to you",
       preheader: "A new request came through your link.",
       title: "A new prospect was attributed to you.",
-      paragraphs: ["{who} requested information about STUDIO through your link.", "The STUDIO team handles the first contact. You can follow it from your dashboard."],
+      paragraphs: ["{who} requested information about Studio ATS through your link.", "The Studio ATS team handles the first contact. You can follow it from your dashboard."],
       cta: { label: "View my prospects", path: "/dashboard/prospects" },
     },
     "affiliate.appointment": {
@@ -54,7 +54,7 @@ const en: Copy = {
       cta: { label: "View my prospects", path: "/dashboard/prospects" },
     },
     "affiliate.sale_detected": {
-      subject: "New STUDIO sale — {commission} commission pending",
+      subject: "New Studio ATS sale — {commission} commission pending",
       preheader: "{gross} generated. Commission pending validation.",
       title: "A sale was confirmed.",
       paragraphs: [
@@ -100,46 +100,46 @@ const en: Copy = {
       cta: { label: "View my recurring book", path: "/dashboard/recurring" },
     },
     "customer.welcome": {
-      subject: "Welcome to STUDIO",
+      subject: "Welcome to Studio ATS",
       preheader: "Your payment is confirmed.",
-      title: "Welcome to STUDIO.",
+      title: "Welcome to Studio ATS.",
       paragraphs: [
         "Your payment is confirmed and your {product} subscription is active.",
         "Our team will contact you shortly to start. Your receipt and invoices are sent by our payment provider, Stripe.",
       ],
     },
     "customer.order_confirmation": {
-      subject: "Your STUDIO order {sale_ref}",
+      subject: "Your Studio ATS order {sale_ref}",
       preheader: "Order confirmed.",
       title: "Your order is confirmed.",
       paragraphs: ["Order {sale_ref}: {amount} paid."],
     },
     "customer.renewal_receipt": {
-      subject: "Your STUDIO subscription was renewed",
+      subject: "Your Studio ATS subscription was renewed",
       preheader: "Renewal confirmed.",
       title: "Your subscription was renewed.",
       paragraphs: ["Renewal {sale_ref}: {amount} paid. Thank you for your trust."],
     },
     "customer.payment_failed": {
-      subject: "Your STUDIO payment did not go through",
+      subject: "Your Studio ATS payment did not go through",
       preheader: "Please update your payment method.",
       title: "Your payment did not go through.",
       paragraphs: ["We could not collect {amount}. Your bank may have declined the payment. We will retry automatically; you can also update your payment method from the link in our payment provider's email."],
     },
     "customer.cancellation": {
-      subject: "Your STUDIO cancellation is confirmed",
+      subject: "Your Studio ATS cancellation is confirmed",
       preheader: "Cancellation confirmed.",
       title: "Your cancellation is confirmed.",
       paragraphs: ["Your subscription will not renew. You keep access until {ends_on}.", "If this was a mistake, simply reply to this email."],
     },
     "lead.confirmation": {
-      subject: "We received your request — STUDIO",
+      subject: "We received your request — Studio ATS",
       preheader: "We will get back to you shortly.",
       title: "Thank you, we received your request.",
-      paragraphs: ["A member of the STUDIO team will contact you shortly."],
+      paragraphs: ["A member of the Studio ATS team will contact you shortly."],
     },
     "lead.appointment_confirmation": {
-      subject: "Your STUDIO appointment request",
+      subject: "Your Studio ATS appointment request",
       preheader: "We will confirm the time with you.",
       title: "We received your appointment request.",
       paragraphs: ["We will confirm the time with you{when}."],
@@ -149,15 +149,15 @@ const en: Copy = {
 
 const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>> } = {
   common: {
-    signature: "L’équipe STUDIO",
-    footer: "Vous recevez cet email en lien avec votre compte ou votre demande STUDIO. Message transactionnel.",
+    signature: "L’équipe Studio ATS",
+    footer: "Vous recevez cet email en lien avec votre compte ou votre demande Studio ATS. Message transactionnel.",
     pendingNote: "Une commission en attente n’est pas encore acquise : elle devient disponible à la fin de la période de validation, sans remboursement ni litige.",
   },
   templates: {
     "affiliate.welcome": {
-      subject: "Bienvenue dans STUDIO",
+      subject: "Bienvenue dans Studio ATS",
       preheader: "Votre espace partenaire est prêt.",
-      title: "Bienvenue dans STUDIO.",
+      title: "Bienvenue dans Studio ATS.",
       paragraphs: [
         "Votre espace partenaire est prêt. Votre code de parrainage : {code}.",
         "Partagez votre lien, suivez vos prospects et retrouvez chaque vente, commission et renouvellement au même endroit.",
@@ -168,7 +168,7 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       subject: "Un nouveau prospect vous a été attribué",
       preheader: "Une nouvelle demande est arrivée via votre lien.",
       title: "Un nouveau prospect vous a été attribué.",
-      paragraphs: ["{who} a demandé des informations sur STUDIO via votre lien.", "L’équipe STUDIO assure le premier contact. Vous pouvez le suivre depuis votre tableau de bord."],
+      paragraphs: ["{who} a demandé des informations sur Studio ATS via votre lien.", "L’équipe Studio ATS assure le premier contact. Vous pouvez le suivre depuis votre tableau de bord."],
       cta: { label: "Voir mes prospects", path: "/dashboard/prospects" },
     },
     "affiliate.appointment": {
@@ -179,7 +179,7 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       cta: { label: "Voir mes prospects", path: "/dashboard/prospects" },
     },
     "affiliate.sale_detected": {
-      subject: "Nouvelle vente STUDIO — commission de {commission} en attente",
+      subject: "Nouvelle vente Studio ATS — commission de {commission} en attente",
       preheader: "{gross} générés. Commission en attente de validation.",
       title: "Une vente a été confirmée.",
       paragraphs: [
@@ -225,46 +225,46 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       cta: { label: "Voir mon portefeuille récurrent", path: "/dashboard/recurring" },
     },
     "customer.welcome": {
-      subject: "Bienvenue dans STUDIO",
+      subject: "Bienvenue dans Studio ATS",
       preheader: "Votre paiement est confirmé.",
-      title: "Bienvenue dans STUDIO.",
+      title: "Bienvenue dans Studio ATS.",
       paragraphs: [
         "Votre paiement est confirmé et votre abonnement {product} est actif.",
         "Notre équipe vous contacte très vite pour démarrer. Votre reçu et vos factures sont envoyés par notre prestataire de paiement, Stripe.",
       ],
     },
     "customer.order_confirmation": {
-      subject: "Votre commande STUDIO {sale_ref}",
+      subject: "Votre commande Studio ATS {sale_ref}",
       preheader: "Commande confirmée.",
       title: "Votre commande est confirmée.",
       paragraphs: ["Commande {sale_ref} : {amount} payés."],
     },
     "customer.renewal_receipt": {
-      subject: "Votre abonnement STUDIO a été renouvelé",
+      subject: "Votre abonnement Studio ATS a été renouvelé",
       preheader: "Renouvellement confirmé.",
       title: "Votre abonnement a été renouvelé.",
       paragraphs: ["Renouvellement {sale_ref} : {amount} payés. Merci de votre confiance."],
     },
     "customer.payment_failed": {
-      subject: "Votre paiement STUDIO n’a pas abouti",
+      subject: "Votre paiement Studio ATS n’a pas abouti",
       preheader: "Merci de mettre à jour votre moyen de paiement.",
       title: "Votre paiement n’a pas abouti.",
       paragraphs: ["Nous n’avons pas pu encaisser {amount}. Votre banque a peut-être refusé le paiement. Nous réessaierons automatiquement ; vous pouvez aussi mettre à jour votre moyen de paiement via le lien de l’email de notre prestataire."],
     },
     "customer.cancellation": {
-      subject: "Votre résiliation STUDIO est confirmée",
+      subject: "Votre résiliation Studio ATS est confirmée",
       preheader: "Résiliation confirmée.",
       title: "Votre résiliation est confirmée.",
       paragraphs: ["Votre abonnement ne sera pas renouvelé. Vous gardez l’accès jusqu’au {ends_on}.", "S’il s’agit d’une erreur, répondez simplement à cet email."],
     },
     "lead.confirmation": {
-      subject: "Nous avons bien reçu votre demande — STUDIO",
+      subject: "Nous avons bien reçu votre demande — Studio ATS",
       preheader: "Nous revenons vers vous rapidement.",
       title: "Merci, nous avons bien reçu votre demande.",
-      paragraphs: ["Un membre de l’équipe STUDIO vous contacte très prochainement."],
+      paragraphs: ["Un membre de l’équipe Studio ATS vous contacte très prochainement."],
     },
     "lead.appointment_confirmation": {
-      subject: "Votre demande de rendez-vous STUDIO",
+      subject: "Votre demande de rendez-vous Studio ATS",
       preheader: "Nous confirmons l’horaire avec vous.",
       title: "Nous avons bien reçu votre demande de rendez-vous.",
       paragraphs: ["Nous confirmons l’horaire avec vous{when}."],

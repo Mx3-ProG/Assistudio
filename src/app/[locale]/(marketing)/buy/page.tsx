@@ -6,6 +6,7 @@ import type { Locale } from "@/i18n/config";
 import { fmt } from "@/i18n/format";
 import { repo } from "@/lib/data";
 import { isValidCode } from "@/lib/attribution";
+import { isDemoMode, isStripeConfigured } from "@/lib/env";
 import { formatMoney } from "@/lib/money";
 import { isOfferTier, renews } from "@/lib/offers";
 import { cn } from "@/lib/cn";
@@ -16,11 +17,11 @@ import { CheckoutButton } from "@/components/marketing/checkout-button";
 export async function generateMetadata({ params }: PageProps<"/[locale]/buy">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  return { title: `${t.checkout.title} — STUDIO`, robots: { index: false, follow: false } };
+  return { title: `${t.checkout.title} — Studio ATS`, robots: { index: false, follow: false } };
 }
 
 /**
- * Purchase entry point — reached from the STUDIO page, an affiliate link
+ * Purchase entry point — reached from the Studio ATS page, an affiliate link
  * (/s/CODE?to=/{locale}/buy), a private sales page or a dashboard CTA.
  * A plain GET page with no side effect; the Checkout Session is only created
  * when the visitor submits the form.
@@ -40,7 +41,8 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
   const plan = t.pricing.plans[offer.tier];
   const hrefFor = (x: string) => `/${locale}/buy?offer=${x}${page ? `&page=${page}` : ""}${origin === "dashboard_cta" ? "&via=dashboard" : ""}`;
   const referrer = privatePage?.referral.active ? privatePage.displayName ?? privatePage.referral.displayName : null;
-  const unavailable = !!sp.unavailable || !settings.checkoutEnabled;
+  // Same conditions as startCheckout: never offer a payment button that can only fail.
+  const unavailable = !!sp.unavailable || !settings.checkoutEnabled || isDemoMode || !isStripeConfigured;
   const origin = privatePage ? "private_page" : typeof sp.via === "string" && sp.via === "dashboard" ? "dashboard_cta" : "public";
 
   return (

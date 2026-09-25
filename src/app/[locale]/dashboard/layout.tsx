@@ -5,7 +5,7 @@ import { requireSession, isStaff } from "@/lib/auth";
 import { repo } from "@/lib/data";
 import { DashboardShell } from "@/components/dashboard/shell";
 
-export const metadata: Metadata = { title: "STUDIO", robots: { index: false, follow: false, nocache: true } };
+export const metadata: Metadata = { title: "Studio ATS", robots: { index: false, follow: false, nocache: true } };
 
 export default async function DashboardLayout({ children, params }: LayoutProps<"/[locale]/dashboard">) {
   const { locale } = (await params) as { locale: Locale };

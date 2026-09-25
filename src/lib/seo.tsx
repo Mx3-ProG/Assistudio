@@ -16,7 +16,7 @@ export function pageMetadata(locale: Locale, path: string, title: string, descri
       url,
       title,
       description,
-      siteName: "STUDIO",
+      siteName: "Studio ATS",
       locale: (localeMeta[locale]?.intl ?? "en-GB").replace("-", "_"),
     },
     twitter: { card: "summary_large_image", title, description },

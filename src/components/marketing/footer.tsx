@@ -6,7 +6,7 @@ import { Logo } from "./logo";
 export function Footer({ t, locale }: { t: Dictionary; locale: Locale }) {
   const p = (path: string) => `/${locale}${path}`;
   const cols = [
-    { title: t.footer.product, links: [[p("/studio"), "STUDIO"], [p("/pricing"), t.nav.pricing], [p("/partners"), t.footer.partners], [p("/faq"), t.footer.faq]] },
+    { title: t.footer.product, links: [[p("/studio"), "Studio ATS"], [p("/pricing"), t.nav.pricing], [p("/partners"), t.footer.partners], [p("/faq"), t.footer.faq]] },
     { title: t.footer.company, links: [[p("/about"), t.footer.about], [p("/contact"), t.footer.contact], [p("/security"), t.footer.security]] },
     {
       title: t.footer.legal,
@@ -36,7 +36,7 @@ export function Footer({ t, locale }: { t: Dictionary; locale: Locale }) {
         ))}
       </div>
       <div className="mx-auto max-w-6xl px-4 pb-10 text-[12px] text-muted sm:px-6">
-        © {new Date().getFullYear()} STUDIO. {t.footer.rights}
+        © {new Date().getFullYear()} Studio ATS. {t.footer.rights}
       </div>
     </footer>
   );

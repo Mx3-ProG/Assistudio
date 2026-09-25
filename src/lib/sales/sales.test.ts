@@ -13,7 +13,7 @@ const DAY = 86_400_000;
 test("validateBody accepts a well-formed objection and prunes empty optionals", () => {
   const r = validateBody("objection", {
     objection: "I already have Instagram", meaning: "Social media feels enough", questions: ["Where do requests arrive?"],
-    short: "Instagram shows, STUDIO converts.", long: "…", proof: "", nextStep: "Show the page",
+    short: "Instagram shows, Studio ATS converts.", long: "…", proof: "", nextStep: "Show the page",
   });
   assert.equal(r.ok, true);
   if (r.ok) assert.equal("proof" in r.body, false);
@@ -112,7 +112,7 @@ test("landing composition: angle > variant > template, target pains, catalog pri
   const m = composeLanding({
     template: tpl(), variant: { template: "t", heroTitle: "Variant hero" }, angle: null,
     target: { name: "Artisans", pains: ["Lost calls"], outcomes: ["More trust"] },
-    offer: { productName: "STUDIO", priceCents: 300000, currency: "EUR", interval: "year" },
+    offer: { productName: "Studio ATS", priceCents: 300000, currency: "EUR", interval: "year" },
     included: [], faq: [], requestedCta: "buy", canBuy: true,
   });
   assert.equal(m.hero.title, "Variant hero");

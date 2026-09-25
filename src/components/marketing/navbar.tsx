@@ -40,7 +40,7 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
   return (
     <header className={cn("sticky top-0 z-50 transition-all duration-300", scrolled || open ? "glass border-x-0 border-t-0 !border-b-line" : "border-b border-transparent")}>
       <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href={p("/")} className="shrink-0" aria-label="STUDIO">
+        <Link href={p("/")} className="shrink-0" aria-label="Studio ATS">
           <Logo />
         </Link>
         <ul className="hidden items-center gap-1 xl:flex">

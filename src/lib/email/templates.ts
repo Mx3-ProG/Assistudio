@@ -48,7 +48,7 @@ export function placeholders(params: Params, locale: string): Record<string, str
     sale_ref: String(params.sale_ref ?? ""),
     payout_ref: String(params.payout_ref ?? ""),
     customer_ref: String(params.customer_ref ?? ""),
-    product: String(params.product ?? "STUDIO"),
+    product: String(params.product ?? "Studio ATS"),
     gross: money(params.gross_cents, params.currency, locale),
     commission: money(params.commission_cents, params.currency, locale),
     amount: money(params.amount_cents, params.currency, locale),
@@ -102,7 +102,7 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
   <tr><td align="center" style="padding:40px 12px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:560px;background:#ffffff;border-radius:16px;">
       <tr><td class="pad" style="padding:48px 48px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-        <p class="fg" style="margin:0 0 40px;font-size:13px;letter-spacing:0.28em;font-weight:600;color:#111111;">STUDIO</p>
+        <p class="fg" style="margin:0 0 40px;font-size:13px;letter-spacing:0.28em;font-weight:600;text-transform:uppercase;color:#111111;">Studio ATS</p>
         <h1 class="fg" style="margin:0 0 24px;font-size:24px;line-height:1.3;font-weight:600;color:#111111;">${title}</h1>
         ${paragraphs.map((p) => `<p class="fg" style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#111111;">${p}</p>`).join("\n        ")}
         ${ctaUrl ? `<p style="margin:32px 0 8px;"><a class="btn" href="${esc(ctaUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#111111;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">${esc(t.cta!.label)}</a></p>` : ""}
@@ -119,7 +119,7 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
 </html>`;
 
   const text = [
-    "STUDIO",
+    "Studio ATS",
     "",
     fill(t.title, v, false),
     "",

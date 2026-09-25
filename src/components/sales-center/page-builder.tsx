@@ -19,7 +19,7 @@ export interface BuilderOptions {
   advisorDefault: string;
 }
 
-/** Controlled builder: the affiliate picks among approved blocks; STUDIO owns price, terms and copy. */
+/** Controlled builder: the affiliate picks among approved blocks; Studio ATS owns price, terms and copy. */
 export function PageBuilder({ o, page, initialTargetSlug, onDone }: {
   o: BuilderOptions; page?: PrivatePage | null; initialTargetSlug?: string | null; onDone?: () => void;
 }) {

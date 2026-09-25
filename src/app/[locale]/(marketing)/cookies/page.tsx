@@ -7,7 +7,7 @@ import { InfoPage } from "@/components/marketing/info-page";
 export async function generateMetadata({ params }: PageProps<"/[locale]/cookies">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  return pageMetadata(locale, "/cookies", `${t.pages.cookies.title} — STUDIO`, t.pages.cookies.title);
+  return pageMetadata(locale, "/cookies", `${t.pages.cookies.title} — Studio ATS`, t.pages.cookies.title);
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/cookies">) {

@@ -33,7 +33,7 @@ export function SettingsForm({ settings, canEdit }: { settings: Settings; canEdi
         <Field label="Customer billing emails sent by">
           <select name="billingEmailsOwner" defaultValue={settings.billingEmailsOwner} className={`${inputClass} appearance-none`}>
             <option value="stripe">Stripe (receipts, failed payments, reminders)</option>
-            <option value="studio">STUDIO (Resend templates)</option>
+            <option value="studio">Studio ATS (Resend templates)</option>
           </select>
         </Field>
         <label className="flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-[14px]">Online checkout (Stripe) enabled<input type="checkbox" name="checkoutEnabled" defaultChecked={settings.checkoutEnabled} className="size-5 accent-[var(--accent)]" /></label>

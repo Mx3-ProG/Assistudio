@@ -23,9 +23,9 @@ export default async function StudioPage({ params }: PageProps<"/[locale]/studio
         data={{
           "@context": "https://schema.org",
           "@type": "Product",
-          name: "STUDIO",
+          name: "Studio ATS",
           description: t.meta.studioDescription,
-          brand: { "@type": "Brand", name: "STUDIO" },
+          brand: { "@type": "Brand", name: "Studio ATS" },
           offers: offers.map((o) => ({
             "@type": "Offer",
             name: t.pricing.plans[o.tier].name,

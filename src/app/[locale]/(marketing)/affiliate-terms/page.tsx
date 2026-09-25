@@ -7,7 +7,7 @@ import { InfoPage } from "@/components/marketing/info-page";
 export async function generateMetadata({ params }: PageProps<"/[locale]/affiliate-terms">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  return pageMetadata(locale, "/affiliate-terms", `${t.pages.affiliateTerms.title} — STUDIO`, t.pages.affiliateTerms.title);
+  return pageMetadata(locale, "/affiliate-terms", `${t.pages.affiliateTerms.title} — Studio ATS`, t.pages.affiliateTerms.title);
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/affiliate-terms">) {

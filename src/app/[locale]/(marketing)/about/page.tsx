@@ -7,7 +7,7 @@ import { InfoPage } from "@/components/marketing/info-page";
 export async function generateMetadata({ params }: PageProps<"/[locale]/about">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  return pageMetadata(locale, "/about", `${t.pages.about.title} — STUDIO`, t.pages.about.title);
+  return pageMetadata(locale, "/about", `${t.pages.about.title} — Studio ATS`, t.pages.about.title);
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/about">) {

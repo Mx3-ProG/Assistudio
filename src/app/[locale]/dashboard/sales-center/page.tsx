@@ -13,7 +13,7 @@ import { SalesSearch } from "@/components/sales-center/sc-search";
 import { FirstWeek } from "@/components/sales-center/first-week";
 import { QuickActions } from "@/components/sales-center/quick-actions";
 
-/** "Everything you need to sell STUDIO." */
+/** "Everything you need to sell Studio ATS." */
 export default async function SalesCenter({ params }: PageProps<"/[locale]/dashboard/sales-center">) {
   const { locale } = (await params) as { locale: Locale };
   const s = await requireAffiliate(locale);

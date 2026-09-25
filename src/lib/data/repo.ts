@@ -26,7 +26,7 @@ export interface Repo {
   getSettings(): Promise<Settings>;
   /** The offer paying the highest commission (Studio Premium): the maximum an affiliate can earn per sale. */
   getOffer(): Promise<Offer>;
-  /** The three active STUDIO offers, One → Pro → Premium. */
+  /** The three active Studio ATS offers, One → Pro → Premium. */
   listOffers(): Promise<Offer[]>;
   listMarkets(): Promise<Market[]>;
   resolveReferral(codeOrSlug: string): Promise<ReferralTarget | null>;

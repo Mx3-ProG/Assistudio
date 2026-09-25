@@ -25,7 +25,7 @@ interface OfferRow {
   stripe_lookup_key: string | null;
 }
 
-/** The active STUDIO offer of a tier (One, Pro or Premium), by its stable lookup key. */
+/** The active Studio ATS offer of a tier (One, Pro or Premium), by its stable lookup key. */
 async function activeOffer(productSlug: string, tier: OfferTier): Promise<OfferRow> {
   const { data, error } = await supabaseService()
     .from("offers")
@@ -37,7 +37,7 @@ async function activeOffer(productSlug: string, tier: OfferTier): Promise<OfferR
 }
 
 /**
- * Resolves the Stripe price for an offer and checks it matches what STUDIO
+ * Resolves the Stripe price for an offer and checks it matches what Studio ATS
  * sells (amount, currency, interval). A mismatch blocks checkout: selling at a
  * price the business did not configure is worse than not selling.
  */

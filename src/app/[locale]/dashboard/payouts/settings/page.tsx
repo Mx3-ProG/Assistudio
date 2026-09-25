@@ -13,7 +13,7 @@ import { PageHeader, Card, Badge, Notice } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
 
 /**
- * Payout account (Stripe Connect). STUDIO never collects bank details: the
+ * Payout account (Stripe Connect). Studio ATS never collects bank details: the
  * affiliate onboards on Stripe's hosted pages; we keep the account id and the
  * status that decides payout eligibility.
  */

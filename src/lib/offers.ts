@@ -1,5 +1,5 @@
 /**
- * The three STUDIO offers — pure, framework-free, unit-tested.
+ * The three Studio ATS offers — pure, framework-free, unit-tested.
  * Prices and rates are never written here: they come from `public.offers`
  * (see supabase/migrations/20260928000001_offers_v3.sql). This module only
  * maps each offer's stable Stripe lookup key to its tier and derives the

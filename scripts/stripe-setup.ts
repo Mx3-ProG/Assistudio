@@ -1,5 +1,5 @@
 /**
- * Creates (idempotently) the STUDIO product and the prices of its three offers
+ * Creates (idempotently) the Studio ATS product and the prices of its three offers
  * (Studio One €500 one-time, Studio Pro €3,000/year, Studio Premium €6,000/year)
  * in the Stripe account of STRIPE_SECRET_KEY, with the lookup keys the database
  * uses (offers.stripe_lookup_key). Test mode by default:
@@ -31,11 +31,11 @@ const OFFERS = [
   { lookupKey: "studio_yearly_eur", name: "Studio Premium", amount: 600_000, interval: "year" },
 ] as const;
 
-// One Stripe product (STUDIO), one price per offer: the offers share the product's commission rule.
+// One Stripe product (Studio ATS), one price per offer: the offers share the product's commission rule.
 const anyExisting = (await stripe.prices.list({ lookup_keys: OFFERS.map((o) => o.lookupKey), active: true, expand: ["data.product"] })).data;
 const product = (anyExisting[0]?.product as Stripe.Product | undefined)
   ?? await stripe.products.create(
-    { name: "STUDIO", description: "STUDIO — Studio One, Studio Pro, Studio Premium", metadata: { studio_product: "studio" } },
+    { name: "Studio ATS", description: "Studio ATS — Studio One, Studio Pro, Studio Premium", metadata: { studio_product: "studio" } },
     { idempotencyKey: "studio-setup-product-v1" },
   );
 
