@@ -1,16 +1,18 @@
-import { Check, X as XIcon, Plug, Zap, ArrowRight, Sparkles } from "lucide-react";
+import { X as XIcon, Plug, Zap, ArrowRight, Sparkles } from "lucide-react";
 import type { Dictionary } from "@/i18n/types";
 import type { Locale } from "@/i18n/config";
 import type { MarketContent } from "@/content/markets";
-import { formatMoney } from "@/lib/money";
+import type { Offer } from "@/lib/data/types";
 import { fmt } from "@/i18n/format";
 import { ProductMockup } from "./product-mockup";
 import { LeadForm } from "./lead-form";
+import { PricingPlans } from "./pricing-plans";
 
 export interface StudioContentProps {
   t: Dictionary;
   locale: Locale;
-  priceCents: number;
+  /** The three offers, One → Pro → Premium. */
+  offers: Offer[];
   /** Private sales page context */
   page?: string;
   referrerName?: string | null;
@@ -19,7 +21,7 @@ export interface StudioContentProps {
   ctaVariant?: "request" | "call";
 }
 
-export function StudioContent({ t, locale, priceCents, page, referrerName, market, pitch = "default", ctaVariant = "request" }: StudioContentProps) {
+export function StudioContent({ t, locale, offers, page, referrerName, market, pitch = "default", ctaVariant = "request" }: StudioContentProps) {
   const s = t.studio;
   const cta = ctaVariant === "call" ? t.dash.link.page.ctaCall : s.cta;
   const heroSub = pitch === "automation" ? s.automationBody : market?.why ?? s.heroSubtitle;
@@ -128,23 +130,11 @@ export function StudioContent({ t, locale, priceCents, page, referrerName, marke
       <section id="pricing" className="scroll-mt-20 bg-surface-2/60 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="display text-center text-[34px] sm:text-[52px]">{s.pricingTitle}</h2>
-          <div className="glass mx-auto mt-12 max-w-xl rounded-[28px] p-8 shadow-lift sm:p-10">
-            <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-accent">STUDIO</p>
-            <p className="mt-3 flex items-baseline gap-2">
-              <span className="tabular text-[56px] font-semibold tracking-[-0.04em]">{formatMoney(priceCents, locale)}</span>
-              <span className="text-muted">{s.pricingPeriod}</span>
-            </p>
-            <ul className="mt-6 space-y-3">
-              {s.pricingIncludes.map((i) => (
-                <li key={i} className="flex items-start gap-3 text-[15px]">
-                  <Check className="mt-0.5 size-4 shrink-0 text-success" /> {i}
-                </li>
-              ))}
-            </ul>
-            <a href="#request" className="mt-8 flex h-12 items-center justify-center rounded-full bg-fg text-[15px] font-medium text-bg hover:opacity-90">{cta}</a>
-            <a href={`/${locale}/buy${page ? `?page=${page}` : ""}`} className="mt-3 flex h-12 items-center justify-center rounded-full border border-line bg-surface text-[15px] font-medium hover:bg-surface-2">{t.checkout.title}</a>
-            <p className="mt-4 text-center text-[12px] text-muted">{s.pricingNote}</p>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-[17px] text-muted">{t.pricing.subtitle}</p>
+          <div className="mt-12">
+            <PricingPlans t={t} locale={locale} offers={offers} page={page} requestHref="#request" requestLabel={cta} />
           </div>
+          <p className="mt-6 text-center text-[12px] text-muted">{s.pricingNote}</p>
         </div>
       </section>
 

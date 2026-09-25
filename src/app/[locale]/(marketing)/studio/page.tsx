@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/studio">
 export default async function StudioPage({ params }: PageProps<"/[locale]/studio">) {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  const offer = await repo().getOffer();
+  const offers = await repo().listOffers();
   return (
     <>
       <JsonLd
@@ -26,13 +26,14 @@ export default async function StudioPage({ params }: PageProps<"/[locale]/studio
           name: "STUDIO",
           description: t.meta.studioDescription,
           brand: { "@type": "Brand", name: "STUDIO" },
-          offers: {
+          offers: offers.map((o) => ({
             "@type": "Offer",
-            price: (offer.priceCents / 100).toFixed(2),
-            priceCurrency: offer.currency,
-            url: `${env.siteUrl}/${locale}/studio`,
+            name: t.pricing.plans[o.tier].name,
+            price: (o.priceCents / 100).toFixed(2),
+            priceCurrency: o.currency,
+            url: `${env.siteUrl}/${locale}/pricing`,
             availability: "https://schema.org/InStock",
-          },
+          })),
         }}
       />
       <JsonLd
@@ -43,7 +44,7 @@ export default async function StudioPage({ params }: PageProps<"/[locale]/studio
         }}
       />
       <Navbar variant="studio" />
-      <StudioContent t={t} locale={locale} priceCents={offer.priceCents} />
+      <StudioContent t={t} locale={locale} offers={offers} />
     </>
   );
 }

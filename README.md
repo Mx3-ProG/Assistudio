@@ -1,6 +1,6 @@
 # STUDIO — Affiliate Commerce Platform (V0.2)
 
-A premium platform to recruit, equip and pay an international network of partners who sell **one product: STUDIO (€6,000 / year, 25% recurring direct commission + 5% direct-sponsor commission, uncapped)**.
+A premium platform to recruit, equip and pay an international network of partners who sell **one product, STUDIO, in three offers — Studio One (€500 one-time), Studio Pro (€3,000 / year), Studio Premium (€6,000 / year) — with the same rules on each: 25% direct commission (on every paid renewal for the annual offers) + 5% direct-sponsor commission, uncapped**. Prices live in `public.offers` (`20260928000001_offers_v3.sql`); `src/lib/offers.ts` maps them to tiers. The partner home always headlines the maximum per sale (Studio Premium).
 
 The critical pipeline — and the thing this V0 is built around:
 
@@ -69,7 +69,7 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 
 ## Routes
 
-- Public (indexable, 8 locales): `/`, `/studio`, `/partners`, `/faq`, `/about`, `/contact`, `/security`, legal pages
+- Public (indexable, 8 locales): `/`, `/studio`, `/pricing`, `/partners`, `/faq`, `/about`, `/contact`, `/security`, legal pages
 - Auth: `/login`, `/register`, `/forgot`, `/auth/callback`
 - Affiliate: `/dashboard` + `welcome`, `link`, `campaigns`, `prospects`, `find`, `sales-kit`, `product`, `sales`, `commissions`, `recurring`, `payouts`, `analytics`, `leaderboard`, `notifications`, `settings`
 - Admin: `/admin` + `affiliates`, `leads`, `sales`, `commissions`, `payouts`, `fraud`, `markets`, `content`, `settings`, `audit`

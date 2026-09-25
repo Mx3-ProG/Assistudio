@@ -28,11 +28,12 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
         { href: p("/#sell"), label: t.nav.whatYouSell },
         { href: p("/#markets"), label: t.nav.markets },
         { href: p("/studio"), label: t.nav.discover },
+        { href: p("/pricing"), label: t.nav.pricing },
         { href: p("/faq"), label: t.nav.faq },
       ]
     : [
         { href: p("/studio#features"), label: t.nav.whatYouSell },
-        { href: p("/studio#pricing"), label: t.studio.pricingTitle.split(".")[0] },
+        { href: p("/studio#pricing"), label: t.nav.pricing },
         { href: p("/studio#faq"), label: t.nav.faq },
       ];
 

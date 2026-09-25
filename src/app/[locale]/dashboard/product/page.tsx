@@ -9,13 +9,14 @@ import { computeCommissionCents } from "@/lib/commission";
 import { PageHeader, Card, Notice } from "@/components/ui/primitives";
 import { ProductMockup } from "@/components/marketing/product-mockup";
 import { buttonClass } from "@/components/ui/button";
+import { PartnerCommissionTable } from "@/components/marketing/pricing-plans";
 
 /** Question: "What exactly am I selling?" */
 export default async function Product({ params }: PageProps<"/[locale]/dashboard/product">) {
   const { locale } = (await params) as { locale: Locale };
   const s = await requireAffiliate(locale);
   const t = await getDictionary(locale);
-  const offer = await repo().getOffer();
+  const [offer, offers, settings] = await Promise.all([repo().getOffer(), repo().listOffers(), repo().getSettings()]);
   const P = t.dash.product;
   const commission = computeCommissionCents(offer.priceCents, s.affiliate.commissionRate);
 
@@ -41,6 +42,11 @@ export default async function Product({ params }: PageProps<"/[locale]/dashboard
           ))}
         </div>
         <p className="relative mt-8 max-w-2xl text-[17px] leading-relaxed text-fg-2">{t.meta.studioDescription}</p>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-5 text-[20px] font-semibold tracking-tight">{t.pricing.partnersTitle}</h2>
+        <PartnerCommissionTable t={t} locale={locale} offers={offers} directRate={s.affiliate.commissionRate} sponsorRate={settings.sponsorRate} />
       </section>
 
       <section className="mt-8">

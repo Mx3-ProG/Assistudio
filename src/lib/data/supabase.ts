@@ -2,6 +2,7 @@
 import "server-only";
 import { supabaseServer, supabaseService } from "@/lib/supabase/server";
 import { type Balances } from "@/lib/commission";
+import { OFFER_LOOKUP_KEYS, maxEarningOffer, sortOffers, tierOfLookupKey } from "@/lib/offers";
 import { defaultMarkets, type Market } from "@/content/markets";
 import { assetsFor, type SalesAsset } from "@/content/sales-kit";
 import { resolveLocale } from "@/i18n/config";
@@ -106,16 +107,24 @@ export const supabaseRepo: Repo = {
       billingEmailsOwner: v["emails.customer_billing_owner"] === "studio" ? "studio" : "stripe",
       connectEnabled: v["payouts.connect_enabled"] === true,
       checkoutEnabled: v["checkout.enabled"] !== false,
+      // Same default as public.accrue_sponsor_commission().
+      sponsorRate: Number(v["referrals.sponsor_rate"] ?? 0.05),
     };
   },
 
   async getOffer(): Promise<Offer> {
+    return maxEarningOffer(await supabaseRepo.listOffers());
+  },
+
+  async listOffers(): Promise<Offer[]> {
     const sb = supabaseService();
-    const r = check(await sb.from("offers").select("*, products!inner(slug, name)").eq("products.slug", "studio").eq("is_active", true).limit(1).single()) as any;
-    return {
-      id: r.id, productId: r.product_id, productName: r.products.name, priceCents: r.price_cents,
-      currency: r.currency, commissionRate: Number(r.commission_rate), recurring: r.commission_recurring,
-    };
+    const rows = check(await sb.from("offers").select("*, products!inner(slug, name)").eq("products.slug", "studio").eq("is_active", true)
+      .in("stripe_lookup_key", Object.values(OFFER_LOOKUP_KEYS))) as any[];
+    return sortOffers(rows.map((r) => ({
+      id: r.id, productId: r.product_id, productName: r.products.name, tier: tierOfLookupKey(r.stripe_lookup_key)!,
+      priceCents: r.price_cents, currency: r.currency, interval: r.billing_interval,
+      commissionRate: Number(r.commission_rate), recurring: r.commission_recurring,
+    })));
   },
 
   async listMarkets(): Promise<Market[]> {
@@ -130,7 +139,8 @@ export const supabaseRepo: Repo = {
     const rows = check(await sb.from("products").select("id, slug, name, is_active, offers(price_cents, currency, billing_interval, is_active, valid_from, stripe_lookup_key)")
       .is("deleted_at", null).order("sort")) as any[];
     return rows.map((p) => {
-      const o = (p.offers ?? []).filter((x: any) => x.is_active).sort((a: any, b: any) => b.valid_from.localeCompare(a.valid_from))[0];
+      // Several active offers (STUDIO One/Pro/Premium): show the highest price, i.e. the highest commission.
+      const o = (p.offers ?? []).filter((x: any) => x.is_active).sort((a: any, b: any) => b.price_cents - a.price_cents || b.valid_from.localeCompare(a.valid_from))[0];
       return {
         id: p.id, slug: p.slug, name: p.name, active: p.is_active,
         offer: o ? { priceCents: o.price_cents, currency: o.currency, interval: o.billing_interval, checkoutReady: !!o.stripe_lookup_key } : null,

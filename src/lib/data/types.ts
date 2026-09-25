@@ -4,6 +4,7 @@ import type { Market } from "@/content/markets";
 import type { SalesAsset } from "@/content/sales-kit";
 import type { Locale } from "@/i18n/config";
 import type { ContentKind, Channel, FunnelStage, CtaMode } from "@/lib/sales/content";
+import type { OfferTier } from "@/lib/offers";
 
 export type Role = "super_admin" | "admin" | "affiliate_manager" | "agency" | "sales_closer" | "affiliate";
 export type AffiliateStatus = "pending" | "approved" | "rejected" | "suspended";
@@ -63,14 +64,19 @@ export interface Settings {
   billingEmailsOwner: "stripe" | "studio";
   connectEnabled: boolean;
   checkoutEnabled: boolean;
+  /** referrals.sponsor_rate — share of an eligible payment paid to the seller's direct sponsor. */
+  sponsorRate: number;
 }
 
 export interface Offer {
   id: string;
   productId: string;
   productName: string;
+  /** Studio One / Pro / Premium, from the offer's Stripe lookup key. */
+  tier: OfferTier;
   priceCents: number;
   currency: string;
+  interval: "month" | "year" | "one_time";
   commissionRate: number;
   recurring: boolean;
 }

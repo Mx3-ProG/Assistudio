@@ -3,7 +3,7 @@ import { locales } from "@/i18n/config";
 import { env } from "@/lib/env";
 
 // Public, indexable pages only. Dashboards, admin and private sales pages are excluded.
-const PUBLIC_PATHS = ["", "/studio", "/partners", "/faq", "/about", "/contact", "/security", "/legal", "/privacy", "/cookies", "/terms", "/affiliate-terms"];
+const PUBLIC_PATHS = ["", "/studio", "/pricing", "/partners", "/faq", "/about", "/contact", "/security", "/legal", "/privacy", "/cookies", "/terms", "/affiliate-terms"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return PUBLIC_PATHS.map((path) => ({

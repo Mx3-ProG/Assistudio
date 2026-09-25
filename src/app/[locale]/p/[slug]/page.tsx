@@ -23,7 +23,7 @@ export default async function PrivateSalesPage({ params }: PageProps<"/[locale]/
   // The page's own language wins over the URL locale.
   const locale = page.locale as Locale;
   const t = await getDictionary(locale);
-  const [offer, markets] = await Promise.all([repo().getOffer(), repo().listMarkets()]);
+  const [offers, markets] = await Promise.all([repo().listOffers(), repo().listMarkets()]);
   const market = markets.find((m) => m.id === page.marketId);
 
   return (
@@ -34,7 +34,7 @@ export default async function PrivateSalesPage({ params }: PageProps<"/[locale]/
       <StudioContent
         t={t}
         locale={locale}
-        priceCents={offer.priceCents}
+        offers={offers}
         page={page.slug}
         referrerName={page.displayName ?? page.referral.displayName}
         market={market ? marketContent(market, locale) : null}

@@ -24,7 +24,10 @@ export type Range = "7d" | "30d" | "90d" | "1y" | "all";
 export interface Repo {
   // ------------------------------------------------------------- public
   getSettings(): Promise<Settings>;
+  /** The offer paying the highest commission (Studio Premium): the maximum an affiliate can earn per sale. */
   getOffer(): Promise<Offer>;
+  /** The three active STUDIO offers, One → Pro → Premium. */
+  listOffers(): Promise<Offer[]>;
   listMarkets(): Promise<Market[]>;
   resolveReferral(codeOrSlug: string): Promise<ReferralTarget | null>;
   getPrivatePage(slug: string): Promise<(PrivatePage & { referral: ReferralTarget }) | null>;

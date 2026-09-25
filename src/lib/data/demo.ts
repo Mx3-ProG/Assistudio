@@ -6,6 +6,7 @@ import {
 } from "@/lib/commission";
 import { defaultMarkets, type Market, type MarketContent } from "@/content/markets";
 import { assetsFor } from "@/content/sales-kit";
+import { maxEarningOffer } from "@/lib/offers";
 import { defaultSalesContent } from "@/content/sales-center/content";
 import type { SalesContent, ContentKind } from "@/lib/sales/content";
 import type { Repo, Range } from "./repo";
@@ -85,7 +86,9 @@ interface DemoNotification extends Notification { userId: string }
 interface Store {
   markets: (Market & { active: boolean })[];
   settings: Settings;
+  /** Studio Premium — the offer every demo sale uses. */
   offer: Offer;
+  offers: Offer[];
   users: DemoUser[];
   affiliates: DemoAffiliate[];
   links: DemoLink[];
@@ -126,15 +129,22 @@ function seed(): Store {
     billingEmailsOwner: "stripe",
     connectEnabled: false,
     checkoutEnabled: true,
+    sponsorRate: 0.05,
   };
-  const offer: Offer = {
-    id: "offer_studio_annual", productId: "prod_studio", productName: "STUDIO",
-    priceCents: 600_000, currency: "EUR", commissionRate: 0.25, recurring: true,
-  };
+  // Mirrors supabase/migrations/20260928000001_offers_v3.sql (same rate on every offer).
+  const offers: Offer[] = [
+    { id: "offer_studio_one", productId: "prod_studio", productName: "STUDIO", tier: "one",
+      priceCents: 50_000, currency: "EUR", interval: "one_time", commissionRate: 0.25, recurring: false },
+    { id: "offer_studio_pro", productId: "prod_studio", productName: "STUDIO", tier: "pro",
+      priceCents: 300_000, currency: "EUR", interval: "year", commissionRate: 0.25, recurring: true },
+    { id: "offer_studio_annual", productId: "prod_studio", productName: "STUDIO", tier: "premium",
+      priceCents: 600_000, currency: "EUR", interval: "year", commissionRate: 0.25, recurring: true },
+  ];
+  const offer = maxEarningOffer(offers);
 
   const s: Store = {
     markets: structuredClone(defaultMarkets).map((m) => ({ ...m, active: true })),
-    settings, offer, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
+    settings, offer, offers, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
     prospects: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
     activity: [], notifications: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
     content: defaultSalesContent.map((c, i) => ({
@@ -368,7 +378,7 @@ function seed(): Store {
 }
 
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
-const STORE_VERSION = 4;
+const STORE_VERSION = 5;
 const g = globalThis as unknown as { __studioDemo?: Store & { v?: number } };
 function db(): Store {
   if (g.__studioDemo?.v !== STORE_VERSION) g.__studioDemo = Object.assign(seed(), { v: STORE_VERSION });
@@ -459,6 +469,7 @@ function affiliateName(affId: string | null) {
 export const demoRepo: Repo = {
   async getSettings() { return db().settings; },
   async getOffer() { return db().offer; },
+  async listOffers() { return db().offers; },
   async listMarkets() { return db().markets.filter((m) => m.active); },
 
   async resolveReferral(codeOrSlug) {

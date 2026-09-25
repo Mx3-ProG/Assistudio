@@ -13,13 +13,14 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
 }
 
 /** Posts to the server action; double submits are harmless (one Checkout Session per click, nothing charged until Stripe). */
-export function CheckoutButton({ locale, page, origin, label, pendingLabel }: {
-  locale: string; page: string | null; origin: string; label: string; pendingLabel: string;
+export function CheckoutButton({ locale, page, origin, offer, label, pendingLabel }: {
+  locale: string; page: string | null; origin: string; offer: string; label: string; pendingLabel: string;
 }) {
   return (
     <form action={startCheckout}>
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="origin" value={origin} />
+      <input type="hidden" name="offer" value={offer} />
       {page && <input type="hidden" name="page" value={page} />}
       <Submit label={label} pendingLabel={pendingLabel} />
     </form>

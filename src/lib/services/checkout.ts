@@ -7,6 +7,7 @@ import { stripe, checkoutLocale, stripeMode } from "@/lib/services/stripe";
 import { resolveForConversion } from "@/lib/services/attribution";
 import { CHECKOUT_METADATA_KEY } from "@/lib/stripe/normalize";
 import type { Locale } from "@/i18n/config";
+import { OFFER_LOOKUP_KEYS, type OfferTier } from "@/lib/offers";
 
 export type CheckoutOrigin = "public" | "affiliate_link" | "private_page" | "dashboard_cta";
 
@@ -24,14 +25,14 @@ interface OfferRow {
   stripe_lookup_key: string | null;
 }
 
-/** The active offer of a product (V0: STUDIO yearly). */
-async function activeOffer(productSlug: string): Promise<OfferRow> {
+/** The active STUDIO offer of a tier (One, Pro or Premium), by its stable lookup key. */
+async function activeOffer(productSlug: string, tier: OfferTier): Promise<OfferRow> {
   const { data, error } = await supabaseService()
     .from("offers")
     .select("id, product_id, price_cents, currency, price_type, billing_interval, interval_count, stripe_price_id, stripe_lookup_key, products!inner(slug)")
-    .eq("products.slug", productSlug).eq("is_active", true)
-    .order("valid_from", { ascending: false }).limit(1).maybeSingle();
-  if (error || !data) throw new CheckoutUnavailableError(`no active offer for ${productSlug}`);
+    .eq("products.slug", productSlug).eq("is_active", true).eq("stripe_lookup_key", OFFER_LOOKUP_KEYS[tier])
+    .maybeSingle();
+  if (error || !data) throw new CheckoutUnavailableError(`no active ${tier} offer for ${productSlug}`);
   return data as unknown as OfferRow;
 }
 
@@ -76,12 +77,13 @@ export async function createCheckoutSession(input: {
   sessionKey: string | null;
   privatePageSlug?: string | null;
   productSlug?: string;
+  tier: OfferTier;
 }): Promise<{ url: string }> {
   const sb = supabaseService();
   const { data: enabled } = await sb.from("settings").select("value").eq("key", "checkout.enabled").maybeSingle();
   if (enabled && enabled.value === false) throw new CheckoutUnavailableError("checkout disabled");
 
-  const offer = await activeOffer(input.productSlug ?? "studio");
+  const offer = await activeOffer(input.productSlug ?? "studio", input.tier);
   const [priceId, attribution] = await Promise.all([
     stripePriceFor(offer),
     resolveForConversion({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug }),
@@ -118,7 +120,7 @@ export async function createCheckoutSession(input: {
     billing_address_collection: "required",
     locale: checkoutLocale(input.locale),
     success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.siteUrl}/${input.locale}/buy?cancelled=1`,
+    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&cancelled=1`,
   }, { idempotencyKey: `checkout:${row.id}` });
 
   await sb.from("checkout_sessions").update({
