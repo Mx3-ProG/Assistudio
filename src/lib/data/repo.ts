@@ -26,7 +26,9 @@ export type Range = "7d" | "30d" | "90d" | "1y" | "all";
 export type IssueCodeResult = "issued" | "no_account" | "too_soon" | "rate_limited";
 export type SignInWithCodeResult =
   | { status: "ok"; isNew: boolean; role: Session["role"] }
-  | { status: "invalid" | "expired" | "too_many_attempts" | "failed" };
+  | { status: "invalid" | "expired" | "too_many_attempts" }
+  /** Technical failure after a valid code; `detail` is short and non-sensitive (src/lib/auth-errors.ts). */
+  | { status: "failed"; detail?: string; retrySameCode?: boolean };
 /** Sign-up form data, stored with the code and given to handle_new_user() as user metadata. */
 export interface SignupData {
   full_name: string;

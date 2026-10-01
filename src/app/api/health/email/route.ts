@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
     };
     await probe("table auth_login_codes (20261001090000_email_login_codes)", () => sb.from("auth_login_codes").select("id", { head: true, count: "exact" }).limit(1));
     await probe("function ensure_profile (20261002000001_ensure_profile)", () => sb.rpc("ensure_profile", { p_email: "healthcheck@invalid.invalid" }));
+    await probe("function auth_code_consume (20261001090000_email_login_codes)", () => sb.rpc("auth_code_consume", { p_email: "healthcheck@invalid.invalid", p_hash: "x" }));
+    await probe("function auth_code_release (20261003000001_auth_code_release)", () => sb.rpc("auth_code_release", { p_email: "healthcheck@invalid.invalid", p_hash: "x" }));
     await probe("table profiles", () => sb.from("profiles").select("id", { head: true, count: "exact" }).limit(1));
   } else {
     db.skipped = "Supabase URL or service role key missing";

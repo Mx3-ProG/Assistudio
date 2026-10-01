@@ -63,7 +63,12 @@ export type AuthNotice = "accountUnavailable" | "linkExpired";
 function ErrorText({ state }: { state: AuthState }) {
   const { t } = useI18n();
   if (!state.error) return null;
-  return <p role="alert" className="text-[13px] text-danger">{t.auth.errors[state.error]}</p>;
+  return (
+    <div role="alert" className="grid gap-1">
+      <p className="text-[13px] text-danger">{t.auth.errors[state.error]}</p>
+      {state.detail && <p className="break-words font-mono text-[11.5px] text-muted">{t.auth.technicalDetail} {state.detail}</p>}
+    </div>
+  );
 }
 
 function Hidden({ values }: { values: Record<string, string | undefined> }) {

@@ -26,6 +26,16 @@ select pg_temp.assert((select status from public.auth_code_consume('ME@test.inva
 select pg_temp.assert((select status from public.auth_code_consume('me@test.invalid', 'h1')) = 'invalid',
   'a code works only once');
 
+-- ---------------------------------------------------------------- release after a technical failure
+select pg_temp.assert(public.auth_code_release('me@test.invalid', 'h1'),
+  'a code consumed just before a technical failure can be released');
+select pg_temp.assert((select status from public.auth_code_consume('me@test.invalid', 'h1')) = 'ok',
+  'the released code works again (same code, no new email)');
+select pg_temp.assert(not public.auth_code_release('me@test.invalid', 'wrong'),
+  'only the code that was accepted can be released');
+select pg_temp.assert(not has_function_privilege('anon', 'public.auth_code_release(text, text)', 'execute'),
+  'release is service role only');
+
 -- ---------------------------------------------------------------- expiry
 update public.auth_login_codes set created_at = created_at - interval '2 minutes';
 select pg_temp.assert((select status from public.auth_code_issue('me@test.invalid', 'signup', 'h3', '{"full_name":"Me"}', 'ip1')) = 'issued',

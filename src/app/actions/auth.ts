@@ -12,6 +12,7 @@ import { generateCode, hashCode, normalizeCode, normalizeEmail, type CodePurpose
 import { sendSignInCode } from "@/lib/email/auth";
 import { kickEmailOutbox } from "@/lib/email/service";
 import { log } from "@/lib/log";
+import { describeError, messageOf } from "@/lib/auth-errors";
 import { isLocale, type Locale } from "@/i18n/config";
 
 /**
@@ -23,7 +24,7 @@ import { isLocale, type Locale } from "@/i18n/config";
  */
 export type AuthError =
   | "invalidEmail" | "invalidForm" | "rateLimited" | "tooSoon" | "sendFailed"
-  | "codeInvalid" | "codeExpired" | "tooManyAttempts" | "failed";
+  | "codeInvalid" | "codeExpired" | "tooManyAttempts" | "failed" | "failedRetry";
 export type AuthState = {
   /** "code": the code step is shown (a code was sent, or would have been). */
   status: "idle" | "error" | "code";
@@ -36,6 +37,8 @@ export type AuthState = {
   sentAt?: number;
   /** Development mode only (no real email is sent): shown on screen, clearly labelled. */
   demoCode?: string;
+  /** Short, non-sensitive technical detail shown under a technical error (src/lib/auth-errors.ts). */
+  detail?: string;
   /** What was typed (React resets forms after an action; sign-up "resend" needs the application again). */
   values?: Record<string, string>;
 };
@@ -109,8 +112,9 @@ async function issue(form: FormData): Promise<AuthState> {
   try {
     result = await repo().issueSignInCode({ email, purpose, codeHash: hashCode(email, code, env.authCodeSecret), signup, ipHash: await ipHash() });
   } catch (e) {
-    log.error("auth", "issue code failed", { error: e instanceof Error ? e.message : String(e) });
-    return { status: "error", error: "failed" };
+    const detail = describeError(e);
+    log.error("auth", "issue code failed", { detail });
+    return { status: "error", error: "failed", detail };
   }
   if (result === "rate_limited") return { status: "error", error: "rateLimited" };
   if (result === "too_soon") return { status: "code", ...base, error: "tooSoon" };
@@ -120,8 +124,10 @@ async function issue(form: FormData): Promise<AuthState> {
   try {
     await sendSignInCode({ to: email, code, locale });
   } catch (e) {
-    log.error("auth", "sign-in code email failed", { error: e instanceof Error ? e.message : String(e) });
-    return { status: "error", error: "sendFailed" };
+    // Resend's own message ("domain is not verified", "API key is invalid"…): no secret, and it says what to fix.
+    const detail = `email_provider: ${messageOf(e).replace(/\s+/g, " ").slice(0, 200)}`;
+    log.error("auth", "sign-in code email failed", { detail });
+    return { status: "error", error: "sendFailed", detail };
   }
   return { status: "code", ...base, sentAt: Date.now(), ...(isDemoMode ? { demoCode: code } : {}) };
 }
@@ -138,11 +144,13 @@ async function verifyCode(prev: AuthState, form: FormData): Promise<AuthState> {
   try {
     res = await repo().signInWithCode({ email, codeHash: hashCode(email, code, env.authCodeSecret) });
   } catch (e) {
-    log.error("auth", "verify code failed", { error: e instanceof Error ? e.message : String(e) });
-    return { ...keep, error: "failed" };
+    const detail = describeError(e);
+    log.error("auth", "verify code failed", { detail });
+    return { ...keep, error: "failed", detail };
   }
   if (res.status !== "ok") {
-    const errors = { invalid: "codeInvalid", expired: "codeExpired", too_many_attempts: "tooManyAttempts", failed: "failed" } as const;
+    if (res.status === "failed") return { ...keep, error: res.retrySameCode ? "failedRetry" : "failed", detail: res.detail };
+    const errors = { invalid: "codeInvalid", expired: "codeExpired", too_many_attempts: "tooManyAttempts" } as const;
     return { ...keep, error: errors[res.status] };
   }
   if (res.isNew) kickEmailOutbox(); // affiliate.welcome, queued when the account was created

@@ -11,6 +11,8 @@ import type { Repo, Range } from "./repo";
 import type { SalesContent } from "@/lib/sales/content";
 import { summarizeBook } from "./book";
 import { log } from "@/lib/log";
+import { StepError, describeError, isDuplicate, isEmailAlreadyRegistered, isMissingDbObject } from "@/lib/auth-errors";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
@@ -91,10 +93,72 @@ async function linkStats(sb: any, filter: { affiliate_id?: string; link_id?: str
   };
 }
 
-/** Auth account for this address, provisioning its profile if missing (service role). Null = no account. */
-async function ensureProfile(email: string): Promise<{ id: string; role: Session["role"]; deleted: boolean } | null> {
-  const rows = check(await supabaseService().rpc("ensure_profile", { p_email: email })) as any[];
-  return rows?.[0] ?? null;
+type Account = { id: string; role: Session["role"]; deleted: boolean };
+type Svc = ReturnType<typeof supabaseService>;
+
+/**
+ * Auth account for this address, provisioning its profile if missing (service
+ * role). Null = no account. Falls back to a plain profiles lookup when the
+ * ensure_profile migration is not applied yet.
+ */
+async function ensureProfile(email: string): Promise<Account | null> {
+  const svc = supabaseService();
+  const { data, error } = await svc.rpc("ensure_profile", { p_email: email });
+  if (!error) return ((data as any[]) ?? [])[0] ?? null;
+  if (!isMissingDbObject(error)) throw new StepError("ensure_profile", error);
+  log.warn("auth", "ensure_profile missing (migration 20261002000001 not applied): profiles lookup fallback");
+  const { data: p, error: e2 } = await svc.from("profiles").select("id, role, deleted_at").eq("email", email).maybeSingle();
+  if (e2) throw new StepError("profiles_lookup", e2);
+  return p ? { id: (p as any).id, role: (p as any).role, deleted: !!(p as any).deleted_at } : null;
+}
+
+/**
+ * Makes sure an auth user has a profile + affiliate application. Tolerates the
+ * optional auth.users trigger having done it already, and a database where the
+ * idempotent provision_account() is missing or still the old non-idempotent one.
+ */
+async function provisionIfMissing(svc: Svc, id: string, email: string, meta: Record<string, any>): Promise<Account> {
+  const read = async () => {
+    const { data, error } = await svc.from("profiles").select("id, role, deleted_at").eq("id", id).maybeSingle();
+    if (error) throw new StepError("profiles_lookup", error);
+    return data ? { id, role: (data as any).role, deleted: !!(data as any).deleted_at } as Account : null;
+  };
+  const existing = await read();
+  if (existing) return existing;
+
+  const { error } = await svc.rpc("provision_account", { p_id: id, p_email: email, p_meta: meta });
+  if (error && isMissingDbObject(error)) {
+    log.warn("auth", "provision_account missing: direct provisioning fallback");
+    await provisionDirect(svc, id, email, meta);
+  } else if (error && !isDuplicate(error)) {
+    throw new StepError("provision", error);
+  }
+  const account = await read();
+  if (!account) throw new StepError("provision", "profile still missing after provisioning");
+  return account;
+}
+
+/** Same rules as provision_account() in SQL, for a database without it. */
+async function provisionDirect(svc: Svc, id: string, email: string, meta: Record<string, any>) {
+  const { error: pe } = await svc.from("profiles").upsert(
+    { id, email, full_name: String(meta.full_name ?? ""), locale: String(meta.locale ?? "en") },
+    { onConflict: "id", ignoreDuplicates: true },
+  );
+  if (pe) throw new StepError("provision_profile", pe);
+  const { data: setting } = await svc.from("settings").select("value").eq("key", "affiliates.auto_approve").maybeSingle();
+  const autoApprove = (setting as any)?.value === true || (setting as any)?.value === "true";
+  let sponsorId: string | null = null;
+  const code = typeof meta.sponsor_code === "string" && isValidCode(meta.sponsor_code) ? meta.sponsor_code : null;
+  if (code) {
+    const { data: sp } = await svc.from("affiliates").select("id").is("deleted_at", null).eq("status", "approved")
+      .or(`code.ilike.${code},slug.ilike.${code}`).limit(1).maybeSingle();
+    sponsorId = (sp as any)?.id ?? null;
+  }
+  const { error: ae } = await svc.from("affiliates").upsert({
+    profile_id: id, status: autoApprove ? "approved" : "pending", approved_at: autoApprove ? new Date().toISOString() : null,
+    country: meta.country ?? null, application: meta.application ?? {}, sponsor_id: sponsorId,
+  }, { onConflict: "profile_id", ignoreDuplicates: true });
+  if (ae) throw new StepError("provision_affiliate", ae);
 }
 
 export const supabaseRepo: Repo = {
@@ -317,45 +381,49 @@ export const supabaseRepo: Repo = {
       const account = await ensureProfile(email);
       if (!account || account.deleted) return "no_account";
     }
-    const rows = check(await svc.rpc("auth_code_issue", {
+    const { data, error } = await svc.rpc("auth_code_issue", {
       p_email: email, p_purpose: purpose, p_hash: codeHash, p_payload: signup, p_ip_hash: ipHash,
-    })) as any[];
-    return rows?.[0]?.status ?? "rate_limited";
+    });
+    if (error) throw new StepError("issue_code", error);
+    return ((data as any[]) ?? [])[0]?.status ?? "rate_limited";
   },
 
   async signInWithCode({ email, codeHash }) {
     const svc = supabaseService();
-    const rows = check(await svc.rpc("auth_code_consume", { p_email: email, p_hash: codeHash })) as any[];
-    const res = rows?.[0];
+    const { data, error } = await svc.rpc("auth_code_consume", { p_email: email, p_hash: codeHash });
+    if (error) throw new StepError("check_code", error);
+    const res = ((data as any[]) ?? [])[0];
     if (!res || res.status !== "ok") return { status: res?.status ?? "invalid" };
 
-    let account = await ensureProfile(email);
-    if (account?.deleted) return { status: "invalid" };
-    let isNew = false;
-    if (!account) {
-      if (res.purpose !== "signup" || !res.payload) return { status: "invalid" };
-      const { data: created, error } = await svc.auth.admin.createUser({ email, email_confirm: true, user_metadata: res.payload });
-      if (error || !created.user) {
-        log.error("auth", "create user failed", { error: error?.message ?? "no user" });
-        return { status: "failed" };
+    try {
+      let account = await ensureProfile(email);
+      if (account?.deleted) return { status: "invalid" };
+      let isNew = false;
+      if (!account) {
+        if (res.purpose !== "signup" || !res.payload) return { status: "invalid" };
+        const { error: createError } = await svc.auth.admin.createUser({ email, email_confirm: true, user_metadata: res.payload });
+        // An auth user may already exist (older sign-up flow, never confirmed): sign them in instead.
+        if (createError && !isEmailAlreadyRegistered(createError)) throw new StepError("create_user", createError);
+        isNew = !createError;
       }
-      // Profile + affiliate application (+ sponsor) — does not rely on the optional auth.users trigger.
-      check(await svc.rpc("provision_account", { p_id: created.user.id, p_email: email, p_meta: res.payload }));
-      account = { id: created.user.id, role: "affiliate", deleted: false };
-      isNew = true;
+      // One-time token for this user, WITHOUT any email sent by Supabase.
+      const link = await svc.auth.admin.generateLink({ type: "magiclink", email });
+      const props = link.data?.properties;
+      if (link.error || !props?.hashed_token || !link.data.user) throw new StepError("session_token", link.error ?? "no token");
+      account ??= await provisionIfMissing(svc, link.data.user.id, email, res.payload ?? link.data.user.user_metadata ?? {});
+      if (account.deleted) return { status: "invalid" };
+      const { error: verifyError } = await (await supabaseServer()).auth.verifyOtp({
+        type: (props.verification_type ?? "magiclink") as EmailOtpType, token_hash: props.hashed_token,
+      });
+      if (verifyError) throw new StepError("session_open", verifyError);
+      return { status: "ok", isNew, role: account.role };
+    } catch (e) {
+      // A technical failure after a valid code: give the code back so the person can simply retry.
+      const released = await svc.rpc("auth_code_release", { p_email: email, p_hash: codeHash }).then((r) => !r.error && r.data === true, () => false);
+      const detail = describeError(e);
+      log.error("auth", "sign-in failed after a valid code", { detail, codeReleased: released });
+      return { status: "failed", detail, retrySameCode: released };
     }
-    const { data, error } = await svc.auth.admin.generateLink({ type: "magiclink", email });
-    const tokenHash = data?.properties?.hashed_token;
-    if (error || !tokenHash) {
-      log.error("auth", "session token failed", { error: error?.message ?? "no token" });
-      return { status: "failed" };
-    }
-    const { error: verifyError } = await (await supabaseServer()).auth.verifyOtp({ type: "magiclink", token_hash: tokenHash });
-    if (verifyError) {
-      log.error("auth", "session open failed", { error: verifyError.message });
-      return { status: "failed" };
-    }
-    return { status: "ok", isNew, role: account.role };
   },
 
   // ------------------------------------------------------------- affiliate
