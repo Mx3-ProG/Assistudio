@@ -1,9 +1,11 @@
 import type { Dictionary } from "./en";
 
 import sc from "./sales-center.fr";
+import msg from "./messaging.fr";
 
 const fr: Dictionary = {
   sc,
+  msg,
   meta: {
     homeTitle: "Studio ATS Partners — Vendez Studio ATS, gagnez jusqu’à 1 500 € par vente",
     homeDescription:

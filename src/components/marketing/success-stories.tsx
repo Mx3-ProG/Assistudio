@@ -3,6 +3,16 @@ import type { Locale } from "@/i18n/config";
 import { computeCommissionCents } from "@/lib/commission";
 import { Money } from "@/components/ui/money";
 
+const STORY_AVATARS = [
+  { emoji: "🧑‍🎨", gradient: "from-blue-500 to-violet-500" },
+  { emoji: "👩‍💼", gradient: "from-violet-500 to-fuchsia-500" },
+  { emoji: "🏠", gradient: "from-cyan-500 to-blue-500" },
+  { emoji: "👩‍🎓", gradient: "from-fuchsia-500 to-rose-500" },
+  { emoji: "🚀", gradient: "from-indigo-500 to-blue-500" },
+  { emoji: "👩‍💻", gradient: "from-purple-500 to-indigo-500" },
+  { emoji: "🤝", gradient: "from-blue-500 to-cyan-500" },
+] as const;
+
 function MoneyText({ template, values }: { template: string; values: Record<string, number> }) {
   return <>{template.split(/(\{\w+\})/g).map((part, index) => {
     const key = part.startsWith("{") ? part.slice(1, -1) : "";
@@ -24,12 +34,12 @@ export function SuccessStories({ t, priceCents, rate }: { t: Dictionary; locale:
       {H.stories.map((s, i) => {
         const total = s.sales * commission;
         const suffix = s.period === "month" ? ` ${H.storiesPerMonth}` : s.period === "year" ? ` ${H.storiesPerYear}` : "";
-        const initials = s.name.split(/[\s,]+/)[0].slice(0, 1);
+        const avatar = STORY_AVATARS[i % STORY_AVATARS.length];
         return (
           <li key={s.name} className={`card flex flex-col p-6 sm:p-7 ${i === 6 ? "sm:col-span-2 lg:col-span-1" : ""}`}>
             <div className="flex items-center gap-3">
-              <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent to-accent-2 text-[16px] font-semibold text-white">
-                {initials}
+              <span aria-hidden className={`grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br ${avatar.gradient} text-[23px] shadow-sm ring-1 ring-white/20`}>
+                {avatar.emoji}
               </span>
               <div className="min-w-0">
                 <p className="text-[15px] font-semibold">{s.name}</p>

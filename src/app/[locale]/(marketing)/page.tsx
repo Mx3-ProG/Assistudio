@@ -188,7 +188,7 @@ export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
               <h2 className="display mx-auto max-w-3xl text-[34px] sm:text-[56px]">{t.home.finalTitle}</h2>
               <p className="mx-auto mt-5 max-w-xl text-[17px] opacity-70">{t.home.finalSubtitle}</p>
               <div className="mt-9 flex flex-wrap justify-center gap-3">
-                <LinkButton href={p("/register")} size="lg" className="bg-bg text-fg hover:opacity-90">
+                <LinkButton href={p("/register")} size="lg" variant="inverse">
                   {t.home.ctaPrimary} <ArrowRight className="flip-rtl size-4" />
                 </LinkButton>
               </div>

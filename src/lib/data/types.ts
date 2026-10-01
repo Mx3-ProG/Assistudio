@@ -90,6 +90,86 @@ export interface PromoCode {
   createdAt: string;
 }
 
+export const DOSSIER_STATUSES = [
+  "draft", "awaiting_client", "affiliate_review", "admin_review",
+  "awaiting_client_acceptance", "awaiting_studio_acceptance", "awaiting_payment",
+  "active", "changes_requested", "declined", "expired", "cancelled",
+] as const;
+export type DossierStatus = (typeof DOSSIER_STATUSES)[number];
+export type DossierDocumentKind = "brief" | "quote" | "proof" | "brief_fallback" | "quote_fallback";
+
+export interface DossierOfferSnapshot {
+  offerId: string;
+  tier: OfferTier;
+  name: string;
+  priceCents: number;
+  currency: string;
+  interval: "month" | "year" | "one_time";
+  stripePriceId: string;
+  stripeLookupKey: string;
+  promoCode?: string | null;
+  discountRate?: number;
+  discountCents?: number;
+  totalCents: number;
+  lockedAt: string;
+  legalIdentity: {
+    legalName: string;
+    address: string;
+    registration: string;
+    representative: string;
+    vatNumber?: string | null;
+  };
+}
+
+export interface DossierDocument {
+  id: string;
+  kind: DossierDocumentKind;
+  revision: number;
+  sha256: string;
+  byteSize: number;
+  createdAt: string;
+}
+
+export interface DossierAcceptance {
+  party: "client" | "studio";
+  signerName: string;
+  signerEmail: string;
+  signerTitle: string | null;
+  acceptedAt: string;
+  manifestSha256: string;
+  otpVerified: boolean;
+}
+
+export interface CommercialDossier {
+  id: string;
+  ref: string;
+  affiliateId: string;
+  affiliateName?: string | null;
+  prospectId: string | null;
+  leadId: string | null;
+  clientEmail: string;
+  clientName: string | null;
+  clientCompany: string | null;
+  clientJobTitle: string | null;
+  locale: Locale;
+  status: DossierStatus;
+  currentRevision: number;
+  answers: Record<string, unknown>;
+  sharedWithAffiliateAt: string | null;
+  recommendedTier: OfferTier | null;
+  affiliateNote: string | null;
+  adminScope: string | null;
+  offerSnapshot: DossierOfferSnapshot | null;
+  validUntil: string | null;
+  manifestSha256: string | null;
+  stripeCheckoutUrl?: string | null;
+  paidAt: string | null;
+  documents: DossierDocument[];
+  acceptances: DossierAcceptance[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ActivityEvent {
   id: string;
   type: ActivityType;
@@ -473,6 +553,8 @@ export interface AdminOverview {
 
 export interface AdminAffiliateRow {
   id: string;
+  /** For staff messaging (Support thread). */
+  profileId: string;
   name: string;
   email: string;
   code: string;

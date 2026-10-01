@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutGrid, Link2, Megaphone, Users, Compass, MessageSquareText, Package, ShoppingBag, Wallet, Repeat,
-  Banknote, BarChart3, Trophy, Bell, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag,
+  Banknote, BarChart3, Trophy, Bell, MessageCircle, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag, FileSignature,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
@@ -12,11 +12,14 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleSwitcher } from "@/components/ui/locale-switcher";
 import { signOut } from "@/app/actions/auth";
 import { cn } from "@/lib/cn";
+import { MessagesNotifier } from "@/components/messaging/messages-notifier";
 
 type Item = { href: string; label: string; icon: typeof LayoutGrid; badge?: number };
 
-export function DashboardShell({ children, userName, unread, isStaff, leaderboard }: {
+export function DashboardShell({ children, userName, unread, isStaff, leaderboard, messages }: {
   children: React.ReactNode; userName: string; unread: number; isStaff: boolean; leaderboard: boolean;
+  /** Unread messages + who is signed in (for the live notifier). */
+  messages: { unread: number; me: string; realtime: boolean };
 }) {
   const { t, locale } = useI18n();
   const pathname = usePathname();
@@ -25,7 +28,10 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
   const n = t.dash.nav;
 
   const groups: { label?: string; items: Item[] }[] = [
-    { items: [{ href: base, label: n.overview, icon: LayoutGrid }] },
+    { items: [
+      { href: base, label: n.overview, icon: LayoutGrid },
+      { href: `${base}/messages`, label: t.msg.nav, icon: MessageCircle, badge: messages.unread },
+    ] },
     {
       label: n.groupSell,
       items: [
@@ -34,6 +40,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
         { href: `${base}/promo-codes`, label: n.promoCodes, icon: Tag },
         { href: `${base}/campaigns`, label: n.campaigns, icon: Megaphone },
         { href: `${base}/prospects`, label: n.prospects, icon: Users },
+        { href: `${base}/documents`, label: locale === "fr" ? "Documents & contrats" : "Documents & contracts", icon: FileSignature },
         { href: `${base}/find`, label: n.find, icon: Compass },
         { href: `${base}/sales-kit`, label: n.salesKit, icon: MessageSquareText },
         { href: `${base}/product`, label: n.product, icon: Package },
@@ -122,6 +129,10 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
             <div className="hidden lg:block" />
             <div className="flex items-center gap-2">
               <div className="hidden sm:flex sm:items-center sm:gap-2"><LocaleSwitcher /><ThemeToggle /></div>
+              <Link href={`${base}/messages`} className="relative grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label={t.msg.nav}>
+                <MessageCircle className="size-[18px]" />
+                {messages.unread > 0 && <span className="absolute -end-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-fg ring-2 ring-bg">{messages.unread > 99 ? "99+" : messages.unread}</span>}
+              </Link>
               <Link href={`${base}/notifications`} className="relative grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label={n.notifications}>
                 <Bell className="size-[18px]" />
                 {unread > 0 && <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-accent ring-2 ring-bg" />}
@@ -130,6 +141,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
           </div>
         </header>
 
+        <MessagesNotifier me={messages.me} base={`${base}/messages`} realtime={messages.realtime} />
         <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-16">{children}</main>
       </div>
 

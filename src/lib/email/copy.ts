@@ -9,7 +9,9 @@ export type TemplateId =
   | "affiliate.welcome" | "affiliate.new_lead" | "affiliate.appointment" | "affiliate.sale_detected"
   | "affiliate.commission_available" | "affiliate.payout_sent" | "affiliate.renewal" | "affiliate.customer_cancelled"
   | "customer.welcome" | "customer.order_confirmation" | "customer.renewal_receipt" | "customer.payment_failed"
-  | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation";
+  | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation"
+  | "dossier.invite" | "dossier.changes_requested" | "dossier.ready_to_accept"
+  | "dossier.otp" | "dossier.payment" | "dossier.active";
 
 export interface TemplateCopy {
   subject: string;
@@ -144,6 +146,47 @@ const en: Copy = {
       title: "We received your appointment request.",
       paragraphs: ["We will confirm the time with you{when}."],
     },
+    "dossier.invite": {
+      subject: "Complete your Studio ATS project brief - {reference}",
+      preheader: "Your secure project space is ready.",
+      title: "Tell us about your project.",
+      paragraphs: ["Your Studio ATS advisor created dossier {reference}.", "Use the secure link below to complete your project brief. The link is personal and expires automatically."],
+      cta: { label: "Open my dossier", path: "{access_path}" },
+    },
+    "dossier.changes_requested": {
+      subject: "Updates requested for dossier {reference}",
+      preheader: "Your advisor left a comment.",
+      title: "A few details need your attention.",
+      paragraphs: ["Comment: {comment}", "Open the secure dossier to update and submit a new revision."],
+      cta: { label: "Update my dossier", path: "{access_path}" },
+    },
+    "dossier.ready_to_accept": {
+      subject: "Your Studio ATS quote is ready - {reference}",
+      preheader: "Review the locked brief and quote.",
+      title: "Your documents are ready for acceptance.",
+      paragraphs: ["Review the exact project brief and quote prepared for dossier {reference}.", "When you are ready, request the one-time code to confirm your acceptance."],
+      cta: { label: "Review my documents", path: "{access_path}" },
+    },
+    "dossier.otp": {
+      subject: "Your Studio ATS acceptance code",
+      preheader: "This code expires in 10 minutes.",
+      title: "Your one-time code is {otp}.",
+      paragraphs: ["Enter this code to accept dossier {reference}.", "It expires in 10 minutes and can only be used once."],
+    },
+    "dossier.payment": {
+      subject: "Complete payment for Studio ATS - {reference}",
+      preheader: "Your dossier has been countersigned.",
+      title: "Your Studio ATS dossier is fully accepted.",
+      paragraphs: ["Studio ATS countersigned the same locked documents.", "Complete the first payment through Stripe to make the order binding."],
+      cta: { label: "Pay securely", path: "{payment_url}" },
+    },
+    "dossier.active": {
+      subject: "Your Studio ATS order is confirmed - {reference}",
+      preheader: "Payment confirmed.",
+      title: "Your Studio ATS project can begin.",
+      paragraphs: ["We received the first payment for dossier {reference}.", "Your accepted documents and evidence record remain available from your secure dossier."],
+      cta: { label: "Open my dossier", path: "{access_path}" },
+    },
   },
 };
 
@@ -268,6 +311,47 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       preheader: "Nous confirmons l’horaire avec vous.",
       title: "Nous avons bien reçu votre demande de rendez-vous.",
       paragraphs: ["Nous confirmons l’horaire avec vous{when}."],
+    },
+    "dossier.invite": {
+      subject: "Complétez votre cahier des charges Studio ATS - {reference}",
+      preheader: "Votre espace projet sécurisé est prêt.",
+      title: "Parlez-nous de votre projet.",
+      paragraphs: ["Votre conseiller Studio ATS a créé le dossier {reference}.", "Utilisez le lien sécurisé ci-dessous pour compléter le cahier des charges. Ce lien personnel expire automatiquement."],
+      cta: { label: "Ouvrir mon dossier", path: "{access_path}" },
+    },
+    "dossier.changes_requested": {
+      subject: "Corrections demandées pour le dossier {reference}",
+      preheader: "Votre conseiller a laissé un commentaire.",
+      title: "Quelques informations sont à préciser.",
+      paragraphs: ["Commentaire : {comment}", "Ouvrez le dossier sécurisé pour le mettre à jour et soumettre une nouvelle révision."],
+      cta: { label: "Modifier mon dossier", path: "{access_path}" },
+    },
+    "dossier.ready_to_accept": {
+      subject: "Votre devis Studio ATS est prêt - {reference}",
+      preheader: "Relisez le cahier des charges et le devis verrouillés.",
+      title: "Vos documents sont prêts à être acceptés.",
+      paragraphs: ["Relisez les documents exacts préparés pour le dossier {reference}.", "Lorsque vous êtes prêt, demandez le code ponctuel pour confirmer votre acceptation."],
+      cta: { label: "Relire mes documents", path: "{access_path}" },
+    },
+    "dossier.otp": {
+      subject: "Votre code d’acceptation Studio ATS",
+      preheader: "Ce code expire dans 10 minutes.",
+      title: "Votre code ponctuel est {otp}.",
+      paragraphs: ["Saisissez ce code pour accepter le dossier {reference}.", "Il expire dans 10 minutes et ne peut être utilisé qu’une fois."],
+    },
+    "dossier.payment": {
+      subject: "Finalisez le paiement Studio ATS - {reference}",
+      preheader: "Votre dossier a été contresigné.",
+      title: "Votre dossier Studio ATS est entièrement accepté.",
+      paragraphs: ["Studio ATS a contresigné les mêmes documents verrouillés.", "Effectuez le premier paiement via Stripe pour rendre la commande ferme."],
+      cta: { label: "Payer de manière sécurisée", path: "{payment_url}" },
+    },
+    "dossier.active": {
+      subject: "Votre commande Studio ATS est confirmée - {reference}",
+      preheader: "Paiement confirmé.",
+      title: "Votre projet Studio ATS peut commencer.",
+      paragraphs: ["Nous avons reçu le premier paiement du dossier {reference}.", "Vos documents acceptés et le dossier de preuve restent disponibles dans votre espace sécurisé."],
+      cta: { label: "Ouvrir mon dossier", path: "{access_path}" },
     },
   },
 };

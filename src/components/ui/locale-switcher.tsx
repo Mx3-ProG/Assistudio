@@ -28,6 +28,7 @@ export function LocaleSwitcher({ className, responsiveCompact = false }: { class
       <span className="sr-only">{t.common.language}</span>
       <select
         value={locale}
+        aria-label={t.common.language}
         onChange={(e) => change(e.target.value as Locale)}
         className={cn(
           "appearance-none bg-transparent pe-1 font-medium outline-none",

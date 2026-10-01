@@ -58,6 +58,8 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 | Stripe webhook, checkout, attribution, payouts (services) | `src/lib/services/*`, `src/app/api/webhooks/stripe` |
 | Stripe mirror, commission engine & rules, email outbox (V0.2) | `supabase/migrations/20260925*` |
 | Email service (templates, Resend, outbox) | `src/lib/email` |
+| Messaging: rules, RLS, Storage bucket, Realtime (audited moderation) | `supabase/migrations/20261002000001_messaging.sql`, mirrored in `src/lib/messaging/policy.ts` |
+| Messaging UI (threads, voice/video recorder, drag & drop) | `src/components/messaging`, `src/app/actions/messaging.ts` |
 
 **Money & commissions.** Amounts are integer cents. A commission is created only when Stripe confirms the payment: `pending` during the configurable validation period, then `available`, then `paid` via a payout; `disputed` when a human must decide. Refunds / chargebacks reverse it (a `clawback` if it was already paid out, recovered from the next payout). Renewal commissions are created by each renewal payment — never in advance. Every movement is an append-only `commission_ledger` entry. The UI never shows pending money as earned; projections are always labelled as projections.
 
@@ -65,14 +67,16 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 
 **Fraud.** Signals (duplicate leads, self-referrals, click bursts, chargebacks) create `fraud_flags` and at most put a commission `on_hold`. Accounts are never blocked automatically: *Flag → Review → Decision*, all audited.
 
+**Messaging.** Who can talk to whom is one SQL rule (`can_message`): staff ↔ anyone; sponsor ↔ direct recruit automatically; other affiliates only after an accepted contact request (by affiliate code); a block cancels everything except staff. Every member has a **Support** thread shared by the whole admin team, and staff publish **Announcements** that approved affiliates read and react to. All writes go through `SECURITY DEFINER` functions (rate limits, MIME/size checks, upload path confinement); clients only read under RLS, and Realtime delivers new messages through the same RLS. Photos, PDFs, voice and video messages go straight from the browser to the private `chat-media` bucket (`{conversation}/{sender}/{file}`) and are read with 1-hour signed URLs. Staff cannot read a private conversation unless a member reports a message — opening the report shows ±20 messages and writes `audit_logs`. In demo mode messages poll every 3 s and media live in memory (`/api/demo-media`, dev only).
+
 **Privacy.** Affiliates only see their own rows (RLS). They never see inbound leads' contact details (`my_leads` view) or customer identity beyond company name + public ref (`my_customers` view). IPs / user agents are stored as salted daily hashes. Users can export their data and request erasure from Settings.
 
 ## Routes
 
 - Public (indexable, 8 locales): `/`, `/studio`, `/pricing`, `/partners`, `/faq`, `/about`, `/contact`, `/security`, legal pages
 - Auth: `/login`, `/register`, `/forgot`, `/auth/callback`
-- Affiliate: `/dashboard` + `welcome`, `link`, `campaigns`, `prospects`, `find`, `sales-kit`, `product`, `sales`, `commissions`, `recurring`, `payouts`, `analytics`, `leaderboard`, `notifications`, `settings`
-- Admin: `/admin` + `affiliates`, `leads`, `sales`, `commissions`, `payouts`, `fraud`, `markets`, `content`, `settings`, `audit`
+- Affiliate: `/dashboard` + `messages`, `welcome`, `link`, `campaigns`, `prospects`, `find`, `sales-kit`, `product`, `sales`, `commissions`, `recurring`, `payouts`, `analytics`, `leaderboard`, `notifications`, `settings`
+- Admin: `/admin` + `messages` (+ `messages/reports`), `affiliates`, `leads`, `sales`, `commissions`, `payouts`, `fraud`, `markets`, `content`, `settings`, `audit`
 
 ## Internationalisation
 
@@ -93,4 +97,5 @@ npm run build     # needs Supabase env, or STUDIO_DEMO_MODE=true for a local bui
 
 - **Payouts**: created by staff after validation (audited). Stripe Connect onboarding is ready behind `payouts.connect_enabled`; automatic transfers are deliberately not implemented.
 - **Legal pages**: placeholders only — real content must come from legal counsel.
+- Messaging V1 excludes customers (no customer accounts yet), live audio/video calls, e-mail/push reminders for unread messages, and inclusion of messages in the self-service data export.
 - Email delivery worker for `notification_deliveries`; admin editing + uploads for the sales kit; CSV import of prospects; authorised prospect-data providers in *Find clients*; rate limiting / bot protection on the lead form; generated Supabase types (`npm run db:types`).

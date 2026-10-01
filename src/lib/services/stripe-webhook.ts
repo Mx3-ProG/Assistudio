@@ -7,6 +7,7 @@ import {
   normalizeCheckoutSession, normalizeSubscription, normalizeInvoice, normalizeRefund, normalizeDispute,
   normalizeAccount, eventReference, invoiceSubscriptionId, invoicePriceId,
 } from "@/lib/stripe/normalize";
+import { activateDossierAfterPayment } from "@/lib/contracts/service";
 
 /**
  * PaymentService / SubscriptionService entry point for Stripe events.
@@ -77,10 +78,15 @@ async function apply(sb: Sb, event: Stripe.Event): Promise<"processed" | "ignore
       const session = event.data.object as Stripe.Checkout.Session;
       if (!session.customer) return "ignored";
       await rpc(sb, "stripe_checkout_completed", { p: normalizeCheckoutSession(session) });
+      if (session.payment_status === "paid" || event.type === "checkout.session.async_payment_succeeded") {
+        await activateDossierAfterPayment(session.id);
+      }
       return "processed";
     }
     case "checkout.session.expired": {
-      await rpc(sb, "stripe_checkout_expired", { p: { stripe_checkout_session_id: (event.data.object as Stripe.Checkout.Session).id } });
+      const stripeId = (event.data.object as Stripe.Checkout.Session).id;
+      await rpc(sb, "stripe_checkout_expired", { p: { stripe_checkout_session_id: stripeId } });
+      await sb.from("commercial_dossiers").update({ stripe_checkout_session_id: null, stripe_checkout_url: null }).eq("stripe_checkout_session_id", stripeId).eq("status", "awaiting_payment");
       return "processed";
     }
     case "customer.subscription.created":

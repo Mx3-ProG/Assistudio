@@ -11,6 +11,7 @@ import { defaultSalesContent } from "@/content/sales-center/content";
 import type { SalesContent, ContentKind } from "@/lib/sales/content";
 import type { Repo, Range } from "./repo";
 import { summarizeBook } from "./book";
+import { createDemoMessaging } from "./messaging.demo";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow,
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
@@ -470,6 +471,11 @@ function affiliateName(affId: string | null) {
 
 // ---------------------------------------------------------------- repo
 export const demoRepo: Repo = {
+  ...createDemoMessaging(
+    () => ({ users: db().users, affiliates: db().affiliates }),
+    (s, action, entityId, reason) => audit(s, action, "message_report", entityId, null, null, reason),
+  ),
+
   async getSettings() { return db().settings; },
   async getOffer() { return db().offer; },
   async listOffers() { return db().offers; },
@@ -1007,7 +1013,7 @@ export const demoRepo: Repo = {
     return st.affiliates.map((a) => {
       const u = st.users.find((x) => x.userId === a.userId)!;
       return {
-        id: a.id, name: u.fullName, email: u.email, code: a.code, status: a.status, country: a.country,
+        id: a.id, profileId: a.userId, name: u.fullName, email: u.email, code: a.code, status: a.status, country: a.country,
         sales: st.sales.filter((x) => x.affiliateId === a.id && x.status === "paid").length,
         availableCents: balancesOf(a.id).availableCents,
         createdAt: a.createdAt, application: a.application,

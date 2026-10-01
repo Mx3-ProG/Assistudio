@@ -1,24 +1,30 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined } from "lucide-react";
+import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined, FileSignature, MessageCircle } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleSwitcher } from "@/components/ui/locale-switcher";
 import { signOut } from "@/app/actions/auth";
 import { cn } from "@/lib/cn";
+import { MessagesNotifier } from "@/components/messaging/messages-notifier";
 
-export function AdminShell({ children, hasAffiliate }: { children: React.ReactNode; hasAffiliate: boolean }) {
+export function AdminShell({ children, hasAffiliate, messages }: {
+  children: React.ReactNode; hasAffiliate: boolean;
+  messages: { unread: number; me: string; realtime: boolean };
+}) {
   const { t, locale } = useI18n();
   const pathname = usePathname();
   const base = `/${locale}/admin`;
   const A = t.admin.nav;
   const items = [
     { href: base, label: A.overview, icon: LayoutGrid },
+    { href: `${base}/messages`, label: t.msg.admin.nav, icon: MessageCircle, badge: messages.unread },
     { href: `${base}/affiliates`, label: A.affiliates, icon: Users },
     { href: `${base}/leads`, label: A.leads, icon: Inbox },
     { href: `${base}/sales`, label: A.sales, icon: ShoppingBag },
+    { href: `${base}/contracts`, label: locale === "fr" ? "Devis & contrats" : "Quotes & contracts", icon: FileSignature },
     { href: `${base}/finance`, label: A.finance, icon: Landmark },
     { href: `${base}/commissions`, label: A.commissions, icon: Wallet },
     { href: `${base}/payouts`, label: A.payouts, icon: Banknote },
@@ -50,14 +56,16 @@ export function AdminShell({ children, hasAffiliate }: { children: React.ReactNo
           </div>
         </div>
         <nav className="no-scrollbar mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 pb-2 sm:px-5">
-          {items.map(({ href, label, icon: Icon }) => (
+          {items.map(({ href, label, icon: Icon, badge }: { href: string; label: string; icon: typeof Users; badge?: number }) => (
             <Link key={href} href={href} aria-current={active(href) ? "page" : undefined}
               className={cn("flex h-8 shrink-0 items-center gap-2 rounded-full px-3 text-[13px] transition", active(href) ? "bg-fg text-bg" : "text-fg-2 hover:bg-surface-2")}>
               <Icon className="size-3.5" />{label}
+              {!!badge && <span className="grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-fg">{badge > 99 ? "99+" : badge}</span>}
             </Link>
           ))}
         </nav>
       </header>
+      <MessagesNotifier me={messages.me} base={`${base}/messages`} realtime={messages.realtime} />
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );

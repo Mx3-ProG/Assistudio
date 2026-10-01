@@ -5,6 +5,7 @@ import { supabaseService } from "@/lib/supabase/server";
 import { email } from "./index";
 import { renderEmail } from "./templates";
 import { TEMPLATE_IDS, type TemplateId } from "./copy";
+import type { Locale } from "@/i18n/config";
 
 /**
  * EmailService — the only entry point for transactional email.
@@ -52,4 +53,28 @@ export async function flushEmailOutbox(opts: { limit?: number; ids?: string[] } 
     }
   }
   return stats;
+}
+
+/** Queue a pre-contract email before a lead/customer row exists. */
+export async function queueDirectEmail(input: {
+  to: string;
+  locale: Locale;
+  template: TemplateId;
+  key: string;
+  dossierId: string;
+  params: Record<string, unknown>;
+}): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const sb = supabaseService();
+  const { data, error } = await sb.from("email_events").upsert({
+    idempotency_key: input.key,
+    template: input.template,
+    recipient_type: "lead",
+    recipient_email: input.to.toLowerCase(),
+    related_entity: "commercial_dossier",
+    related_id: input.dossierId,
+    params: { ...input.params, locale: input.locale },
+  }, { onConflict: "idempotency_key", ignoreDuplicates: true }).select("id").maybeSingle();
+  if (error) throw new Error(`queue dossier email: ${error.message}`);
+  if (data?.id) await flushEmailOutbox({ ids: [data.id] });
 }

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "accent" | "danger";
+type Variant = "primary" | "inverse" | "secondary" | "ghost" | "accent" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const base =
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-[transform,background,color,box-shadow,opacity] duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 select-none";
 const variants: Record<Variant, string> = {
   primary: "bg-fg text-bg hover:opacity-90 shadow-sm",
+  inverse: "bg-bg text-fg hover:opacity-90 shadow-sm ring-1 ring-fg/10",
   accent: "bg-accent text-accent-fg hover:brightness-110 shadow-[0_8px_24px_-8px_var(--accent)]",
   secondary: "bg-surface-2 text-fg hover:bg-surface-3 border border-line",
   ghost: "text-fg hover:bg-surface-2",
