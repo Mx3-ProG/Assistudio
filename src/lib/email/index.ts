@@ -30,6 +30,8 @@ const resend: EmailAdapter = {
   async send(msg) {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      // Never leave a page spinning: a hung provider becomes a visible error.
+      signal: AbortSignal.timeout(10_000),
       headers: {
         Authorization: `Bearer ${env.resendApiKey}`,
         "Content-Type": "application/json",
