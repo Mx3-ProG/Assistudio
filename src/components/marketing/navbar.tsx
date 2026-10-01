@@ -6,6 +6,7 @@ import { useI18n } from "@/components/providers";
 import { buttonClass } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleSwitcher } from "@/components/ui/locale-switcher";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { Logo } from "./logo";
 import { cn } from "@/lib/cn";
 
@@ -39,11 +40,11 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
 
   return (
     <header className={cn("sticky top-0 z-50 transition-all duration-300", scrolled || open ? "glass border-x-0 border-t-0 !border-b-line" : "border-b border-transparent")}>
-      <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <nav className="mx-auto flex h-14 max-w-[1500px] items-center justify-between gap-4 px-4 sm:px-6">
         <Link href={p("/")} className="shrink-0" aria-label="Studio ATS">
           <Logo />
         </Link>
-        <ul className="hidden items-center gap-1 xl:flex">
+        <ul className="hidden items-center gap-1 2xl:flex">
           {links.map((l) => (
             <li key={l.href}>
               <Link href={l.href} className="whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] text-fg-2 transition hover:text-fg">
@@ -55,6 +56,7 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
         <div className="flex items-center gap-2">
           <div className="hidden items-center gap-2 lg:flex">
             <LocaleSwitcher />
+            <CurrencySwitcher />
             <ThemeToggle />
           </div>
           {variant === "partners" ? (
@@ -62,18 +64,22 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
               <Link href={p("/login")} className="hidden rounded-full px-3 py-1.5 text-[13px] text-fg-2 hover:text-fg sm:inline-flex">
                 {t.nav.login}
               </Link>
-              <Link href={p("/register")} className={buttonClass("primary", "sm")}>
-                {t.nav.becomePartner}
-              </Link>
+              <span className="hidden sm:inline-flex">
+                <Link href={p("/register")} className={buttonClass("primary", "sm")}>
+                  {t.nav.becomePartner}
+                </Link>
+              </span>
             </>
           ) : (
-            <a href="#request" className={buttonClass("primary", "sm")}>
-              {t.studio.cta}
-            </a>
+            <span className="hidden sm:inline-flex">
+              <a href="#request" className={buttonClass("primary", "sm")}>
+                {t.studio.cta}
+              </a>
+            </span>
           )}
           <button
             type="button"
-            className="grid size-9 place-items-center rounded-full text-fg xl:hidden"
+            className="grid size-9 place-items-center rounded-full text-fg 2xl:hidden"
             aria-expanded={open}
             aria-label={t.common.menu}
             onClick={() => setOpen((v) => !v)}
@@ -83,7 +89,7 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
         </div>
       </nav>
       {open && (
-        <div className="border-t border-line px-4 pb-6 pt-2 xl:hidden">
+        <div className="border-t border-line px-4 pb-6 pt-2 2xl:hidden">
           <ul className="flex flex-col">
             {links.map((l) => (
               <li key={l.href}>
@@ -92,14 +98,22 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
                 </Link>
               </li>
             ))}
-            <li>
+            {variant === "partners" && <li>
               <Link href={p("/login")} onClick={() => setOpen(false)} className="block py-3.5 text-[17px] font-medium">
                 {t.nav.login}
               </Link>
-            </li>
+            </li>}
           </ul>
-          <div className="mt-4 flex items-center gap-2">
+          <Link
+            href={variant === "partners" ? p("/register") : "#request"}
+            onClick={() => setOpen(false)}
+            className={buttonClass("primary", "md", "mt-4 w-full")}
+          >
+            {variant === "partners" ? t.nav.becomePartner : t.studio.cta}
+          </Link>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <LocaleSwitcher />
+            <CurrencySwitcher />
             <ThemeToggle />
           </div>
         </div>

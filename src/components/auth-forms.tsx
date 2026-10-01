@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { MailCheck } from "lucide-react";
-import { signIn, signUp, forgotPassword, demoSignIn, signInWithProvider, type AuthState } from "@/app/actions/auth";
+import { signIn, signUp, signOut, forgotPassword, updatePassword, demoSignIn, signInWithProvider, type AuthState } from "@/app/actions/auth";
 import { useI18n } from "@/components/providers";
 import { Field, inputClass, Notice } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
@@ -16,6 +16,15 @@ function Shell({ title, subtitle, children }: { title: string; subtitle: string;
     </div>
   );
 }
+
+type AuthDict = ReturnType<typeof useI18n>["t"]["auth"];
+const MESSAGE_KEYS = [
+  "invalid", "unconfirmed", "rateLimited", "unavailable", "linkExpired", "accountUnavailable",
+  "passwordMismatch", "passwordTooShort", "samePassword", "weakPassword",
+] as const;
+export type AuthNotice = (typeof MESSAGE_KEYS)[number];
+const authMessage = (t: AuthDict, key?: string) =>
+  t[(MESSAGE_KEYS as readonly string[]).includes(key ?? "") ? (key as AuthNotice) : "invalid"];
 
 function Sent() {
   const { t } = useI18n();
@@ -65,12 +74,23 @@ function Providers() {
   );
 }
 
-export function LoginForm({ demo, next }: { demo: boolean; next?: string }) {
+export function LoginForm({ demo, next, notice }: { demo: boolean; next?: string; notice?: AuthNotice }) {
   const { t, locale } = useI18n();
   const [mode, setMode] = useState<"password" | "magic">("password");
   const [state, action, pending] = useActionState<AuthState, FormData>(signIn, { status: "idle" });
   return (
     <Shell title={t.auth.loginTitle} subtitle={t.auth.loginSubtitle}>
+      {notice && state.status === "idle" && (
+        <div className="mb-4 grid gap-3">
+          <Notice tone="warning">{authMessage(t.auth, notice)}</Notice>
+          {notice === "accountUnavailable" && (
+            <form action={signOut}>
+              <input type="hidden" name="locale" value={locale} />
+              <button className={buttonClass("secondary", "md", "w-full")}>{t.auth.logout}</button>
+            </form>
+          )}
+        </div>
+      )}
       {state.status === "sent" ? <Sent /> : demo ? (
         <Notice>{t.auth.demoBody}</Notice>
       ) : (
@@ -78,14 +98,19 @@ export function LoginForm({ demo, next }: { demo: boolean; next?: string }) {
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="mode" value={mode} />
           {next && <input type="hidden" name="next" value={next} />}
-          <Field label={t.auth.email}><input name="email" type="email" required autoComplete="email" className={inputClass} /></Field>
+          <Field label={t.auth.email}><input name="email" type="email" required autoComplete="email" defaultValue={state.email} className={inputClass} /></Field>
           {mode === "password" && (
             <Field label={t.auth.password}><input name="password" type="password" required autoComplete="current-password" className={inputClass} /></Field>
           )}
-          {state.status === "error" && <p className="text-[13px] text-danger">{t.auth.invalid}</p>}
+          {state.status === "error" && <p role="alert" className="text-[13px] text-danger">{authMessage(t.auth, state.message)}</p>}
           <button disabled={pending} className={buttonClass("primary", "lg", "w-full")}>
             {pending ? t.common.loading : mode === "password" ? t.auth.submitLogin : t.auth.magicLink}
           </button>
+          {state.message === "unconfirmed" && (
+            <button name="intent" value="resend" formNoValidate disabled={pending} className={buttonClass("secondary", "md", "w-full")}>
+              {t.auth.resendConfirmation}
+            </button>
+          )}
           <div className="flex items-center justify-between text-[13px]">
             <button type="button" onClick={() => setMode(mode === "password" ? "magic" : "password")} className="text-accent hover:underline">
               {mode === "password" ? t.auth.magicLink : t.auth.password}
@@ -147,6 +172,31 @@ export function ForgotForm({ demo }: { demo: boolean }) {
           <input type="hidden" name="locale" value={locale} />
           <Field label={t.auth.email}><input name="email" type="email" required autoComplete="email" className={inputClass} /></Field>
           <button disabled={pending} className={buttonClass("primary", "lg", "w-full")}>{pending ? t.common.loading : t.auth.submitForgot}</button>
+        </form>
+      )}
+      <p className="mt-6 text-center text-[13px]"><Link href={`/${locale}/login`} className="text-muted hover:text-fg">{t.common.back}</Link></p>
+    </Shell>
+  );
+}
+
+export function ResetForm({ demo, hasSession }: { demo: boolean; hasSession: boolean }) {
+  const { t, locale } = useI18n();
+  const [state, action, pending] = useActionState<AuthState, FormData>(updatePassword, { status: "idle" });
+  const expired = !demo && (!hasSession || state.message === "linkExpired");
+  return (
+    <Shell title={t.auth.resetTitle} subtitle={t.auth.resetSubtitle}>
+      {demo ? <Notice>{t.auth.demoBody}</Notice> : expired ? (
+        <div className="grid gap-4">
+          <Notice tone="warning">{t.auth.linkExpired}</Notice>
+          <Link href={`/${locale}/forgot`} className={buttonClass("primary", "lg", "w-full")}>{t.auth.requestNewLink}</Link>
+        </div>
+      ) : (
+        <form action={action} className="grid gap-4">
+          <input type="hidden" name="locale" value={locale} />
+          <Field label={t.auth.newPassword} hint="10+"><input name="password" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputClass} /></Field>
+          <Field label={t.auth.confirmPassword}><input name="confirm" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputClass} /></Field>
+          {state.status === "error" && <p role="alert" className="text-[13px] text-danger">{authMessage(t.auth, state.message)}</p>}
+          <button disabled={pending} className={buttonClass("primary", "lg", "w-full")}>{pending ? t.common.loading : t.auth.submitReset}</button>
         </form>
       )}
       <p className="mt-6 text-center text-[13px]"><Link href={`/${locale}/login`} className="text-muted hover:text-fg">{t.common.back}</Link></p>

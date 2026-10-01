@@ -11,6 +11,7 @@ import { maxEarningOffer } from "@/lib/offers";
 import { Navbar } from "@/components/marketing/navbar";
 import { PricingPlans, PartnerCommissionTable } from "@/components/marketing/pricing-plans";
 import { LinkButton } from "@/components/ui/button";
+import { normalizePromoCode } from "@/lib/services/promo";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/pricing">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
@@ -20,8 +21,10 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/pricing"
 }
 
 /** The three offers, and what each one pays a partner under the existing commission rules. */
-export default async function PricingPage({ params }: PageProps<"/[locale]/pricing">) {
+export default async function PricingPage({ params, searchParams }: PageProps<"/[locale]/pricing">) {
   const { locale } = (await params) as { locale: Locale };
+  const sp = await searchParams;
+  const promo = normalizePromoCode(sp.promo);
   const [t, offers, settings] = await Promise.all([getDictionary(locale), repo().listOffers(), repo().getSettings()]);
   const P = t.pricing;
   // One direct rate for every offer: the offers change prices, not commission rules.
@@ -57,7 +60,7 @@ export default async function PricingPage({ params }: PageProps<"/[locale]/prici
               <p className="mt-4 text-[17px] text-muted sm:text-[19px]">{P.subtitle}</p>
             </div>
             <div className="mt-12">
-              <PricingPlans t={t} locale={locale} offers={offers} requestHref={`/${locale}/studio#request`} requestLabel={P.talkToUs} />
+              <PricingPlans t={t} locale={locale} offers={offers} promo={promo ?? undefined} requestHref={`/${locale}/studio#request`} requestLabel={P.talkToUs} />
             </div>
             <p className="mt-6 text-center text-[12px] text-muted">{t.studio.pricingNote}</p>
           </div>

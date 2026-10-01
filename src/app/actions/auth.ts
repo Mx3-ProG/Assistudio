@@ -7,7 +7,19 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { DEMO_SESSION_COOKIE, demoUserId } from "@/lib/data/demo";
 import { isLocale, type Locale } from "@/i18n/config";
 
-export type AuthState = { status: "idle" | "error" | "sent"; message?: string };
+export type AuthState = { status: "idle" | "error" | "sent"; message?: string; email?: string };
+
+/** Supabase auth errors → dictionary keys (t.auth.*). Never echoes whether an account exists. */
+type AuthErrorKey = "invalid" | "unconfirmed" | "rateLimited" | "unavailable" | "samePassword" | "weakPassword";
+function authErrorKey(error: { code?: string; status?: number } | null): AuthErrorKey {
+  const code = error?.code ?? "";
+  if (code === "email_not_confirmed") return "unconfirmed";
+  if (code === "same_password") return "samePassword";
+  if (code === "weak_password") return "weakPassword";
+  if (code.startsWith("over_") || error?.status === 429) return "rateLimited";
+  if (!error?.status || error.status >= 500) return "unavailable";
+  return "invalid";
+}
 
 const loc = (v: FormDataEntryValue | null): Locale => (typeof v === "string" && isLocale(v) ? v : "en");
 const safeNext = (v: FormDataEntryValue | null, locale: Locale) =>
@@ -29,13 +41,17 @@ export async function signIn(_prev: AuthState, form: FormData): Promise<AuthStat
   if (!email.success) return { status: "error", message: "invalid" };
   const sb = await supabaseServer();
 
+  if (form.get("intent") === "resend") {
+    const { error } = await sb.auth.resend({ type: "signup", email: email.data, options: { emailRedirectTo: callback(`/${locale}/dashboard/welcome`) } });
+    return error && authErrorKey(error) !== "invalid" ? { status: "error", message: authErrorKey(error), email: email.data } : { status: "sent" };
+  }
   if (form.get("mode") === "magic") {
     const { error } = await sb.auth.signInWithOtp({ email: email.data, options: { emailRedirectTo: callback(next), shouldCreateUser: false } });
-    return error ? { status: "error", message: error.message } : { status: "sent" };
+    return error ? { status: "error", message: authErrorKey(error), email: email.data } : { status: "sent" };
   }
   const password = String(form.get("password") ?? "");
   const { error } = await sb.auth.signInWithPassword({ email: email.data, password });
-  if (error) return { status: "error", message: "invalid" };
+  if (error) return { status: "error", message: authErrorKey(error), email: email.data };
   redirect(next);
 }
 
@@ -72,9 +88,23 @@ export async function forgotPassword(_prev: AuthState, form: FormData): Promise<
   const email = z.email().safeParse(form.get("email"));
   if (!email.success) return { status: "error", message: "invalid" };
   const sb = await supabaseServer();
-  await sb.auth.resetPasswordForEmail(email.data, { redirectTo: callback(`/${locale}/dashboard/settings`) });
+  await sb.auth.resetPasswordForEmail(email.data, { redirectTo: callback(`/${locale}/reset`) });
   // Same answer whether or not the account exists (no user enumeration).
   return { status: "sent" };
+}
+
+/** Lands here from the recovery email (via /auth/callback, which opened a session). */
+export async function updatePassword(_prev: AuthState, form: FormData): Promise<AuthState> {
+  const locale = loc(form.get("locale"));
+  const password = String(form.get("password") ?? "");
+  if (password.length < 10 || password.length > 200) return { status: "error", message: "passwordTooShort" };
+  if (password !== String(form.get("confirm") ?? "")) return { status: "error", message: "passwordMismatch" };
+  const sb = await supabaseServer();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { status: "error", message: "linkExpired" };
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) return { status: "error", message: authErrorKey(error) };
+  redirect(`/${locale}/dashboard`);
 }
 
 export async function signInWithProvider(form: FormData) {

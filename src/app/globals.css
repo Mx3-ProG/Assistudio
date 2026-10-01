@@ -134,6 +134,7 @@ html {
 body {
   background: var(--bg);
   color: var(--fg);
+  overflow-x: clip;
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;

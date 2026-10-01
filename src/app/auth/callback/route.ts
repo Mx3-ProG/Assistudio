@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { isLocale } from "@/i18n/config";
 
 /** Email verification, magic links, password recovery and OAuth all land here. */
 export async function GET(req: NextRequest) {
@@ -11,5 +12,7 @@ export async function GET(req: NextRequest) {
     const { error } = await sb.auth.exchangeCodeForSession(code);
     if (!error) return NextResponse.redirect(new URL(next, req.nextUrl.origin));
   }
-  return NextResponse.redirect(new URL("/en/login?error=callback", req.nextUrl.origin));
+  const first = next.split("/")[1] ?? "";
+  const locale = isLocale(first) ? first : "en";
+  return NextResponse.redirect(new URL(`/${locale}/login?error=callback`, req.nextUrl.origin));
 }

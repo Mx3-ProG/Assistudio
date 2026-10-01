@@ -1,18 +1,23 @@
 import type { Dictionary } from "@/i18n/types";
 import type { Locale } from "@/i18n/config";
-import { fmt } from "@/i18n/format";
 import { computeCommissionCents } from "@/lib/commission";
-import { formatMoney } from "@/lib/money";
+import { Money } from "@/components/ui/money";
+
+function MoneyText({ template, values }: { template: string; values: Record<string, number> }) {
+  return <>{template.split(/(\{\w+\})/g).map((part, index) => {
+    const key = part.startsWith("{") ? part.slice(1, -1) : "";
+    return key in values ? <Money key={`${key}-${index}`} cents={values[key]} /> : part;
+  })}</>;
+}
 
 /**
  * Seven illustrative partner scenarios. Every amount is computed from the
  * offer (sales × commission) — the copy only carries the number of sales.
  * Each card is labelled as illustrative: these are not customer testimonials.
  */
-export function SuccessStories({ t, locale, priceCents, rate }: { t: Dictionary; locale: Locale; priceCents: number; rate: number }) {
+export function SuccessStories({ t, priceCents, rate }: { t: Dictionary; locale: Locale; priceCents: number; rate: number }) {
   const H = t.home;
   const commission = computeCommissionCents(priceCents, rate);
-  const money = (c: number) => formatMoney(c, locale);
 
   return (
     <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -33,17 +38,17 @@ export function SuccessStories({ t, locale, priceCents, rate }: { t: Dictionary;
             </div>
             <h3 className="mt-5 text-[19px] font-semibold leading-snug tracking-[-0.02em]">{s.title}</h3>
             <p className="mt-2 flex-1 text-[14px] leading-relaxed text-fg-2">
-              {fmt(s.body, { commission: money(commission), total: money(total) })}
+              <MoneyText template={s.body} values={{ commission, total }} />
             </p>
             <div className="mt-5 rounded-2xl bg-surface-2 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{H.storiesMath}</p>
               <p className="tabular mt-1 text-[14px] text-fg-2">
-                {s.sales} × {money(commission)} ={" "}
-                <span className="text-[20px] font-semibold tracking-[-0.02em] text-fg">{money(total)}</span>
+                {s.sales} × <Money cents={commission} /> ={" "}
+                <Money cents={total} className="text-[20px] font-semibold tracking-[-0.02em] text-fg" />
                 <span className="text-muted">{suffix}</span>
               </p>
               {s.period === "month" && (
-                <p className="tabular mt-0.5 text-[12px] text-muted">{fmt(H.storiesYearly, { amount: money(total * 12) })}</p>
+                <p className="tabular mt-0.5 text-[12px] text-muted"><MoneyText template={H.storiesYearly} values={{ amount: total * 12 }} /></p>
               )}
             </div>
             <p className="mt-3 text-[11px] font-medium text-muted">{H.storiesBadge}</p>

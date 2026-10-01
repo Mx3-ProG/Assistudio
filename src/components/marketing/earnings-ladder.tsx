@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/providers";
 import { illustrate } from "@/lib/commission";
 import { formatMoney } from "@/lib/money";
+import { convertCurrency } from "@/i18n/currency";
 import { fmt } from "@/i18n/format";
 
 const STEPS = [1, 5, 10, 50];
 
 /** Purely mathematical illustration: clients × price × rate. Not a promise. */
 export function EarningsLadder({ priceCents, rate }: { priceCents: number; rate: number }) {
-  const { t, locale } = useI18n();
+  const { t, locale, currency } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
 
@@ -31,7 +32,7 @@ export function EarningsLadder({ priceCents, rate }: { priceCents: number; rate:
         return (
           <div key={n} className="flex flex-col items-center gap-3">
             <div className="tabular text-center text-[13px] font-semibold sm:text-[17px]">
-              {formatMoney(cents, locale)}
+              {formatMoney(convertCurrency(cents, "EUR", currency), locale, currency)}
               <span className="block text-[11px] font-normal text-muted sm:inline sm:text-[12px]"> {t.home.ladderPerYear}</span>
             </div>
             <div className="relative flex h-40 w-full items-end sm:h-56">

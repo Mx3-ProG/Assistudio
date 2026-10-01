@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutGrid, Link2, Megaphone, Users, Compass, MessageSquareText, Package, ShoppingBag, Wallet, Repeat,
-  Banknote, BarChart3, Trophy, Bell, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket,
+  Banknote, BarChart3, Trophy, Bell, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
@@ -31,6 +31,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
       items: [
         { href: `${base}/sales-center`, label: t.sc.title, icon: Rocket },
         { href: `${base}/link`, label: n.link, icon: Link2 },
+        { href: `${base}/promo-codes`, label: n.promoCodes, icon: Tag },
         { href: `${base}/campaigns`, label: n.campaigns, icon: Megaphone },
         { href: `${base}/prospects`, label: n.prospects, icon: Users },
         { href: `${base}/find`, label: n.find, icon: Compass },
@@ -157,7 +158,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMore(false)} />
           <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[28px] bg-bg-elevated px-4 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-4 shadow-lift">
             <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2"><LocaleSwitcher /><ThemeToggle /></div>
+              <div className="flex flex-wrap items-center gap-2"><LocaleSwitcher /><ThemeToggle /></div>
               <button onClick={() => setMore(false)} className="grid size-9 place-items-center rounded-full bg-surface-2" aria-label={t.common.close}><X className="size-4" /></button>
             </div>
             {nav(() => setMore(false))}

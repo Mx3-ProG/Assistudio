@@ -272,7 +272,12 @@ export const supabaseRepo: Repo = {
     const sb = await supabaseServer();
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return null;
-    const profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+    let profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+    if (!profile) {
+      // Auth user without a profile (created outside /register): provision it once, audited.
+      const { data: healed } = await sb.rpc("ensure_my_account");
+      if (healed) profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+    }
     if (!profile || profile.deleted_at) return null;
     const aff = check(await sb.from("affiliates").select("*").eq("profile_id", user.id).maybeSingle()) as any;
     let rate = 0.25;
@@ -395,6 +400,34 @@ export const supabaseRepo: Repo = {
     const l = check(await sb.from("affiliate_links").insert({ affiliate_id: aff, campaign_id: c.id, name: input.name, private_page_id: input.pageId ?? null,
       destination: input.pageId ? "private_page" : "studio", channel: input.source, market_id: input.marketId }).select("*").single()) as any;
     return { id: l.id, code: l.code, name: l.name, campaignId: c.id, campaignName: input.name, source: input.source, marketId: input.marketId, isDefault: false, createdAt: l.created_at, stats: { clicks: 0, uniqueVisitors: 0, leads: 0, conversions: 0, revenueCents: 0, commissionCents: 0 } };
+  },
+
+  async listPromoCodes(s) {
+    const sb = await supabaseServer();
+    const aff = mustAffiliate(s);
+    const rows = check(await sb.from("affiliate_promo_codes")
+      .select("id, code, discount_rate, is_active, created_at, sales(count)")
+      .eq("affiliate_id", aff).order("created_at", { ascending: false })) as any[];
+    return rows.map((r) => ({
+      id: r.id, code: String(r.code), discountRate: Number(r.discount_rate), active: r.is_active,
+      redemptions: Number(r.sales?.[0]?.count ?? 0), createdAt: r.created_at,
+    }));
+  },
+
+  async createPromoCode(s, input) {
+    const sb = await supabaseServer();
+    const { data, error } = await sb.from("affiliate_promo_codes").insert({
+      affiliate_id: mustAffiliate(s), code: input.code, discount_rate: input.discountRate,
+    }).select("id, code, discount_rate, is_active, created_at").single();
+    if (error) throw new Error(error.code === "23505" ? "code_taken" : error.message);
+    return { id: data.id, code: String(data.code), discountRate: Number(data.discount_rate), active: data.is_active, redemptions: 0, createdAt: data.created_at };
+  },
+
+  async setPromoCodeActive(s, id, active) {
+    const sb = await supabaseServer();
+    const { error } = await sb.from("affiliate_promo_codes").update({ is_active: active })
+      .eq("id", id).eq("affiliate_id", mustAffiliate(s));
+    if (error) throw new Error(error.message);
   },
 
   async setSlug(s, slug) {
