@@ -15,6 +15,8 @@ export const env = {
   supabaseServiceKey: process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   siteUrl: (process.env.APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, ""),
   trackingSalt: process.env.TRACKING_HASH_SALT ?? "dev-only-salt",
+  /** Key for hashing one-time sign-in codes (falls back to the tracking salt). */
+  authCodeSecret: process.env.AUTH_CODE_SECRET || process.env.TRACKING_HASH_SALT || "dev-only-auth-code-secret",
   cronSecret: process.env.CRON_SECRET ?? "",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecrets: [process.env.STRIPE_WEBHOOK_SECRET ?? "", process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? ""].filter(Boolean),

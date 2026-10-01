@@ -5,7 +5,7 @@ import { LoginForm } from "@/components/auth-forms";
 
 export default async function Login({ params, searchParams }: PageProps<"/[locale]/login">) {
   const { locale } = await params;
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
   if (await getSession()) redirect(`/${locale}/dashboard`);
-  return <LoginForm demo={isDemoMode} next={typeof next === "string" ? next : undefined} />;
+  return <LoginForm demo={isDemoMode} next={typeof next === "string" ? next : undefined} callbackError={error === "callback"} />;
 }

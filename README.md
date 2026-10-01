@@ -40,7 +40,18 @@ Create the first super admin after signing up through `/register`:
 update public.profiles set role = 'super_admin' where email = 'you@example.com';
 ```
 
-Then configure in Supabase Auth: email confirmations, magic links, redirect URL `https://<site>/auth/callback`, and any OAuth providers (listed in `NEXT_PUBLIC_OAUTH_PROVIDERS`).
+Then, in Supabase Auth, keep the **Email** provider enabled. **No SMTP and no Supabase email template is needed**: sign-in emails are sent by the app (see *Sign-in* below). Add the redirect URL `https://<site>/auth/callback` only if you enable OAuth providers (listed in `NEXT_PUBLIC_OAUTH_PROVIDERS`).
+
+## Sign-in (passwordless, email code)
+
+There are no passwords. Login and sign-up are the same two steps:
+
+1. The person enters their email (plus the partner application on `/register`, including the sponsor code from `?sponsor=`). The app generates a **6-digit code**, stores only its keyed hash (`AUTH_CODE_SECRET`) in `auth_login_codes`, and **emails it itself through Resend**.
+2. They type the code. It is **valid 5 minutes, single use, 5 attempts**. On success the account is created on first sign-up (`auth.admin.createUser`, email confirmed; `handle_new_user()` creates the profile, the affiliate application and the sponsor link), then the session is opened in the current browser (`generateLink` → `verifyOtp`; no email from Supabase, no PKCE redirect, works on any device).
+
+Rules (expiry, single use, attempts, rate limits: 1 code / 60 s and 5 / 15 min per address, 20 / 15 min per network) live in `…_email_login_codes.sql` (tested in `supabase/tests/auth_codes_test.sql`), mirrored by `src/lib/auth-code-rules.ts`. A login request for an unknown address shows the same screen and sends nothing (no account enumeration). In demo mode the code is shown on screen, labelled.
+
+**Not receiving codes?** Check `RESEND_API_KEY` (production refuses to run sign-in without it), and that the domain of `EMAIL_FROM` is **verified in Resend**: otherwise Resend only delivers to the account owner's own address.
 
 ## Architecture
 
@@ -58,6 +69,7 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 | Stripe webhook, checkout, attribution, payouts (services) | `src/lib/services/*`, `src/app/api/webhooks/stripe` |
 | Stripe mirror, commission engine & rules, email outbox (V0.2) | `supabase/migrations/20260925*` |
 | Email service (templates, Resend, outbox) | `src/lib/email` |
+| Passwordless sign-in (6-digit email codes) | `src/app/actions/auth.ts`, `src/lib/auth-code*.ts`, `…_email_login_codes.sql` |
 
 **Money & commissions.** Amounts are integer cents. A commission is created only when Stripe confirms the payment: `pending` during the configurable validation period, then `available`, then `paid` via a payout; `disputed` when a human must decide. Refunds / chargebacks reverse it (a `clawback` if it was already paid out, recovered from the next payout). Renewal commissions are created by each renewal payment — never in advance. Every movement is an append-only `commission_ledger` entry. The UI never shows pending money as earned; projections are always labelled as projections.
 
@@ -70,7 +82,7 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 ## Routes
 
 - Public (indexable, 8 locales): `/`, `/studio`, `/pricing`, `/partners`, `/faq`, `/about`, `/contact`, `/security`, legal pages
-- Auth: `/login`, `/register`, `/forgot`, `/auth/callback`
+- Auth: `/login`, `/register` (email code, no password), `/auth/callback` (OAuth only); `/forgot` redirects to `/login`
 - Affiliate: `/dashboard` + `welcome`, `link`, `campaigns`, `prospects`, `find`, `sales-kit`, `product`, `sales`, `commissions`, `recurring`, `payouts`, `analytics`, `leaderboard`, `notifications`, `settings`
 - Admin: `/admin` + `affiliates`, `leads`, `sales`, `commissions`, `payouts`, `fraud`, `markets`, `content`, `settings`, `audit`
 

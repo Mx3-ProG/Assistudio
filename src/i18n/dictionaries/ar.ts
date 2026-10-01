@@ -15,7 +15,7 @@ const dict: PartialDictionary = {
     steps: { share: { title: "شارك", body: "احصل على رابطك الشخصي ورسائل بيع جاهزة." }, sell: { title: "بِع", body: "قدّم Studio ATS للمهنيين في الأسواق المقترحة." }, earn: { title: "اربح", body: "احصل على عمولتك عن المبيعات المؤهلة المحصّلة فعليًا." } },
     sellTitle: "مكان واحد لأعمالهم.", finalTitle: "قد يحقق أول بيع لك عمولة تصل إلى 1500 يورو." },
   studio: { heroTitle: "حوّل زياراتك إلى فرص.", heroTitle2: "حوّل فرصك إلى مواعيد.", cta: "اطلب Studio ATS" },
-  auth: { loginTitle: "مرحبًا بعودتك.", registerTitle: "كن شريكًا في Studio ATS.", email: "البريد الإلكتروني", password: "كلمة المرور", submitLogin: "تسجيل الدخول", logout: "تسجيل الخروج" },
+  auth: { loginTitle: "مرحبًا بعودتك.", registerTitle: "كن شريكًا في Studio ATS.", email: "البريد الإلكتروني", submitLogin: "تسجيل الدخول", logout: "تسجيل الخروج" },
   dash: { greetingMorning: "صباح الخير، {name}.", greetingAfternoon: "مساء الخير، {name}.", greetingEvening: "مساء الخير، {name}." },
 };
 

@@ -9,6 +9,7 @@ import type {
 import type { SalesContent, ContentKind, ContentStatus } from "@/lib/sales/content";
 import type { Balances } from "@/lib/commission";
 import type { Locale } from "@/i18n/config";
+import type { CodePurpose } from "@/lib/auth-code";
 import type { MarketContent } from "@/content/markets";
 
 export type Range = "7d" | "30d" | "90d" | "1y" | "all";
@@ -21,6 +22,19 @@ export type Range = "7d" | "30d" | "90d" | "1y" | "all";
  * Affiliate-scoped methods take the affiliate id from the *session*, never
  * from user input; the Supabase implementation additionally relies on RLS.
  */
+export type IssueCodeResult = "issued" | "no_account" | "too_soon" | "rate_limited";
+export type SignInWithCodeResult =
+  | { status: "ok"; isNew: boolean; role: Session["role"] }
+  | { status: "invalid" | "expired" | "too_many_attempts" | "failed" };
+/** Sign-up form data, stored with the code and given to handle_new_user() as user metadata. */
+export interface SignupData {
+  full_name: string;
+  locale: Locale;
+  country: string | null;
+  sponsor_code: string | null;
+  application: { channels: string; terms_accepted_at: string };
+}
+
 export interface Repo {
   // ------------------------------------------------------------- public
   getSettings(): Promise<Settings>;
@@ -47,6 +61,16 @@ export interface Repo {
 
   // ------------------------------------------------------------- session
   getSession(): Promise<Session | null>;
+
+  // ------------------------------------------------------------- passwordless sign-in (email codes)
+  /**
+   * Stores a new one-time code (its hash only — see src/lib/auth-code.ts).
+   * A login request for an address without an account returns `no_account`
+   * and stores nothing; the caller answers the same way (no user enumeration).
+   */
+  issueSignInCode(input: { email: string; purpose: CodePurpose; codeHash: string; signup: SignupData | null; ipHash: string | null }): Promise<IssueCodeResult>;
+  /** Checks the code; on success opens the session, creating the account on a first sign-up. */
+  signInWithCode(input: { email: string; codeHash: string }): Promise<SignInWithCodeResult>;
 
   // ------------------------------------------------------------- affiliate
   getOverview(s: Session, range: Range): Promise<Overview>;

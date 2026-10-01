@@ -10,6 +10,7 @@ import { isValidCode } from "@/lib/attribution";
 import type { Repo, Range } from "./repo";
 import type { SalesContent } from "@/lib/sales/content";
 import { summarizeBook } from "./book";
+import { log } from "@/lib/log";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
@@ -292,6 +293,56 @@ export const supabaseRepo: Repo = {
         sponsorId: aff.sponsor_id ?? null,
       },
     };
+  },
+
+  // ------------------------------------------------------------- passwordless sign-in
+  // Codes are checked by SQL (auth_code_*). The session is then opened with the
+  // admin API: generateLink() returns a one-time token WITHOUT sending any
+  // email, and verifyOtp() on the request-scoped client writes the session
+  // cookies in the current browser (no PKCE, no redirect, works on any device).
+  async issueSignInCode({ email, purpose, codeHash, signup, ipHash }) {
+    const svc = supabaseService();
+    if (purpose === "login") {
+      const found = check(await svc.from("profiles").select("id").eq("email", email).is("deleted_at", null).maybeSingle());
+      if (!found) return "no_account";
+    }
+    const rows = check(await svc.rpc("auth_code_issue", {
+      p_email: email, p_purpose: purpose, p_hash: codeHash, p_payload: signup, p_ip_hash: ipHash,
+    })) as any[];
+    return rows?.[0]?.status ?? "rate_limited";
+  },
+
+  async signInWithCode({ email, codeHash }) {
+    const svc = supabaseService();
+    const rows = check(await svc.rpc("auth_code_consume", { p_email: email, p_hash: codeHash })) as any[];
+    const res = rows?.[0];
+    if (!res || res.status !== "ok") return { status: res?.status ?? "invalid" };
+
+    const profile = check(await svc.from("profiles").select("id, role, deleted_at").eq("email", email).maybeSingle()) as any;
+    if (profile?.deleted_at) return { status: "invalid" };
+    let isNew = false;
+    if (!profile) {
+      if (res.purpose !== "signup" || !res.payload) return { status: "invalid" };
+      // handle_new_user() creates the profile + affiliate application (+ sponsor) from this metadata.
+      const { error } = await svc.auth.admin.createUser({ email, email_confirm: true, user_metadata: res.payload });
+      if (error) {
+        log.error("auth", "create user failed", { error: error.message });
+        return { status: "failed" };
+      }
+      isNew = true;
+    }
+    const { data, error } = await svc.auth.admin.generateLink({ type: "magiclink", email });
+    const tokenHash = data?.properties?.hashed_token;
+    if (error || !tokenHash) {
+      log.error("auth", "session token failed", { error: error?.message ?? "no token" });
+      return { status: "failed" };
+    }
+    const { error: verifyError } = await (await supabaseServer()).auth.verifyOtp({ type: "magiclink", token_hash: tokenHash });
+    if (verifyError) {
+      log.error("auth", "session open failed", { error: verifyError.message });
+      return { status: "failed" };
+    }
+    return { status: "ok", isNew, role: profile?.role ?? "affiliate" };
   },
 
   // ------------------------------------------------------------- affiliate

@@ -73,6 +73,7 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
   const subject = fill(t.subject, v, false);
   const title = fill(t.title, v, true);
   const paragraphs = t.paragraphs.map((p) => fill(p, v, true));
+  const highlight = t.highlight ? fill(t.highlight, v, true) : null;
   const footnote = t.footnote === "pendingNote" ? copy.common.pendingNote : t.footnote;
   const ctaUrl = t.cta ? `${opts.appUrl}/${locale}${t.cta.path}` : null;
 
@@ -105,6 +106,7 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
         <p class="fg" style="margin:0 0 40px;font-size:13px;letter-spacing:0.28em;font-weight:600;text-transform:uppercase;color:#111111;">Studio ATS</p>
         <h1 class="fg" style="margin:0 0 24px;font-size:24px;line-height:1.3;font-weight:600;color:#111111;">${title}</h1>
         ${paragraphs.map((p) => `<p class="fg" style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#111111;">${p}</p>`).join("\n        ")}
+        ${highlight ? `<p class="fg" style="margin:28px 0 8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;line-height:1.2;letter-spacing:0.18em;font-weight:600;color:#111111;">${highlight}</p>` : ""}
         ${ctaUrl ? `<p style="margin:32px 0 8px;"><a class="btn" href="${esc(ctaUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#111111;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">${esc(t.cta!.label)}</a></p>` : ""}
         ${footnote ? `<p class="muted" style="margin:32px 0 0;font-size:13px;line-height:1.6;color:#6b6b6b;">${esc(footnote)}</p>` : ""}
         <p class="fg" style="margin:40px 0 0;font-size:15px;color:#111111;">${esc(copy.common.signature)}</p>
@@ -124,6 +126,7 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
     fill(t.title, v, false),
     "",
     ...t.paragraphs.map((p) => fill(p, v, false)),
+    ...(t.highlight ? ["", fill(t.highlight, v, false)] : []),
     ...(ctaUrl ? ["", `${t.cta!.label}: ${ctaUrl}`] : []),
     ...(footnote ? ["", footnote] : []),
     "",

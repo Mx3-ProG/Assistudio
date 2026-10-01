@@ -15,7 +15,7 @@ const dict: PartialDictionary = {
     steps: { share: { title: "Deel", body: "Krijg je persoonlijke link en kant-en-klare verkoopberichten." }, sell: { title: "Verkoop", body: "Presenteer Studio ATS aan professionals in de voorgestelde markten." }, earn: { title: "Verdien", body: "Ontvang je commissie op in aanmerking komende, betaalde verkopen." } },
     sellTitle: "Eén plek voor hun bedrijf.", finalTitle: "Je eerste verkoop kan tot € 1.500 commissie opleveren." },
   studio: { heroTitle: "Zet je verkeer om in kansen.", heroTitle2: "Zet kansen om in afspraken.", cta: "Studio ATS aanvragen" },
-  auth: { loginTitle: "Welkom terug.", registerTitle: "Word Studio ATS-partner.", email: "E-mail", password: "Wachtwoord", submitLogin: "Inloggen", logout: "Uitloggen" },
+  auth: { loginTitle: "Welkom terug.", registerTitle: "Word Studio ATS-partner.", email: "E-mail", submitLogin: "Inloggen", logout: "Uitloggen" },
   dash: { greetingMorning: "Goedemorgen, {name}.", greetingAfternoon: "Goedemiddag, {name}.", greetingEvening: "Goedenavond, {name}." },
 };
 

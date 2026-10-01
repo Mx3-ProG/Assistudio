@@ -15,7 +15,7 @@ const dict: PartialDictionary = {
     steps: { share: { title: "Teilen", body: "Erhalten Sie Ihren persönlichen Link und fertige Verkaufsnachrichten." }, sell: { title: "Verkaufen", body: "Präsentieren Sie Studio ATS Fachleuten in den vorgeschlagenen Märkten." }, earn: { title: "Verdienen", body: "Erhalten Sie Ihre Provision auf berechtigte, bezahlte Verkäufe." } },
     sellTitle: "Ein Ort für ihr Geschäft.", marketsTitle: "Fachleute, bei denen jeder Kunde zählt.", finalTitle: "Ihr erster Verkauf könnte bis zu 1.500 € Provision bringen." },
   studio: { heroTitle: "Verwandeln Sie Traffic in Chancen.", heroTitle2: "Verwandeln Sie Chancen in Termine.", cta: "Studio ATS anfragen" },
-  auth: { loginTitle: "Willkommen zurück.", registerTitle: "Werden Sie Studio ATS-Partner.", email: "E-Mail", password: "Passwort", submitLogin: "Anmelden", logout: "Abmelden" },
+  auth: { loginTitle: "Willkommen zurück.", registerTitle: "Werden Sie Studio ATS-Partner.", email: "E-Mail", submitLogin: "Anmelden", logout: "Abmelden" },
   dash: { greetingMorning: "Guten Morgen, {name}.", greetingAfternoon: "Guten Tag, {name}.", greetingEvening: "Guten Abend, {name}." },
 };
 

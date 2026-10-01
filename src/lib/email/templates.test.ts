@@ -43,3 +43,14 @@ test("links point to the locale-prefixed dashboard", () => {
 test("RTL locale sets dir=rtl", () => {
   assert.ok(renderEmail("affiliate.welcome", { code: "X" }, { ...opts, locale: "ar" }).html.includes('dir="rtl"'));
 });
+
+test("login code: the code is in the subject, the HTML and the text, with its 5-minute validity", () => {
+  const r = renderEmail("auth.login_code", { code: "004 217" }, opts);
+  assert.match(r.subject, /004 217/);
+  assert.match(r.html, /004 217/);
+  assert.match(r.text, /004 217/);
+  assert.match(r.text, /5 minutes/);
+  assert.doesNotMatch(r.html, /href=/, "no link to click: the code is typed on the site");
+  const fr = renderEmail("auth.login_code", { code: "004 217" }, { ...opts, locale: "fr" });
+  assert.match(fr.subject, /code de connexion/);
+});
