@@ -39,7 +39,7 @@ export function AdminShell({ children, hasAffiliate }: { children: React.ReactNo
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <Link href={base}><Logo /></Link>
-            <span className="rounded-full bg-fg px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-bg">Admin</span>
+            <span className="hidden rounded-full bg-fg px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-bg sm:inline-flex">Admin</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 sm:flex"><LocaleSwitcher /><ThemeToggle /></div>

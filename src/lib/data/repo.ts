@@ -5,6 +5,7 @@ import type {
   ReferralTarget, ReferralDashboard, LeadInput, ClickInput, Market, SalesAsset, AdminOverview, AdminAffiliateRow,
   AdminCommissionRow, AdminSaleRow, AdminLeadRow, FraudFlag, FraudStatus, AuditLog, AdminPayoutCandidate, AffiliateStatus,
   SalesPageInput, PerformanceRow, ProductView, SalesEventInput, SalesContentInput, SalesAnalytics,
+  PromoCode,
 } from "./types";
 import type { SalesContent, ContentKind, ContentStatus } from "@/lib/sales/content";
 import type { Balances } from "@/lib/commission";
@@ -100,6 +101,9 @@ export interface Repo {
   getReferralDashboard(s: Session): Promise<ReferralDashboard>;
   listSalesAssets(s: Session, locale: Locale): Promise<SalesAsset[]>;
   setMonthlyGoal(s: Session, target: number): Promise<void>;
+  listPromoCodes(s: Session): Promise<PromoCode[]>;
+  createPromoCode(s: Session, input: { code: string; discountRate: number }): Promise<PromoCode>;
+  setPromoCodeActive(s: Session, id: string, active: boolean): Promise<void>;
 
   // ------------------------------------------------------------- sales center (affiliate)
   /** Active content, every locale (the caller resolves locale fallback with pickLocale). */

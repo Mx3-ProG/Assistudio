@@ -1,5 +1,5 @@
 /**
- * Creates (idempotently) the Studio ATS product and the prices of its three offers
+ * Creates (idempotently) the three Studio ATS products and their prices
  * (Studio One €500 one-time, Studio Pro €3,000/year, Studio Premium €6,000/year)
  * in the Stripe account of STRIPE_SECRET_KEY, with the lookup keys the database
  * uses (offers.stripe_lookup_key). Test mode by default:
@@ -26,28 +26,34 @@ const stripe = new Stripe(key);
 // Must equal public.offers (price_cents, interval) — checkout refuses a mismatch.
 // See supabase/migrations/20260928000001_offers_v3.sql.
 const OFFERS = [
-  { lookupKey: "studio_one_eur", name: "Studio One", amount: 50_000, interval: null },
-  { lookupKey: "studio_pro_yearly_eur", name: "Studio Pro", amount: 300_000, interval: "year" },
-  { lookupKey: "studio_yearly_eur", name: "Studio Premium", amount: 600_000, interval: "year" },
+  { lookupKey: "studio_one_eur", name: "Studio One", description: "Your professional digital presence, delivered with no Studio subscription.", amount: 50_000, interval: null },
+  { lookupKey: "studio_pro_yearly_eur", name: "Studio Pro", description: "A more complete digital presence, maintained throughout the year by Studio.", amount: 300_000, interval: "year" },
+  { lookupKey: "studio_yearly_eur", name: "Studio Premium", description: "A complete digital commercial ecosystem operated and supported by Studio.", amount: 600_000, interval: "year" },
 ] as const;
 
-// One Stripe product (Studio ATS), one price per offer: the offers share the product's commission rule.
+// A distinct Stripe product makes the exact offer name visible from Checkout to
+// invoices and receipts. Old prices/subscriptions are never edited or migrated.
 const anyExisting = (await stripe.prices.list({ lookup_keys: OFFERS.map((o) => o.lookupKey), active: true, expand: ["data.product"] })).data;
-const product = (anyExisting[0]?.product as Stripe.Product | undefined)
-  ?? await stripe.products.create(
-    { name: "Studio ATS", description: "Studio ATS — Studio One, Studio Pro, Studio Premium", metadata: { studio_product: "studio" } },
-    { idempotencyKey: "studio-setup-product-v1" },
-  );
 
 for (const o of OFFERS) {
   const existing = anyExisting.find((p) => p.lookup_key === o.lookupKey);
   const interval = existing?.recurring?.interval ?? null;
-  if (existing && existing.unit_amount === o.amount && interval === o.interval) {
+  const existingProduct = existing?.product as Stripe.Product | undefined;
+  if (existing && existing.unit_amount === o.amount && interval === o.interval && existingProduct?.name === o.name) {
+    await stripe.products.update(existingProduct.id, {
+      name: o.name, description: o.description,
+      metadata: { studio_product: "studio", studio_offer: o.lookupKey },
+    });
+    await stripe.prices.update(existing.id, { nickname: o.name, metadata: { studio_offer: o.lookupKey } });
     console.log(`${o.name}: price already exists: ${existing.id} (${existing.unit_amount} ${existing.currency}/${interval ?? "one-time"}) — nothing to do.`);
     continue;
   }
+  const product = await stripe.products.create(
+    { name: o.name, description: o.description, metadata: { studio_product: "studio", studio_offer: o.lookupKey } },
+    { idempotencyKey: `studio-setup-product-${o.lookupKey}-v2` },
+  );
   // Stripe prices are immutable: a price change is a new price that takes over the
-  // lookup key. Existing subscriptions keep their old price until migrated.
+  // lookup key. Existing subscriptions keep their old price and product untouched.
   const price = await stripe.prices.create(
     {
       product: product.id, currency: "eur", unit_amount: o.amount,

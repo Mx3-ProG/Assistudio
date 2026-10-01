@@ -5,7 +5,6 @@ import type { Locale } from "@/i18n/config";
 import { repo } from "@/lib/data";
 import { pageMetadata, JsonLd } from "@/lib/seo";
 import { env } from "@/lib/env";
-import { formatMoney } from "@/lib/money";
 import { computeCommissionCents } from "@/lib/commission";
 import { Navbar } from "@/components/marketing/navbar";
 import { HeroScene } from "@/components/marketing/hero-scene";
@@ -15,6 +14,7 @@ import { UncappedBand } from "@/components/marketing/uncapped-band";
 import { ProductMockup } from "@/components/marketing/product-mockup";
 import { MarketsGrid } from "@/components/marketing/markets-grid";
 import { LinkButton } from "@/components/ui/button";
+import { Money } from "@/components/ui/money";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
@@ -79,11 +79,11 @@ export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
           <div className="mx-auto max-w-6xl px-4 pb-6 sm:px-6">
             <dl className="glass grid grid-cols-1 divide-y divide-line overflow-hidden rounded-[24px] shadow-soft sm:grid-cols-3 sm:divide-x sm:divide-y-0 rtl:sm:divide-x-reverse">
               {[
-                [formatMoney(offer.priceCents, locale) + " " + t.common.perYear, t.home.statPriceLabel],
+                [<><Money key="price" cents={offer.priceCents} sourceCurrency={offer.currency} /> {t.common.perYear}</>, t.home.statPriceLabel],
                 [t.home.statRate, t.home.statRateLabel],
-                [formatMoney(commission, locale), t.home.statCommissionLabel],
+                [<Money key="commission" cents={commission} sourceCurrency={offer.currency} />, t.home.statCommissionLabel],
               ].map(([v, l]) => (
-                <div key={l} className="px-6 py-5 sm:py-7">
+                <div key={String(l)} className="px-6 py-5 sm:py-7">
                   <dt className="text-[13px] text-muted">{l}</dt>
                   <dd className="tabular mt-1 text-[26px] font-semibold tracking-[-0.03em] sm:text-[30px]">{v}</dd>
                 </div>

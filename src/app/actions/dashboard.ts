@@ -26,6 +26,31 @@ export async function setGoal(form: FormData) {
   refresh();
 }
 
+export async function createPromoCode(_: FormState, form: FormData): Promise<FormState> {
+  const s = await affiliateSession();
+  if (s.affiliate?.status !== "approved") return { error: "not_approved" };
+  const parsed = z.object({
+    code: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9-]{2,23}$/),
+    discount: z.coerce.number().int().min(0).max(20),
+  }).safeParse({ code: form.get("code"), discount: form.get("discount") });
+  if (!parsed.success) return { error: "invalid" };
+  try {
+    await repo().createPromoCode(s, { code: parsed.data.code, discountRate: parsed.data.discount / 100 });
+  } catch (e) {
+    return { error: e instanceof Error && e.message === "code_taken" ? "taken" : "error" };
+  }
+  refresh();
+  return { ok: true };
+}
+
+export async function setPromoCodeActive(form: FormData) {
+  const s = await affiliateSession();
+  const id = z.string().uuid().parse(form.get("id"));
+  const active = form.get("active") === "true";
+  await repo().setPromoCodeActive(s, id, active);
+  refresh();
+}
+
 export async function createCampaign(_: FormState, form: FormData): Promise<FormState> {
   const s = await affiliateSession();
   const name = z.string().trim().min(1).max(120).safeParse(form.get("name"));

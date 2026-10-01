@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { MailCheck } from "lucide-react";
-import { codeAuth, demoSignIn, signInWithProvider, type AuthState } from "@/app/actions/auth";
+import { codeAuth, demoSignIn, signInWithProvider, signOut, type AuthState } from "@/app/actions/auth";
 import { useI18n } from "@/components/providers";
 import { Field, inputClass, Notice } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
@@ -56,6 +56,9 @@ function Providers() {
     </div>
   );
 }
+
+/** Shown above the login form: a session without a usable account, or a failed OAuth callback. */
+export type AuthNotice = "accountUnavailable" | "linkExpired";
 
 function ErrorText({ state }: { state: AuthState }) {
   const { t } = useI18n();
@@ -127,16 +130,26 @@ function CodeStep({ state, action, pending, next }: { state: AuthState; action: 
 
 const invalid = (state: AuthState, field: string) => state.status === "error" && !!state.fields?.includes(field);
 
-export function LoginForm({ demo, next, callbackError }: { demo: boolean; next?: string; callbackError?: boolean }) {
+export function LoginForm({ demo, next, notice }: { demo: boolean; next?: string; notice?: AuthNotice }) {
   const { t, locale } = useI18n();
   const [state, action, pending] = useActionState<AuthState, FormData>(codeAuth, { status: "idle" });
   const v = state.values ?? {};
   return (
     <Shell title={t.auth.loginTitle} subtitle={t.auth.loginSubtitle}>
+      {notice && state.status === "idle" && (
+        <div className="mb-4 grid gap-3">
+          <Notice tone="warning">{t.auth[notice]}</Notice>
+          {notice === "accountUnavailable" && (
+            <form action={signOut}>
+              <input type="hidden" name="locale" value={locale} />
+              <button className={buttonClass("secondary", "md", "w-full")}>{t.auth.logout}</button>
+            </form>
+          )}
+        </div>
+      )}
       {state.status === "code" ? <CodeStep state={state} action={action} pending={pending} next={next} /> : (
         <form key={JSON.stringify(v)} action={action} className="grid gap-4">
           <Hidden values={{ locale, purpose: "login", next }} />
-          {callbackError && state.status === "idle" && <p role="alert" className="text-[13px] text-danger">{t.auth.errors.callback}</p>}
           <Field label={t.auth.email} hint={t.auth.noPassword}>
             <input name="email" type="email" required autoFocus autoComplete="email" defaultValue={v.email} className={inputClass} />
           </Field>

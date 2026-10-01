@@ -4,7 +4,7 @@
  * A one-time code is emailed by the app itself (Resend, no SMTP, no Supabase
  * mailer). Only a keyed hash of the code is stored; the database enforces
  * expiry, single use, the attempt limit and rate limits
- * (supabase/migrations/20261001000001_email_login_codes.sql); the shared
+ * (supabase/migrations/20261001090000_email_login_codes.sql); the shared
  * constants live in ./auth-code-rules.ts.
  */
 import { createHmac, randomInt } from "node:crypto";

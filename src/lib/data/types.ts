@@ -81,6 +81,15 @@ export interface Offer {
   recurring: boolean;
 }
 
+export interface PromoCode {
+  id: string;
+  code: string;
+  discountRate: number;
+  active: boolean;
+  redemptions: number;
+  createdAt: string;
+}
+
 export interface ActivityEvent {
   id: string;
   type: ActivityType;

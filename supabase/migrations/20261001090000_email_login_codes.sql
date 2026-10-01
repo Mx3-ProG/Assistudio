@@ -4,10 +4,19 @@
 -- The app generates the code, emails it itself (Resend — no SMTP, no Supabase
 -- mailer) and stores only a keyed hash here. Expiry, single use, the attempt
 -- limit and rate limits are enforced by these functions, called with the
--- service role only. Mirrored by src/lib/auth-code.ts (keep constants in sync).
+-- service role only. Mirrored by src/lib/auth-code-rules.ts (keep constants in sync).
+--
+-- Idempotent: an earlier copy of this migration was numbered 20261001000001,
+-- which collides with 20261001000001_offer_commercial_names.sql. A database
+-- that already applied it under that number re-runs this file safely, and the
+-- offer-name updates below make sure that migration's effect is present too.
 -- =============================================================================
 
-create table public.auth_login_codes (
+update public.offers set name = 'Studio One' where stripe_lookup_key = 'studio_one_eur';
+update public.offers set name = 'Studio Pro' where stripe_lookup_key = 'studio_pro_yearly_eur';
+update public.offers set name = 'Studio Premium' where stripe_lookup_key = 'studio_yearly_eur';
+
+create table if not exists public.auth_login_codes (
   id           uuid primary key default gen_random_uuid(),
   email        text not null check (email = lower(email)),
   purpose      text not null check (purpose in ('login', 'signup')),
@@ -21,8 +30,8 @@ create table public.auth_login_codes (
   expires_at   timestamptz not null,
   consumed_at  timestamptz
 );
-create index auth_login_codes_email_idx on public.auth_login_codes (email, created_at desc);
-create index auth_login_codes_ip_idx on public.auth_login_codes (ip_hash, created_at desc) where ip_hash is not null;
+create index if not exists auth_login_codes_email_idx on public.auth_login_codes (email, created_at desc);
+create index if not exists auth_login_codes_ip_idx on public.auth_login_codes (ip_hash, created_at desc) where ip_hash is not null;
 
 -- Service role only: RLS on, no policy, no grant.
 alter table public.auth_login_codes enable row level security;

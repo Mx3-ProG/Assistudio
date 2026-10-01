@@ -17,6 +17,7 @@ import type {
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
   ClickInput, LeadInput, ReferralTarget, LinkStats, RecurringContract, SubscriptionStatus,
   PerformanceRow, ProductView,
+  PromoCode,
 } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -83,6 +84,7 @@ interface DemoLedgerExtra { id: string; affiliateId: string; amountCents: number
 interface DemoPayout { id: string; ref: string; affiliateId: string; amountCents: number; status: Payout["status"]; scheduledFor: string; paidAt: string | null }
 interface DemoActivity extends ActivityEvent { affiliateId: string }
 interface DemoNotification extends Notification { userId: string }
+interface DemoPromoCode extends PromoCode { affiliateId: string }
 
 interface Store {
   markets: (Market & { active: boolean })[];
@@ -106,6 +108,7 @@ interface Store {
   pages: PrivatePage[];
   activity: DemoActivity[];
   notifications: DemoNotification[];
+  promoCodes: DemoPromoCode[];
   fraud: (FraudFlag & { affiliateId: string | null })[];
   audit: AuditLog[];
   goals: Record<string, number>;
@@ -147,7 +150,7 @@ function seed(): Store {
     markets: structuredClone(defaultMarkets).map((m) => ({ ...m, active: true })),
     settings, offer, offers, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
     prospects: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
-    activity: [], notifications: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
+    activity: [], notifications: [], promoCodes: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
     content: defaultSalesContent.map((c, i) => ({
       id: `cnt_${i}`, kind: c.kind, key: c.key, locale: c.locale, version: 1, status: c.status, productId: "prod_studio",
       targetKey: c.targetKey ?? null, channel: c.channel ?? null, stage: c.stage ?? null, title: c.title, summary: c.summary ?? null,
@@ -718,6 +721,26 @@ export const demoRepo: Repo = {
     const l: DemoLink = { id: id("lnk"), affiliateId: aff, code, name: input.name, campaignId: c.id, isDefault: false, createdAt: iso(now()), pageId: input.pageId ?? null };
     st.links.push(l);
     return toLink(l);
+  },
+  async listPromoCodes(s) {
+    const aff = mustAffiliate(s);
+    return db().promoCodes.filter((x) => x.affiliateId === aff).map((x) => ({
+      id: x.id, code: x.code, discountRate: x.discountRate, active: x.active, redemptions: x.redemptions, createdAt: x.createdAt,
+    }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+  async createPromoCode(s, input) {
+    const aff = mustAffiliate(s);
+    const code = input.code.toUpperCase();
+    if (db().promoCodes.some((x) => x.code === code)) throw new Error("code_taken");
+    const row: DemoPromoCode = { id: id("promo"), affiliateId: aff, code, discountRate: input.discountRate, active: true, redemptions: 0, createdAt: iso(now()) };
+    db().promoCodes.push(row);
+    return { id: row.id, code: row.code, discountRate: row.discountRate, active: row.active, redemptions: row.redemptions, createdAt: row.createdAt };
+  },
+  async setPromoCodeActive(s, promoId, active) {
+    const row = db().promoCodes.find((x) => x.id === promoId && x.affiliateId === mustAffiliate(s));
+    if (!row) throw new Error("not_found");
+    row.active = active;
   },
   async setSlug(s, slug) {
     const aff = mustAffiliate(s);

@@ -8,6 +8,7 @@ import { resolveForConversion } from "@/lib/services/attribution";
 import { CHECKOUT_METADATA_KEY } from "@/lib/stripe/normalize";
 import type { Locale } from "@/i18n/config";
 import { OFFER_LOOKUP_KEYS, type OfferTier } from "@/lib/offers";
+import { discountCents, resolvePromoCode } from "@/lib/services/promo";
 
 export type CheckoutOrigin = "public" | "affiliate_link" | "private_page" | "dashboard_cta";
 
@@ -78,6 +79,7 @@ export async function createCheckoutSession(input: {
   privatePageSlug?: string | null;
   productSlug?: string;
   tier: OfferTier;
+  promoCode?: string | null;
 }): Promise<{ url: string }> {
   const sb = supabaseService();
   const { data: enabled } = await sb.from("settings").select("value").eq("key", "checkout.enabled").maybeSingle();
@@ -88,6 +90,9 @@ export async function createCheckoutSession(input: {
     stripePriceFor(offer),
     resolveForConversion({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug }),
   ]);
+  const promo = await resolvePromoCode(input.promoCode ?? null, attribution.affiliateId);
+  if (input.promoCode && !promo) throw new CheckoutUnavailableError("promo code does not match attribution");
+  const promoDiscountCents = promo ? discountCents(offer.price_cents, promo.discountRate) : 0;
 
   const { data: row, error } = await sb.from("checkout_sessions").insert({
     origin: input.privatePageSlug && attribution.source === "private_page" ? "private_page" : input.origin,
@@ -95,6 +100,8 @@ export async function createCheckoutSession(input: {
     affiliate_id: attribution.affiliateId, referral_session_id: attribution.referralSessionId,
     attribution_source: attribution.source, link_id: attribution.linkId, campaign_id: attribution.campaignId,
     private_page_id: attribution.privatePageId, session_key: input.sessionKey, locale: input.locale,
+    promo_code_id: promo?.id ?? null, catalog_amount_cents: offer.price_cents,
+    discount_amount_cents: promoDiscountCents, discount_rate: promo?.discountRate ?? 0,
     livemode: stripeMode() === "live",
   }).select("id").single();
   if (error || !row) throw new Error(`checkout row: ${error?.message}`);
@@ -106,12 +113,20 @@ export async function createCheckoutSession(input: {
     ...(attribution.affiliateId ? { affiliate_id: attribution.affiliateId } : {}),
     ...(attribution.referralSessionId ? { referral_id: attribution.referralSessionId } : {}),
     ...(attribution.campaignId ? { campaign_id: attribution.campaignId } : {}),
+    ...(promo ? { promo_code_id: promo.id, promo_code: promo.code } : {}),
   };
   const recurring = offer.price_type === "recurring";
+  const coupon = promo && promoDiscountCents > 0 ? await stripe().coupons.create({
+    percent_off: promo.discountRate * 100,
+    duration: "once",
+    name: `${promo.code} — affiliate-funded`,
+    metadata: { promo_code_id: promo.id, affiliate_id: promo.affiliateId, checkout_id: row.id },
+  }, { idempotencyKey: `checkout-coupon:${row.id}` }) : null;
 
   const session = await stripe().checkout.sessions.create({
     mode: recurring ? "subscription" : "payment",
     line_items: [{ price: priceId, quantity: 1 }],
+    ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
     client_reference_id: row.id,
     metadata,
     ...(recurring
@@ -120,11 +135,12 @@ export async function createCheckoutSession(input: {
     billing_address_collection: "required",
     locale: checkoutLocale(input.locale),
     success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&cancelled=1`,
+    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&cancelled=1${promo ? `&promo=${encodeURIComponent(promo.code)}` : ""}`,
   }, { idempotencyKey: `checkout:${row.id}` });
 
   await sb.from("checkout_sessions").update({
     stripe_checkout_session_id: session.id, status: "open",
+    stripe_coupon_id: coupon?.id ?? null,
     expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
   }).eq("id", row.id);
 

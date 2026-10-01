@@ -2,14 +2,21 @@ import type { Dictionary } from "@/i18n/types";
 import type { Locale } from "@/i18n/config";
 import { fmt } from "@/i18n/format";
 import { computeCommissionCents } from "@/lib/commission";
-import { formatMoney, formatPercent } from "@/lib/money";
+import { formatPercent } from "@/lib/money";
+import { Money } from "@/components/ui/money";
+
+function MoneyText({ template, values }: { template: string; values: Record<string, number> }) {
+  return <>{template.split(/(\{\w+\})/g).map((part, index) => {
+    const key = part.startsWith("{") ? part.slice(1, -1) : "";
+    return key in values ? <Money key={`${key}-${index}`} cents={values[key]} /> : part;
+  })}</>;
+}
 
 /** Revenue steps shown (cents). Commission is computed, never written in copy. */
 const REVENUE_STEPS = [60_000_00, 300_000_00, 1_000_000_00];
 
 export function UncappedBand({ t, locale, rate }: { t: Dictionary; locale: Locale; rate: number }) {
   const H = t.home;
-  const money = (c: number) => formatMoney(c, locale);
   const top = REVENUE_STEPS[REVENUE_STEPS.length - 1];
 
   return (
@@ -38,20 +45,18 @@ export function UncappedBand({ t, locale, rate }: { t: Dictionary; locale: Local
                 >
                   <div>
                     <p className={`text-[11px] uppercase tracking-[0.12em] ${isTop ? "text-muted" : "opacity-60"}`}>{H.uncappedYouBring}</p>
-                    <p className="tabular text-[18px] font-semibold sm:text-[22px]">{money(rev)}</p>
+                    <Money cents={rev} className="tabular text-[18px] font-semibold sm:text-[22px]" />
                   </div>
                   <div className="text-end">
                     <p className={`text-[11px] uppercase tracking-[0.12em] ${isTop ? "text-muted" : "opacity-60"}`}>{H.uncappedYouKeep}</p>
-                    <p className={`tabular font-semibold tracking-[-0.03em] ${isTop ? "text-gradient text-[30px] sm:text-[38px]" : "text-[22px] sm:text-[26px]"}`}>
-                      {money(computeCommissionCents(rev, rate))}
-                    </p>
+                    <Money cents={computeCommissionCents(rev, rate)} className={`tabular font-semibold tracking-[-0.03em] ${isTop ? "text-gradient text-[30px] sm:text-[38px]" : "text-[22px] sm:text-[26px]"}`} />
                   </div>
                 </li>
               );
             })}
           </ul>
           <p className="mt-5 text-[15px] font-medium">
-            {fmt(H.uncappedHeadline, { revenue: money(top), commission: money(computeCommissionCents(top, rate)) })}
+            <MoneyText template={H.uncappedHeadline} values={{ revenue: top, commission: computeCommissionCents(top, rate) }} />
           </p>
         </div>
       </div>

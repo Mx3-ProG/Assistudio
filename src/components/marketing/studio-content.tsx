@@ -132,7 +132,7 @@ export function StudioContent({ t, locale, offers, page, referrerName, market, p
           <h2 className="display text-center text-[34px] sm:text-[52px]">{s.pricingTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-[17px] text-muted">{t.pricing.subtitle}</p>
           <div className="mt-12">
-            <PricingPlans t={t} locale={locale} offers={offers} page={page} requestHref="#request" requestLabel={cta} />
+            <PricingPlans t={t} locale={locale} offers={offers} page={page} requestHref="#request" requestLabel={cta} detailed={false} />
           </div>
           <p className="mt-6 text-center text-[12px] text-muted">{s.pricingNote}</p>
         </div>

@@ -3,16 +3,17 @@
 --
 -- auth.users belongs to Supabase: on some projects the migration role may not
 -- create the on_auth_user_created trigger (see core_schema). The app therefore
--- provisions the profile + affiliate application itself:
---   - provision_user(): right after auth.admin.createUser (sign-up by code);
---   - ensure_profile(): before sending a login code, on sign-in, and as a
---     fallback in getSession (OAuth users, accounts created without trigger).
--- Both are idempotent. handle_new_user() (when the trigger exists) uses the
--- same function, so there is a single provisioning logic.
--- Service role only.
+-- provisions the profile + affiliate application itself, through the single
+-- provisioning function introduced by the self-heal migration
+-- (20260930000001_account_self_heal.sql):
+--   - provision_account(): right after auth.admin.createUser (sign-up by code);
+--   - ensure_profile(): before sending a login code and on sign-in by code.
+-- (getSession keeps using ensure_my_account() for OAuth / dashboard users.)
+-- provision_account() becomes idempotent: a second call never duplicates,
+-- overwrites or resurrects anything. Service role only.
 -- =============================================================================
 
-create or replace function public.provision_user(p_id uuid, p_email text, p_meta jsonb default '{}'::jsonb)
+create or replace function public.provision_account(p_id uuid, p_email text, p_meta jsonb)
 returns void
 language plpgsql security definer set search_path = public as $$
 declare
@@ -46,14 +47,6 @@ begin
   on conflict (profile_id) do nothing;
 end $$;
 
--- Same contract as before; now a thin wrapper (used only where the trigger exists).
-create or replace function public.handle_new_user() returns trigger
-language plpgsql security definer set search_path = public as $$
-begin
-  perform public.provision_user(new.id, new.email, new.raw_user_meta_data);
-  return new;
-end $$;
-
 -- Finds the auth user by email and provisions the profile if it is missing.
 -- No row when no account exists for that address.
 create or replace function public.ensure_profile(p_email text)
@@ -68,12 +61,15 @@ begin
    limit 1;
   if not found then return; end if;
   if not exists (select 1 from public.profiles p where p.id = v_user.id) then
-    perform public.provision_user(v_user.id, v_user.email, v_user.raw_user_meta_data);
+    perform public.provision_account(v_user.id, v_user.email, coalesce(v_user.raw_user_meta_data, '{}'::jsonb));
   end if;
   return query select p.id, p.role, p.deleted_at is not null from public.profiles p where p.id = v_user.id;
 end $$;
 
+-- Removed: provision_user() from an earlier version of this migration (now provision_account()).
+drop function if exists public.provision_user(uuid, text, jsonb);
+
 revoke execute on function
-  public.provision_user(uuid, text, jsonb),
+  public.provision_account(uuid, text, jsonb),
   public.ensure_profile(text)
   from anon, authenticated, public;

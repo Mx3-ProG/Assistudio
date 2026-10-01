@@ -27,9 +27,9 @@ export function CookieBanner() {
           {t.cookieBanner.text}{" "}
           <Link href={`/${locale}/cookies`} className="underline underline-offset-2">{t.cookieBanner.policy}</Link>
         </p>
-        <div className="flex shrink-0 gap-2">
-          <button type="button" className={buttonClass("secondary", "sm")} onClick={() => decide("necessary")}>{t.cookieBanner.decline}</button>
-          <button type="button" className={buttonClass("primary", "sm")} onClick={() => decide("analytics")}>{t.cookieBanner.accept}</button>
+        <div className="grid w-full shrink-0 gap-2 sm:flex sm:w-auto">
+          <button type="button" className={buttonClass("secondary", "sm", "w-full whitespace-normal px-3 text-center sm:w-auto sm:whitespace-nowrap")} onClick={() => decide("necessary")}>{t.cookieBanner.decline}</button>
+          <button type="button" className={buttonClass("primary", "sm", "w-full whitespace-normal px-3 text-center sm:w-auto sm:whitespace-nowrap")} onClick={() => decide("analytics")}>{t.cookieBanner.accept}</button>
         </div>
       </div>
     </div>

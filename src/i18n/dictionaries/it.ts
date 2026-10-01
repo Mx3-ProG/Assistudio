@@ -6,9 +6,9 @@ import type { PartialDictionary } from "../types";
  */
 const dict: PartialDictionary = {
   meta: { homeTitle: "Studio ATS Partners — Vendi Studio ATS, guadagna fino a 1.500 € per vendita", homeDescription: "Diventa partner Studio ATS. Noi lo costruiamo e lo consegniamo — tu porti l’opportunità e ricevi il 25 % di commissione ricorrente." },
-  common: { perYear: "/ anno", copy: "Copia", copied: "Copiato", save: "Salva", cancel: "Annulla", language: "Lingua", theme: "Tema", themeLight: "Chiaro", themeDark: "Scuro", themeSystem: "Sistema", menu: "Menu",
+  common: { perYear: "/ anno", copy: "Copia", copied: "Copiato", save: "Salva", cancel: "Annulla", language: "Lingua", currency: "Valuta visualizzata", currencyNote: "Conversione indicativa. Stripe confermerà valuta e importo finale al pagamento.", theme: "Tema", themeLight: "Chiaro", themeDark: "Scuro", themeSystem: "Sistema", menu: "Menu",
     illustrationOnly: "Illustrazioni puramente matematiche basate sul prezzo pubblico di Studio Premium e sulla commissione standard. Non è una promessa di guadagno. Le commissioni sono dovute solo sulle vendite idonee effettivamente incassate." },
-  nav: { howItWorks: "Come funziona", whatYouSell: "Cosa vendi", markets: "Mercati", discover: "Scopri Studio ATS", login: "Accedi", becomePartner: "Diventa partner", dashboard: "Dashboard" },
+  nav: { howItWorks: "Come funziona", whatYouSell: "Cosa vendi", markets: "Mercati", discover: "Scopri Studio ATS", faq: "Domande", login: "Accedi", becomePartner: "Diventa partner", pricing: "Prezzi", dashboard: "Dashboard" },
   home: { eyebrow: "Programma partner Studio ATS", heroTitle1: "Vendi Studio ATS.", heroTitle2: "Guadagna fino a 1.500 € per vendita.", heroSubtitle: "Noi lo costruiamo. Noi lo consegniamo. Tu porti l’opportunità.", ctaPrimary: "Diventa partner", ctaSecondary: "Scopri Studio ATS",
     statPrice: "6.000 € / anno", statPriceLabel: "Prezzo pubblico Studio Premium", statRate: "25 % ricorrente", statRateLabel: "Commissione", statCommission: "1.500 €", statCommissionLabel: "Commissione massima / anno / cliente attivo",
     ladderTitle: "Il calcolo è semplice.", ladderClients: "{n} clienti", ladderClient: "1 cliente", ladderPerYear: "/ anno", howTitle: "Tre passi. Tutto qui.",
@@ -17,6 +17,7 @@ const dict: PartialDictionary = {
   studio: { heroTitle: "Trasforma il traffico in opportunità.", heroTitle2: "Trasforma le opportunità in appuntamenti.", cta: "Richiedi Studio ATS" },
   auth: { loginTitle: "Bentornato.", registerTitle: "Diventa partner Studio ATS.", email: "Email", submitLogin: "Accedi", logout: "Esci" },
   dash: { greetingMorning: "Buongiorno, {name}.", greetingAfternoon: "Buon pomeriggio, {name}.", greetingEvening: "Buonasera, {name}." },
+  cookieBanner: { text: "Utilizziamo cookie necessari, incluso un cookie di referral per attribuire il partner che ha consigliato Studio ATS. I cookie analitici opzionali restano disattivati finché non li accetti.", accept: "Accetta analisi", decline: "Solo necessari", policy: "Informativa cookie" },
 };
 
 export default dict;
