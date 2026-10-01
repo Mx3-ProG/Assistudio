@@ -40,12 +40,13 @@ Create the first super admin after signing up through `/register`:
 update public.profiles set role = 'super_admin' where email = 'you@example.com';
 ```
 
-Then configure **Supabase → Authentication** (sign-in codes are sent by Supabase Auth):
+Then install the Studio ATS emails into **Supabase Auth** (sign-in codes are sent by Supabase): one command sets the 6 auth templates (code emails show `{{ .Token }}`), the 7 security notices, OTP length 6 / expiry 300 s and, with `--smtp`, Custom SMTP through Resend (the built-in mailer only sends a few emails per hour):
 
-- **Providers → Email**: enabled; *Email OTP Expiration* `300` (5 minutes); *Email OTP Length* `6` (or set `NEXT_PUBLIC_AUTH_OTP_LENGTH`).
-- **Emails → Templates → "Magic Link"** and **"Confirm signup"**: the body must contain the code, `{{ .Token }}` (e.g. `<p>Votre code : <strong>{{ .Token }}</strong> (valable 5 minutes)</p>`). Without it Supabase sends a link and no code.
-- **Emails → SMTP Settings**: the built-in mailer only sends a few emails per hour. Enable *Custom SMTP* (Resend: host `smtp.resend.com`, port `465`, user `resend`, password = Resend API key, sender `contact@atonservice.org`).
-- Redirect URL `https://<site>/auth/callback` only if you enable OAuth providers (`NEXT_PUBLIC_OAUTH_PROVIDERS`).
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_… RESEND_API_KEY=re_… npm run supabase:emails -- --push --smtp
+```
+
+The token comes from supabase.com → Account → Access Tokens; the project ref is read from `supabase/.temp/project-ref` (or `SUPABASE_PROJECT_REF`). Preview: `supabase/templates/*.html` (`npm run supabase:emails -- --write`, source `src/lib/email/supabase-templates.ts`). Keep the **Email** provider enabled. Add the redirect URL `https://<site>/auth/callback` only if you enable OAuth providers (`NEXT_PUBLIC_OAUTH_PROVIDERS`).
 
 ## Sign-in (passwordless, email code)
 
