@@ -4,7 +4,7 @@ import { constants } from "node:fs";
 import { join } from "node:path";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
-import { briefSections, fieldLabel } from "../../content/contracts.ts";
+import { answerText, briefSections, contractsCopy, fieldLabel } from "../../content/contracts.ts";
 import { localeMeta, type Locale } from "../../i18n/config.ts";
 import type { CommercialDossier, DossierAcceptance } from "../data/types.ts";
 
@@ -46,46 +46,53 @@ function shell(locale: Locale, title: string, body: string, watermark?: string):
   </style><title>${esc(title)}</title></head><body>${watermark ? `<div class="watermark">${esc(watermark)}</div>` : ""}<header><strong>STUDIO / ATS</strong><span>${esc(title)}</span></header>${body}<footer>${esc(title)} - ${new Date().toISOString().slice(0, 10)}</footer></body></html>`;
 }
 
-const shown = (value: unknown) => Array.isArray(value) ? value.join(", ") : typeof value === "boolean" ? (value ? "Yes" : "No") : String(value ?? "");
+const fill = (text: string, values: Record<string, string | number>) =>
+  text.replace(/\{(\w+)\}/g, (match, key: string) => (key in values ? String(values[key]) : match));
 
 export function briefHtml(dossier: CommercialDossier, draft = false): string {
-  const body = [`<h1>${dossier.locale === "fr" ? "Cahier des charges" : "Project brief"}</h1><p class="muted">${esc(dossier.ref)} - révision ${dossier.currentRevision}</p>`];
+  const t = contractsCopy(dossier.locale).pdf;
+  const body = [`<h1>${esc(t.briefTitle)}</h1><p class="muted">${esc(dossier.ref)} - ${esc(fill(t.revision, { n: dossier.currentRevision }))}</p>`];
   for (const section of briefSections(dossier.locale)) {
     body.push(`<section><h2>${esc(section.title)}</h2><div class="box">`);
     for (const field of section.fields) {
       const value = dossier.answers[field.key];
       if (value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length)) continue;
-      body.push(`<h3>${esc(fieldLabel(field, dossier.locale))}</h3><p class="answer">${esc(shown(value))}</p>`);
+      body.push(`<h3>${esc(fieldLabel(field, dossier.locale))}</h3><p class="answer">${esc(answerText(field, value, dossier.locale))}</p>`);
     }
     body.push("</div></section>");
   }
-  return shell(dossier.locale, dossier.locale === "fr" ? "Cahier des charges Studio ATS" : "Studio ATS project brief", body.join(""), draft ? "BROUILLON - NON CONTRACTUEL" : undefined);
+  return shell(dossier.locale, t.briefDocTitle, body.join(""), draft ? t.draftWatermark : undefined);
 }
 
 export function quoteHtml(dossier: CommercialDossier, clauses: string[], draft = false): string {
   const offer = dossier.offerSnapshot;
   if (!offer) throw new Error("offer_not_locked");
+  const t = contractsCopy(dossier.locale).pdf;
   const legal = (offer as unknown as { legalIdentity?: Record<string, string> }).legalIdentity ?? {};
-  const money = new Intl.NumberFormat(localeMeta[dossier.locale].intl, { style: "currency", currency: offer.currency }).format(offer.totalCents / 100);
+  const intl = localeMeta[dossier.locale].intl;
+  const money = new Intl.NumberFormat(intl, { style: "currency", currency: offer.currency }).format(offer.totalCents / 100);
+  const validUntil = dossier.validUntil ? new Intl.DateTimeFormat(intl, { dateStyle: "long", timeZone: "UTC" }).format(new Date(dossier.validUntil)) : "";
   const body = `
-    <h1>${dossier.locale === "fr" ? "Devis / contrat" : "Quote / agreement"}</h1>
-    <p class="muted">${esc(dossier.ref)} - ${dossier.locale === "fr" ? "valide jusqu'au" : "valid until"} ${esc(dossier.validUntil)}</p>
-    <div class="grid box"><div><strong>${dossier.locale === "fr" ? "Client" : "Customer"}</strong><p>${esc(dossier.clientCompany || dossier.clientName)}</p><p>${esc(dossier.clientName)}</p><p>${esc(dossier.clientEmail)}</p></div><div><strong>Studio ATS</strong><p>${esc(legal.legalName)}</p><p>${esc(legal.address)}</p><p>${esc(legal.registration)}</p><p>${esc(legal.representative)}</p></div></div>
-    <h2>${dossier.locale === "fr" ? "Offre et périmètre" : "Offer and scope"}</h2>
-    <div class="box"><p><strong>${esc(offer.name)}</strong></p><p class="price">${esc(money)}</p><p>${offer.interval === "one_time" ? (dossier.locale === "fr" ? "Paiement unique" : "One-time payment") : (dossier.locale === "fr" ? "Facturation annuelle" : "Annual billing")}</p>${offer.promoCode ? `<p>Code ${esc(offer.promoCode)} - ${esc(Math.round((offer.discountRate ?? 0) * 100))}%</p>` : ""}</div>
-    <div class="box"><h3>${dossier.locale === "fr" ? "Périmètre retenu" : "Agreed scope"}</h3><p class="answer">${esc(dossier.adminScope)}</p></div>
-    <h2>${dossier.locale === "fr" ? "Conditions contractuelles" : "Contractual terms"}</h2>
+    <h1>${esc(t.quoteTitle)}</h1>
+    <p class="muted">${esc(dossier.ref)} - ${esc(fill(t.validUntil, { date: validUntil }))}</p>
+    <div class="grid box"><div><strong>${esc(t.customer)}</strong><p>${esc(dossier.clientCompany || dossier.clientName)}</p><p>${esc(dossier.clientName)}</p><p>${esc(dossier.clientEmail)}</p></div><div><strong>Studio ATS</strong><p>${esc(legal.legalName)}</p><p>${esc(legal.address)}</p><p>${esc(legal.registration)}</p><p>${esc(legal.representative)}</p></div></div>
+    <h2>${esc(t.offerScope)}</h2>
+    <div class="box"><p><strong>${esc(offer.name)}</strong></p><p class="price">${esc(money)}</p><p>${esc(offer.interval === "one_time" ? t.oneTime : t.annual)}</p>${offer.promoCode ? `<p>${esc(fill(t.promo, { code: offer.promoCode, rate: Math.round((offer.discountRate ?? 0) * 100) }))}</p>` : ""}</div>
+    <div class="box"><h3>${esc(t.agreedScope)}</h3><p class="answer">${esc(dossier.adminScope)}</p></div>
+    <h2>${esc(t.terms)}</h2>
     <ol class="terms">${clauses.map((clause) => `<li>${esc(clause)}</li>`).join("")}</ol>
-    <div class="box"><strong>${dossier.locale === "fr" ? "Portée" : "Effect"}</strong><p>${dossier.locale === "fr" ? "Le devis, les conditions ci-dessus et le cahier des charges verrouillé constituent l'accord. La commande devient ferme après la double acceptation et la réception du premier paiement." : "This quote, the terms above and the locked project brief form the agreement. The order becomes binding after dual acceptance and receipt of the first payment."}</p></div>`;
-  return shell(dossier.locale, dossier.locale === "fr" ? "Devis Studio ATS" : "Studio ATS quote", body, draft ? "BROUILLON - NON CONTRACTUEL" : undefined);
+    <div class="box"><strong>${esc(t.effect)}</strong><p>${esc(t.effectBody)}</p></div>`;
+  return shell(dossier.locale, t.quoteDocTitle, body, draft ? t.draftWatermark : undefined);
 }
 
 export function proofHtml(dossier: CommercialDossier, acceptances: DossierAcceptance[]): string {
-  const body = `<h1>${dossier.locale === "fr" ? "Dossier de preuve" : "Evidence record"}</h1>
-    <p>${esc(dossier.ref)}</p><div class="box"><h3>SHA-256 manifest</h3><p class="hash">${esc(dossier.manifestSha256)}</p></div>
-    ${acceptances.map((a) => `<div class="box"><h2>${a.party === "client" ? "Client" : "Studio ATS"}</h2><p><strong>${esc(a.signerName)}</strong> - ${esc(a.signerTitle)}</p><p>${esc(a.signerEmail)}</p><p>${esc(a.acceptedAt)}</p><p>OTP: ${a.otpVerified ? "verified" : "not applicable"}</p><p class="hash">${esc(a.manifestSha256)}</p></div>`).join("")}
-    <p class="muted">${dossier.locale === "fr" ? "Ce relevé documente une acceptation électronique interne. Il ne constitue pas une signature électronique qualifiée." : "This record documents an internal electronic acceptance. It is not a qualified electronic signature."}</p>`;
-  return shell(dossier.locale, dossier.locale === "fr" ? "Preuve d'acceptation" : "Acceptance evidence", body);
+  const ct = contractsCopy(dossier.locale);
+  const t = ct.pdf;
+  const body = `<h1>${esc(t.proofTitle)}</h1>
+    <p>${esc(dossier.ref)}</p><div class="box"><h3>${esc(t.manifest)}</h3><p class="hash">${esc(dossier.manifestSha256)}</p></div>
+    ${acceptances.map((a) => `<div class="box"><h2>${esc(a.party === "client" ? t.customer : "Studio ATS")}</h2><p><strong>${esc(a.signerName)}</strong> - ${esc(a.signerTitle)}</p><p>${esc(a.signerEmail)}</p><p>${esc(a.acceptedAt)}</p><p>${esc(t.otp)}: ${esc(a.otpVerified ? t.otpVerified : t.otpNotApplicable)}</p><p class="hash">${esc(a.manifestSha256)}</p></div>`).join("")}
+    <p class="muted">${esc(t.proofNote)}</p>`;
+  return shell(dossier.locale, t.proofDocTitle, body);
 }
 
 async function executablePath(): Promise<string> {

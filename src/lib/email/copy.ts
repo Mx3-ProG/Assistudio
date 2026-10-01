@@ -5,13 +5,20 @@
  *
  * Tone rule: a commission that is still `pending` is never described as earned.
  */
+import de from "./copy.de.ts";
+import es from "./copy.es.ts";
+import pt from "./copy.pt.ts";
+import it from "./copy.it.ts";
+import nl from "./copy.nl.ts";
+import ar from "./copy.ar.ts";
+
 export type TemplateId =
   | "affiliate.welcome" | "affiliate.new_lead" | "affiliate.appointment" | "affiliate.sale_detected"
   | "affiliate.commission_available" | "affiliate.payout_sent" | "affiliate.renewal" | "affiliate.customer_cancelled"
   | "customer.welcome" | "customer.order_confirmation" | "customer.renewal_receipt" | "customer.payment_failed"
   | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation"
   | "dossier.invite" | "dossier.changes_requested" | "dossier.ready_to_accept"
-  | "dossier.otp" | "dossier.payment" | "dossier.active" | "system.test";
+  | "dossier.otp" | "dossier.payment" | "dossier.active" | "system.test" | "auth.login_code";
 
 export interface TemplateCopy {
   subject: string;
@@ -24,7 +31,7 @@ export interface TemplateCopy {
   footnote?: string;
 }
 
-type Copy = { common: { signature: string; footer: string; pendingNote: string }; templates: Record<TemplateId, TemplateCopy> };
+export type Copy = { common: { signature: string; footer: string; pendingNote: string }; templates: Record<TemplateId, TemplateCopy> };
 
 const en: Copy = {
   common: {
@@ -194,6 +201,14 @@ const en: Copy = {
       preheader: "Email delivery works.",
       title: "Email delivery works.",
       paragraphs: ["This test was sent from the Studio ATS admin settings. If you can read it, sign-in codes and notifications can reach your users."],
+    },
+    "auth.login_code": {
+      subject: "Your Studio ATS sign-in code: {code}",
+      preheader: "Valid for 5 minutes, usable once.",
+      title: "Your sign-in code",
+      paragraphs: ["Enter this code on Studio ATS to sign in. It is valid for 5 minutes and works only once."],
+      highlight: "{code}",
+      footnote: "If you did not request this code, ignore this email and never share the code.",
     },
   },
 };
@@ -367,10 +382,18 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       title: "L’envoi des emails fonctionne.",
       paragraphs: ["Ce test a été envoyé depuis les paramètres admin de Studio ATS. Si vous le lisez, les codes de connexion et les notifications peuvent atteindre vos utilisateurs."],
     },
+    "auth.login_code": {
+      subject: "Votre code de connexion Studio ATS : {code}",
+      preheader: "Valable 5 minutes, utilisable une seule fois.",
+      title: "Votre code de connexion",
+      paragraphs: ["Saisissez ce code sur Studio ATS pour vous connecter. Il est valable 5 minutes et ne fonctionne qu’une seule fois."],
+      highlight: "{code}",
+      footnote: "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email et ne communiquez jamais ce code.",
+    },
   },
 };
 
-const byLocale: Record<string, Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>> }> = { fr };
+const byLocale: Record<string, Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>> }> = { fr, de, es, pt, it, nl, ar };
 
 export function copyFor(locale: string): Copy {
   const o = byLocale[locale];

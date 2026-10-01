@@ -8,7 +8,7 @@ import { queueDirectEmail } from "@/lib/email/service";
 import { supabaseService } from "@/lib/supabase/server";
 import { briefHtml, proofHtml, quoteHtml, renderPdf } from "./pdf";
 import { DOSSIER_COOKIE, evidenceHash, randomOtp, randomToken, manifestHash, safeHashEqual, sha256 } from "./security";
-import { briefSections } from "@/content/contracts";
+import { briefSections, contractsCopy } from "@/content/contracts";
 
 type Json = Record<string, unknown>;
 type LegalIdentity = DossierOfferSnapshot["legalIdentity"];
@@ -366,17 +366,18 @@ export async function generateFallbackDocument(session: Session, locale: Locale,
   if (!briefTemplate) throw new DossierError("legal_template_not_published");
   const stamp = now();
   const base = mapDossier({ id: "draft", public_ref: "DRAFT", affiliate_id: session.affiliate?.id ?? "staff", client_email: "", locale, status: "draft", current_revision: 1, created_at: stamp, updated_at: stamp }, [], [], {});
-  if (kind === "brief") return { bytes: await renderPdf(briefHtml(base, true)), filename: `studio-ats-cahier-${locale}-brouillon.pdf` };
+  const t = contractsCopy(locale).pdf;
+  if (kind === "brief") return { bytes: await renderPdf(briefHtml(base, true)), filename: t.fileBrief.replace("{locale}", locale) };
   const [template, offerResult] = await Promise.all([
     publishedTemplate(locale),
     sb.from("offers").select("id,name,price_cents,currency,billing_interval,stripe_price_id,stripe_lookup_key").eq("is_active", true).eq("stripe_lookup_key", OFFER_LOOKUP_KEYS[tier]).maybeSingle(),
   ]);
   const offer = offerResult.data; if (!offer) throw new DossierError("active_offer_missing");
-  base.adminScope = locale === "fr" ? "À compléter avant émission contractuelle." : "To be completed before contractual issuance.";
+  base.adminScope = t.scopePlaceholder;
   base.validUntil = addDays(30);
-  base.offerSnapshot = { offerId: offer.id, tier, name: offer.name, priceCents: Number(offer.price_cents), currency: offer.currency, interval: offer.billing_interval, stripePriceId: offer.stripe_price_id ?? "unconfigured", stripeLookupKey: offer.stripe_lookup_key ?? OFFER_LOOKUP_KEYS[tier], totalCents: Number(offer.price_cents), lockedAt: stamp, legalIdentity: { legalName: "Studio ATS", address: "À compléter / To be completed", registration: "À compléter / To be completed", representative: "À compléter / To be completed" } };
+  base.offerSnapshot = { offerId: offer.id, tier, name: offer.name, priceCents: Number(offer.price_cents), currency: offer.currency, interval: offer.billing_interval, stripePriceId: offer.stripe_price_id ?? "unconfigured", stripeLookupKey: offer.stripe_lookup_key ?? OFFER_LOOKUP_KEYS[tier], totalCents: Number(offer.price_cents), lockedAt: stamp, legalIdentity: { legalName: "Studio ATS", address: t.toBeCompleted, registration: t.toBeCompleted, representative: t.toBeCompleted } };
   const clauses = ((template.body as Json).clauses as string[]) ?? [];
-  return { bytes: await renderPdf(quoteHtml(base, clauses, true)), filename: `studio-ats-devis-${tier}-${locale}-brouillon.pdf` };
+  return { bytes: await renderPdf(quoteHtml(base, clauses, true)), filename: t.fileQuote.replace("{tier}", tier).replace("{locale}", locale) };
 }
 
 export { DOSSIER_COOKIE };

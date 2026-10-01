@@ -24,7 +24,7 @@ export function AdminShell({ children, hasAffiliate, messages }: {
     { href: `${base}/affiliates`, label: A.affiliates, icon: Users },
     { href: `${base}/leads`, label: A.leads, icon: Inbox },
     { href: `${base}/sales`, label: A.sales, icon: ShoppingBag },
-    { href: `${base}/contracts`, label: locale === "fr" ? "Devis & contrats" : "Quotes & contracts", icon: FileSignature },
+    { href: `${base}/contracts`, label: A.contracts, icon: FileSignature },
     { href: `${base}/finance`, label: A.finance, icon: Landmark },
     { href: `${base}/commissions`, label: A.commissions, icon: Wallet },
     { href: `${base}/payouts`, label: A.payouts, icon: Banknote },

@@ -11,6 +11,7 @@ import type { SignupData } from "@/lib/data/repo";
 import { formatCode, generateCode, hashCode, normalizeCode, normalizeEmail, type CodePurpose } from "@/lib/auth-code";
 import { email as emailTransport } from "@/lib/email";
 import { kickEmailOutbox } from "@/lib/email/service";
+import { renderEmail } from "@/lib/email/templates";
 import { log } from "@/lib/log";
 import { describeError } from "@/lib/auth-errors";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -76,19 +77,9 @@ async function requestIpHash() {
 
 /** Authentication email is synchronous: the person is waiting for this code. */
 async function emailSignInCode(to: string, code: string, locale: Locale) {
-  const shown = formatCode(code);
-  const fr = locale === "fr";
-  const subject = fr ? `Votre code de connexion Studio ATS : ${shown}` : `Your Studio ATS sign-in code: ${shown}`;
-  const intro = fr
-    ? "Saisissez ce code sur Studio ATS pour vous connecter. Il est valable 5 minutes et ne fonctionne qu’une seule fois."
-    : "Enter this code on Studio ATS to sign in. It is valid for 5 minutes and works only once.";
-  const warning = fr
-    ? "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email et ne communiquez jamais ce code."
-    : "If you did not request this code, ignore this email and never share the code.";
+  const { subject, html, text } = renderEmail("auth.login_code", { code: formatCode(code) }, { locale, appUrl: env.siteUrl });
   await emailTransport.send({
-    to, subject,
-    text: `Studio ATS\n\n${intro}\n\n${shown}\n\n${warning}`,
-    html: `<!doctype html><html lang="${fr ? "fr" : "en"}"><body style="margin:0;background:#f6f6f4;padding:40px 12px"><main style="max-width:560px;margin:auto;background:#fff;border-radius:16px;padding:48px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111"><p style="letter-spacing:.24em;font-size:13px;font-weight:600;text-transform:uppercase">Studio ATS</p><h1 style="font-size:24px;margin:40px 0 20px">${fr ? "Votre code de connexion" : "Your sign-in code"}</h1><p style="font-size:16px;line-height:1.6">${intro}</p><p style="font:600 34px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.18em">${shown}</p><p style="font-size:13px;line-height:1.6;color:#6b6b6b;margin-top:32px">${warning}</p></main></body></html>`,
+    to, subject, text, html,
     idempotencyKey: `login_code:${randomUUID()}`,
     tags: [{ name: "template", value: "auth_login_code" }],
   });

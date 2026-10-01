@@ -40,7 +40,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
         { href: `${base}/promo-codes`, label: n.promoCodes, icon: Tag },
         { href: `${base}/campaigns`, label: n.campaigns, icon: Megaphone },
         { href: `${base}/prospects`, label: n.prospects, icon: Users },
-        { href: `${base}/documents`, label: locale === "fr" ? "Documents & contrats" : "Documents & contracts", icon: FileSignature },
+        { href: `${base}/documents`, label: n.documents, icon: FileSignature },
         { href: `${base}/find`, label: n.find, icon: Compass },
         { href: `${base}/sales-kit`, label: n.salesKit, icon: MessageSquareText },
         { href: `${base}/product`, label: n.product, icon: Package },

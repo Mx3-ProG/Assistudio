@@ -1,14 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderEmail } from "./templates.ts";
-import { TEMPLATE_IDS } from "./copy.ts";
+import { TEMPLATE_IDS, copyFor } from "./copy.ts";
+import { locales } from "../../i18n/config.ts";
 
 const opts = { locale: "en", appUrl: "https://studio.test" };
 const sale = { sale_ref: "SAL-ABC123", gross_cents: 300_000, commission_cents: 150_000, currency: "EUR", available_on: "2026-10-24" };
 
 test("every template renders in every supported email locale, with a text alternative", () => {
   for (const id of TEMPLATE_IDS) {
-    for (const locale of ["en", "fr", "de", "ar"]) {
+    for (const locale of locales) {
       const r = renderEmail(id, sale, { ...opts, locale });
       assert.ok(r.subject.length > 3, `${id}/${locale} subject`);
       assert.ok(r.html.includes("<html"), `${id}/${locale} html`);
@@ -44,3 +45,19 @@ test("RTL locale sets dir=rtl", () => {
   assert.ok(renderEmail("affiliate.welcome", { code: "X" }, { ...opts, locale: "ar" }).html.includes('dir="rtl"'));
 });
 
+
+test("every locale has its own copy for every template (no silent English fallback)", () => {
+  const en = copyFor("en");
+  for (const locale of locales.filter((l) => l !== "en")) {
+    const c = copyFor(locale);
+    assert.notEqual(c.common.signature, en.common.signature, `${locale} signature`);
+    for (const id of TEMPLATE_IDS) assert.notEqual(c.templates[id].subject, en.templates[id].subject, `${id}/${locale} subject is still English`);
+  }
+});
+
+test("sign-in code email shows the code and a warning in the recipient's language", () => {
+  const r = renderEmail("auth.login_code", { code: "123 456" }, { ...opts, locale: "de" });
+  assert.match(r.subject, /123 456/);
+  assert.match(r.html, /123 456/);
+  assert.match(r.text, /niemals/);
+});

@@ -73,4 +73,10 @@ do $$ declare is_private boolean; begin
   end if;
 end $$;
 
+-- Every language: the brief is published; translated terms exist but wait for legal review.
+select pg_temp.assert((select count(distinct locale) from public.contract_templates where kind='brief' and status='published')=8,'project brief is published in all 8 locales');
+select pg_temp.assert((select bool_and(status='draft' and jsonb_array_length(body->'clauses')=16 and (body->>'needs_legal_review')::boolean)
+  from public.contract_templates where kind='quote_terms' and locale in ('de','es','pt','it','nl','ar')),'translated terms are complete but stay draft until legal review');
+select pg_temp.assert((select count(*) from public.contract_templates where kind='quote_terms' and status='published' and locale in ('en','fr'))=2,'reviewed EN/FR terms stay published');
+
 rollback;

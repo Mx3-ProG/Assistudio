@@ -36,8 +36,14 @@ function date(v: unknown, locale: string) {
   return new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: "long" }).format(new Date(v));
 }
 
-const WHO: Record<string, string> = { en: "A prospect", fr: "Un prospect" };
-const ON: Record<string, string> = { en: " for {d}", fr: " pour le {d}" };
+const WHO: Record<string, string> = {
+  en: "A prospect", fr: "Un prospect", de: "Ein Interessent", es: "Un prospecto",
+  pt: "Um contacto", it: "Un contatto", nl: "Een prospect", ar: "عميل محتمل",
+};
+const ON: Record<string, string> = {
+  en: " for {d}", fr: " pour le {d}", de: " für den {d}", es: " para el {d}",
+  pt: " para {d}", it: " per il {d}", nl: " voor {d}", ar: " بتاريخ {d}",
+};
 
 /** Template placeholders, formatted for the recipient's locale. */
 export function placeholders(params: Params, locale: string): Record<string, string> {
