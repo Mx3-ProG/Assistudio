@@ -5,6 +5,7 @@
  */
 import type { Locale } from "@/i18n/config";
 import { salesTargets } from "./sales-center/targets.ts";
+import { marketTranslations } from "./i18n/markets.ts";
 
 export interface MarketContent {
   name: string;
@@ -272,7 +273,10 @@ const baseMarkets: Market[] = [
     }),
 ];
 
-export const defaultMarkets: Market[] = [...salesTargets, ...baseMarkets];
+export const defaultMarkets: Market[] = [...salesTargets, ...baseMarkets].map((market) => ({
+  ...market,
+  content: { ...market.content, ...marketTranslations(market.slug) },
+}));
 
 export function marketContent(market: Market, locale: Locale): MarketContent {
   return market.content[locale] ?? market.content.en;
