@@ -240,8 +240,17 @@ begin
   return new;
 end $$;
 
-create trigger on_auth_user_created after insert on auth.users
-  for each row execute function public.handle_new_user();
+-- auth.users belongs to Supabase (supabase_auth_admin). Depending on the
+-- project and the role running the migration, creating a trigger on it can be
+-- refused ("must be owner of table users"). The trigger is therefore optional:
+-- the app provisions profiles itself through public.ensure_profile() /
+-- public.provision_user() (20261002000001_ensure_profile.sql).
+do $$ begin
+  create trigger on_auth_user_created after insert on auth.users
+    for each row execute function public.handle_new_user();
+exception when insufficient_privilege then
+  raise notice 'on_auth_user_created not created (auth.users not owned): profiles are provisioned by public.ensure_profile()';
+end $$;
 
 -- Users can never change their own role / status.
 create or replace function public.guard_profile_role() returns trigger

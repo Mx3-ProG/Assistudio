@@ -91,6 +91,12 @@ async function linkStats(sb: any, filter: { affiliate_id?: string; link_id?: str
   };
 }
 
+/** Auth account for this address, provisioning its profile if missing (service role). Null = no account. */
+async function ensureProfile(email: string): Promise<{ id: string; role: Session["role"]; deleted: boolean } | null> {
+  const rows = check(await supabaseService().rpc("ensure_profile", { p_email: email })) as any[];
+  return rows?.[0] ?? null;
+}
+
 export const supabaseRepo: Repo = {
   // ------------------------------------------------------------- public
   async getSettings(): Promise<Settings> {
@@ -273,7 +279,12 @@ export const supabaseRepo: Repo = {
     const sb = await supabaseServer();
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return null;
-    const profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+    let profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+    if (!profile && user.email) {
+      // Signed in without a profile (OAuth, or an account created while the optional auth.users trigger was missing).
+      await ensureProfile(user.email);
+      profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+    }
     if (!profile || profile.deleted_at) return null;
     const aff = check(await sb.from("affiliates").select("*").eq("profile_id", user.id).maybeSingle()) as any;
     let rate = 0.25;
@@ -303,8 +314,8 @@ export const supabaseRepo: Repo = {
   async issueSignInCode({ email, purpose, codeHash, signup, ipHash }) {
     const svc = supabaseService();
     if (purpose === "login") {
-      const found = check(await svc.from("profiles").select("id").eq("email", email).is("deleted_at", null).maybeSingle());
-      if (!found) return "no_account";
+      const account = await ensureProfile(email);
+      if (!account || account.deleted) return "no_account";
     }
     const rows = check(await svc.rpc("auth_code_issue", {
       p_email: email, p_purpose: purpose, p_hash: codeHash, p_payload: signup, p_ip_hash: ipHash,
@@ -318,17 +329,19 @@ export const supabaseRepo: Repo = {
     const res = rows?.[0];
     if (!res || res.status !== "ok") return { status: res?.status ?? "invalid" };
 
-    const profile = check(await svc.from("profiles").select("id, role, deleted_at").eq("email", email).maybeSingle()) as any;
-    if (profile?.deleted_at) return { status: "invalid" };
+    let account = await ensureProfile(email);
+    if (account?.deleted) return { status: "invalid" };
     let isNew = false;
-    if (!profile) {
+    if (!account) {
       if (res.purpose !== "signup" || !res.payload) return { status: "invalid" };
-      // handle_new_user() creates the profile + affiliate application (+ sponsor) from this metadata.
-      const { error } = await svc.auth.admin.createUser({ email, email_confirm: true, user_metadata: res.payload });
-      if (error) {
-        log.error("auth", "create user failed", { error: error.message });
+      const { data: created, error } = await svc.auth.admin.createUser({ email, email_confirm: true, user_metadata: res.payload });
+      if (error || !created.user) {
+        log.error("auth", "create user failed", { error: error?.message ?? "no user" });
         return { status: "failed" };
       }
+      // Profile + affiliate application (+ sponsor) — does not rely on the optional auth.users trigger.
+      check(await svc.rpc("provision_user", { p_id: created.user.id, p_email: email, p_meta: res.payload }));
+      account = { id: created.user.id, role: "affiliate", deleted: false };
       isNew = true;
     }
     const { data, error } = await svc.auth.admin.generateLink({ type: "magiclink", email });
@@ -342,7 +355,7 @@ export const supabaseRepo: Repo = {
       log.error("auth", "session open failed", { error: verifyError.message });
       return { status: "failed" };
     }
-    return { status: "ok", isNew, role: profile?.role ?? "affiliate" };
+    return { status: "ok", isNew, role: account.role };
   },
 
   // ------------------------------------------------------------- affiliate
