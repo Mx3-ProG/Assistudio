@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         db[name] = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
       }
     };
-    await probe("function ensure_profile (20261002000001_ensure_profile, optional)", () => sb.rpc("ensure_profile", { p_email: "healthcheck@invalid.invalid" }));
+    await probe("function ensure_profile (20261002090000_ensure_profile, optional)", () => sb.rpc("ensure_profile", { p_email: "healthcheck@invalid.invalid" }));
     await probe("table profiles", () => sb.from("profiles").select("id", { head: true, count: "exact" }).limit(1));
   } else {
     db.skipped = "Supabase URL or service role key missing";

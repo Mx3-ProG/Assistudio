@@ -12,6 +12,11 @@ import type { Balances } from "@/lib/commission";
 import type { Locale } from "@/i18n/config";
 import type { CodePurpose } from "@/lib/auth-code";
 import type { MarketContent } from "@/content/markets";
+import type {
+  ChatMessage, ConversationSummary, ConversationView, Contacts, FriendRequestResult, MessageReportRow,
+  ModerationAction, OpenedReport, SendMessageInput, SupportInboxRow, UploadTarget,
+} from "@/lib/messaging/types";
+import type { Reaction } from "@/lib/messaging/policy";
 
 export type Range = "7d" | "30d" | "90d" | "1y" | "all";
 
@@ -23,6 +28,44 @@ export type Range = "7d" | "30d" | "90d" | "1y" | "all";
  * Affiliate-scoped methods take the affiliate id from the *session*, never
  * from user input; the Supabase implementation additionally relies on RLS.
  */
+/**
+ * Messaging (affiliates + staff). Every rule lives in SQL
+ * (supabase/migrations/20261002000001_messaging.sql); errors surface as
+ * `messaging.<code>` messages (see messagingErrorCode).
+ */
+export interface MessagingRepo {
+  listConversations(s: Session): Promise<ConversationSummary[]>;
+  getUnreadMessageCount(s: Session): Promise<number>;
+  /** Null when the conversation does not exist or the caller cannot read it. */
+  getConversation(s: Session, conversationId: string): Promise<ConversationView | null>;
+  /** Older (`before`) or newer (`after`) messages, oldest first, max 50. */
+  listMessages(s: Session, conversationId: string, page: { before?: string; after?: string }): Promise<ChatMessage[]>;
+  getMessage(s: Session, messageId: string): Promise<ChatMessage | null>;
+  openDirectConversation(s: Session, profileId: string): Promise<string>;
+  /** Without `profileId`: the caller's own thread. Staff may open anyone's. */
+  openSupportConversation(s: Session, profileId?: string): Promise<string>;
+  getAnnouncementsConversationId(s: Session): Promise<string | null>;
+  sendMessage(s: Session, input: SendMessageInput): Promise<ChatMessage>;
+  markConversationRead(s: Session, conversationId: string): Promise<void>;
+  editMessage(s: Session, messageId: string, body: string): Promise<void>;
+  deleteMessage(s: Session, messageId: string): Promise<void>;
+  reactToMessage(s: Session, messageId: string, emoji: Reaction): Promise<void>;
+  createAttachmentUpload(s: Session, conversationId: string, mime: string): Promise<UploadTarget>;
+  listContacts(s: Session): Promise<Contacts>;
+  requestFriend(s: Session, code: string): Promise<FriendRequestResult>;
+  respondFriend(s: Session, friendshipId: string, accept: boolean): Promise<void>;
+  removeFriend(s: Session, profileId: string): Promise<void>;
+  blockProfile(s: Session, profileId: string): Promise<void>;
+  unblockProfile(s: Session, profileId: string): Promise<void>;
+  reportMessage(s: Session, messageId: string, reason: string): Promise<void>;
+  // staff
+  listSupportInbox(s: Session): Promise<SupportInboxRow[]>;
+  listMessageReports(s: Session): Promise<MessageReportRow[]>;
+  /** Audited: reading a private conversation is only possible through a report. */
+  openMessageReport(s: Session, reportId: string): Promise<OpenedReport>;
+  moderateMessageReport(s: Session, reportId: string, action: ModerationAction, reason: string | null): Promise<void>;
+}
+
 export type SendCodeResult =
   | { status: "sent"; demoCode?: string }
   | { status: "no_account" | "too_soon" }
@@ -41,7 +84,7 @@ export interface SignupData {
   application: { channels: string; terms_accepted_at: string };
 }
 
-export interface Repo {
+export interface Repo extends MessagingRepo {
   // ------------------------------------------------------------- public
   getSettings(): Promise<Settings>;
   /** The offer paying the highest commission (Studio Premium): the maximum an affiliate can earn per sale. */

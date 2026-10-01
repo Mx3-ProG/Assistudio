@@ -3,9 +3,11 @@
  * shape and falls back to it key-by-key. Placeholders use {name} syntax.
  */
 import sc from "./sales-center.en";
+import msg from "./messaging.en";
 
 const en = {
   sc,
+  msg,
   meta: {
     homeTitle: "Studio ATS Partners — Sell Studio ATS, earn up to €1,500 per sale",
     homeDescription:

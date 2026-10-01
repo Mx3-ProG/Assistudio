@@ -10,6 +10,7 @@ import { isValidCode } from "@/lib/attribution";
 import type { Repo, Range } from "./repo";
 import type { SalesContent } from "@/lib/sales/content";
 import { summarizeBook } from "./book";
+import { supabaseMessaging } from "./messaging.supabase";
 import { log } from "@/lib/log";
 import { StepError, describeError, isDuplicate, isMissingDbObject } from "@/lib/auth-errors";
 import type {
@@ -145,6 +146,8 @@ async function provisionDirect(svc: Svc, id: string, email: string, meta: Record
 }
 
 export const supabaseRepo: Repo = {
+  ...supabaseMessaging,
+
   // ------------------------------------------------------------- public
   async getSettings(): Promise<Settings> {
     const sb = supabaseService();
@@ -854,7 +857,7 @@ export const supabaseRepo: Repo = {
     const sb = await supabaseServer();
     const rows = check(await sb.from("affiliates").select("*, profiles(full_name, email), commissions(status, amount_cents), sales(status)").is("deleted_at", null).order("created_at", { ascending: false })) as any[];
     return rows.map((r): AdminAffiliateRow => ({
-      id: r.id, name: r.profiles?.full_name ?? "—", email: r.profiles?.email ?? "—", code: r.code, status: r.status, country: r.country,
+      id: r.id, profileId: r.profile_id, name: r.profiles?.full_name ?? "—", email: r.profiles?.email ?? "—", code: r.code, status: r.status, country: r.country,
       sales: (r.sales ?? []).filter((x: any) => x.status === "paid").length,
       availableCents: (r.commissions ?? []).filter((c: any) => c.status === "available").reduce((a: number, c: any) => a + c.amount_cents, 0),
       createdAt: r.created_at, application: r.application ?? {},

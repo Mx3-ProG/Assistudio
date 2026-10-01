@@ -6,6 +6,7 @@ import { formatDate, formatMoney } from "@/lib/money";
 import { setAffiliateStatus } from "@/app/actions/admin";
 import { PageHeader, Card, Badge } from "@/components/ui/primitives";
 import { ReasonAction } from "@/components/admin/reason-action";
+import { MessageMemberButton } from "@/components/messaging/conversation-sidebar";
 
 const tone = { pending: "warning", approved: "success", rejected: "neutral", suspended: "danger" } as const;
 
@@ -34,6 +35,7 @@ export default async function Affiliates({ params }: PageProps<"/[locale]/admin/
                 <span className="tabular font-medium">{formatMoney(a.availableCents, locale)}</span>
               </div>
               <div className="flex flex-wrap gap-2">
+                <MessageMemberButton profileId={a.profileId} base={`/${locale}/admin/messages`} />
                 {a.status !== "approved" && <ReasonAction action={setAffiliateStatus} fields={{ id: a.id, status: "approved" }} label={a.status === "suspended" ? A.reinstate : A.approve} variant="primary" />}
                 {a.status === "pending" && <ReasonAction action={setAffiliateStatus} fields={{ id: a.id, status: "rejected" }} label={A.reject} />}
                 {a.status === "approved" && <ReasonAction action={setAffiliateStatus} fields={{ id: a.id, status: "suspended" }} label={A.suspend} variant="danger" />}

@@ -244,7 +244,7 @@ end $$;
 -- project and the role running the migration, creating a trigger on it can be
 -- refused ("must be owner of table users"). The trigger is therefore optional:
 -- the app provisions profiles itself through public.ensure_profile() /
--- public.provision_user() (20261002000001_ensure_profile.sql).
+-- public.provision_user() (20261002090000_ensure_profile.sql).
 do $$ begin
   create trigger on_auth_user_created after insert on auth.users
     for each row execute function public.handle_new_user();

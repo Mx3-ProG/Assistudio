@@ -43,7 +43,11 @@ const ON: Record<string, string> = { en: " for {d}", fr: " pour le {d}" };
 export function placeholders(params: Params, locale: string): Record<string, string> {
   const who = [params.company, params.profession].filter((x) => typeof x === "string" && x.trim()).join(" · ");
   const when = typeof params.appointment_at === "string" ? (ON[locale] ?? ON.en).replace("{d}", date(params.appointment_at, locale)) : "";
+  const custom = Object.fromEntries(Object.entries(params)
+    .filter(([, value]) => typeof value === "string" || typeof value === "number")
+    .map(([key, value]) => [key, String(value)]));
   return {
+    ...custom,
     code: String(params.code ?? ""),
     sale_ref: String(params.sale_ref ?? ""),
     payout_ref: String(params.payout_ref ?? ""),
@@ -60,7 +64,7 @@ export function placeholders(params: Params, locale: string): Record<string, str
 }
 
 const fill = (tpl: string, values: Record<string, string>, escape: boolean) =>
-  tpl.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? (escape ? esc(values[k]) : values[k]) : m));
+  tpl.replace(/\{(\w+)\}/g, (_m, k: string) => (k in values ? (escape ? esc(values[k]) : values[k]) : ""));
 
 export interface ShellParts {
   lang: string;
@@ -142,7 +146,8 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
   const paragraphs = t.paragraphs.map((p) => fill(p, v, true));
   const highlight = t.highlight ? fill(t.highlight, v, true) : null;
   const footnote = t.footnote === "pendingNote" ? copy.common.pendingNote : t.footnote;
-  const ctaUrl = t.cta ? `${opts.appUrl}/${locale}${t.cta.path}` : null;
+  const ctaPath = t.cta ? fill(t.cta.path, v, false) : null;
+  const ctaUrl = ctaPath ? (/^https?:\/\//.test(ctaPath) ? ctaPath : `${opts.appUrl}/${locale}${ctaPath}`) : null;
 
   const html = emailShell({
     lang: locale, dir, subject, preheader: fill(t.preheader, v, false), titleHtml: title, paragraphsHtml: paragraphs,

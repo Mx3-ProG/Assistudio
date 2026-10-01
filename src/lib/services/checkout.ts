@@ -154,6 +154,57 @@ export async function createCheckoutSession(input: {
   return { url: session.url };
 }
 
+/** Checkout for a doubly accepted dossier. The immutable offer snapshot is the
+ * source of truth; Stripe is re-read and must match it byte-for-byte. */
+export async function createDossierCheckoutSession(dossierId: string): Promise<{ url: string }> {
+  const sb = supabaseService();
+  const { data: dossier } = await sb.from("commercial_dossiers")
+    .select("id,public_ref,affiliate_id,client_email,locale,status,offer_id,offer_snapshot,offers!inner(product_id)")
+    .eq("id", dossierId).maybeSingle();
+  if (!dossier || dossier.status !== "awaiting_payment" || !dossier.offer_snapshot || !dossier.offer_id) {
+    throw new CheckoutUnavailableError("dossier is not ready for payment");
+  }
+  const snapshot = dossier.offer_snapshot as {
+    priceCents: number; currency: string; interval: "month" | "year" | "one_time";
+    stripePriceId: string; totalCents: number; discountRate?: number; promoCode?: string | null;
+  };
+  const price = await stripe().prices.retrieve(snapshot.stripePriceId);
+  const stripeInterval = price.recurring?.interval ?? "one_time";
+  if (!price.active || price.unit_amount !== snapshot.priceCents || price.currency.toUpperCase() !== snapshot.currency.toUpperCase() || stripeInterval !== snapshot.interval) {
+    throw new CheckoutUnavailableError("locked dossier price no longer matches Stripe");
+  }
+  const { data: row, error } = await sb.from("checkout_sessions").insert({
+    dossier_id: dossier.id, origin: "dashboard_cta", offer_id: dossier.offer_id,
+    product_id: (dossier.offers as unknown as { product_id: string }).product_id,
+    affiliate_id: dossier.affiliate_id, attribution_source: "manual", locale: dossier.locale,
+    catalog_amount_cents: snapshot.priceCents,
+    discount_amount_cents: snapshot.priceCents - snapshot.totalCents,
+    discount_rate: snapshot.discountRate ?? 0, livemode: stripeMode() === "live",
+  }).select("id").single();
+  if (error || !row) throw new Error(`dossier checkout row: ${error?.message}`);
+  const metadata = { [CHECKOUT_METADATA_KEY]: row.id, dossier_id: dossier.id, offer_id: dossier.offer_id };
+  const coupon = snapshot.totalCents < snapshot.priceCents ? await stripe().coupons.create({
+    amount_off: snapshot.priceCents - snapshot.totalCents, currency: snapshot.currency.toLowerCase(), duration: "once",
+    name: snapshot.promoCode ?? `Dossier ${dossier.public_ref}`, metadata: { dossier_id: dossier.id, studio_checkout_id: row.id },
+  }, { idempotencyKey: `dossier-coupon:${dossier.id}:${snapshot.totalCents}` }) : null;
+  const session = await stripe().checkout.sessions.create({
+    mode: snapshot.interval === "one_time" ? "payment" : "subscription",
+    line_items: [{ price: snapshot.stripePriceId, quantity: 1 }], customer_email: dossier.client_email,
+    ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
+    client_reference_id: row.id, metadata,
+    ...(snapshot.interval === "one_time"
+      ? { invoice_creation: { enabled: true, invoice_data: { metadata } }, customer_creation: "always" as const }
+      : { subscription_data: { metadata } }),
+    billing_address_collection: "required", locale: checkoutLocale(dossier.locale as Locale),
+    success_url: `${env.siteUrl}/${dossier.locale}/dossier/${dossier.public_ref}?payment=success`,
+    cancel_url: `${env.siteUrl}/${dossier.locale}/dossier/${dossier.public_ref}?payment=cancelled`,
+  }, { idempotencyKey: `dossier-checkout:${dossier.id}:${snapshot.totalCents}` });
+  if (!session.url) throw new Error("Stripe returned no checkout URL");
+  await sb.from("checkout_sessions").update({ stripe_checkout_session_id: session.id, status: "open", stripe_coupon_id: coupon?.id ?? null, expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null }).eq("id", row.id);
+  await sb.from("commercial_dossiers").update({ checkout_session_id: row.id, stripe_checkout_session_id: session.id, stripe_checkout_url: session.url }).eq("id", dossier.id).eq("status", "awaiting_payment");
+  return { url: session.url };
+}
+
 /** Read-only status for the /success page. Never creates anything. */
 export async function checkoutStatus(stripeSessionId: string): Promise<"confirmed" | "processing" | "expired" | "unknown"> {
   if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(stripeSessionId)) return "unknown";
