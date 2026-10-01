@@ -13,11 +13,18 @@
  * {{affiliateUrl}} {{campaign}} — see src/lib/sales/personalize.ts.
  */
 import type { BodyByKind, Channel, ContentKind, FunnelStage } from "../../lib/sales/content.ts";
+import type { Locale } from "../../i18n/config.ts";
+import de from "./i18n/de.ts";
+import es from "./i18n/es.ts";
+import pt from "./i18n/pt.ts";
+import it from "./i18n/it.ts";
+import nl from "./i18n/nl.ts";
+import ar from "./i18n/ar.ts";
 
 export interface SeedContent<K extends ContentKind = ContentKind> {
   kind: K;
   key: string;
-  locale: "en" | "fr";
+  locale: Locale;
   status: "active" | "draft";
   title: string;
   summary?: string;
@@ -631,6 +638,40 @@ const journey = both("journey", "first-week", { sort: 0 },
     },
   });
 
-export const defaultSalesContent: SeedContent[] = [
+const sourceContent: SeedContent[] = [
   ...template, ...variants, ...angles, ...playbooks, ...scripts, ...messages, ...emails, ...objections, ...knowledge, ...assets, ...journey,
 ];
+
+// =============================================================== other languages
+/**
+ * Translations of the English rows, keyed `kind:key`. A body only carries the
+ * text: structure (step keys, script step types, CTA modes, sections…) comes
+ * from the English row, merged index by index.
+ */
+export interface ContentTranslation { title: string; summary?: string; tags?: string[]; body: unknown }
+export type ContentTranslations = Record<string, ContentTranslation>;
+const translations: Partial<Record<Locale, ContentTranslations>> = { de, es, pt, it, nl, ar };
+
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** Text over structure: objects merge key by key, arrays of objects index by index, other arrays are replaced. */
+export function overlay<T>(base: T, text: unknown): T {
+  if (Array.isArray(base) && Array.isArray(text)) {
+    if (!base.every(isObject)) return text as T;
+    return base.map((item, i) => (i < text.length ? overlay(item, text[i]) : item)) as T;
+  }
+  if (isObject(base) && isObject(text)) {
+    const out: Record<string, unknown> = { ...base };
+    for (const [k, v] of Object.entries(text)) out[k] = k in base ? overlay(base[k], v) : v;
+    return out as T;
+  }
+  return (text ?? base) as T;
+}
+
+const translated: SeedContent[] = Object.entries(translations).flatMap(([locale, byKey]) =>
+  sourceContent.filter((c) => c.locale === "en").flatMap((c) => {
+    const tr = byKey?.[`${c.kind}:${c.key}`];
+    return tr ? [{ ...c, locale: locale as Locale, title: tr.title, summary: tr.summary ?? c.summary, tags: tr.tags ?? c.tags, body: overlay(c.body, tr.body) } as SeedContent] : [];
+  }));
+
+export const defaultSalesContent: SeedContent[] = [...sourceContent, ...translated];

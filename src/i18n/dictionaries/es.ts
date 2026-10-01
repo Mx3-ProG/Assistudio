@@ -1,7 +1,7 @@
 import type { Dictionary } from "./en";
 
-import sc from "./sales-center.es";
-import msg from "./messaging.es";
+import sc from "./sales-center.es.ts";
+import msg from "./messaging.es.ts";
 
 /** Español — complete. Native review recommended before launch. */
 const es: Dictionary = {

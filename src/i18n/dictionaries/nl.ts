@@ -1,7 +1,7 @@
 import type { Dictionary } from "./en";
 
-import sc from "./sales-center.nl";
-import msg from "./messaging.nl";
+import sc from "./sales-center.nl.ts";
+import msg from "./messaging.nl.ts";
 
 /** Nederlands — complete. Native review recommended before launch. */
 const nl: Dictionary = {

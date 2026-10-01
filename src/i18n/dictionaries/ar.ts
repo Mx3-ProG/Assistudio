@@ -1,7 +1,7 @@
 import type { Dictionary } from "./en";
 
-import sc from "./sales-center.ar";
-import msg from "./messaging.ar";
+import sc from "./sales-center.ar.ts";
+import msg from "./messaging.ar.ts";
 
 /** العربية — complete (RTL). Native review recommended before launch. */
 const ar: Dictionary = {

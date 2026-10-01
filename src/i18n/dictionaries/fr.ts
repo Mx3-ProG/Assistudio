@@ -1,7 +1,7 @@
 import type { Dictionary } from "./en";
 
-import sc from "./sales-center.fr";
-import msg from "./messaging.fr";
+import sc from "./sales-center.fr.ts";
+import msg from "./messaging.fr.ts";
 
 const fr: Dictionary = {
   sc,

@@ -2,8 +2,8 @@
  * English — reference dictionary. Every other locale is typed against this
  * shape and falls back to it key-by-key. Placeholders use {name} syntax.
  */
-import sc from "./sales-center.en";
-import msg from "./messaging.en";
+import sc from "./sales-center.en.ts";
+import msg from "./messaging.en.ts";
 
 const en = {
   sc,
