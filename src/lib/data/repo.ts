@@ -10,6 +10,7 @@ import type {
 import type { SalesContent, ContentKind, ContentStatus } from "@/lib/sales/content";
 import type { Balances } from "@/lib/commission";
 import type { Locale } from "@/i18n/config";
+import type { CodePurpose } from "@/lib/auth-code";
 import type { MarketContent } from "@/content/markets";
 import type {
   ChatMessage, ConversationSummary, ConversationView, Contacts, FriendRequestResult, MessageReportRow,
@@ -65,6 +66,24 @@ export interface MessagingRepo {
   moderateMessageReport(s: Session, reportId: string, action: ModerationAction, reason: string | null): Promise<void>;
 }
 
+export type SendCodeResult =
+  | { status: "sent"; demoCode?: string }
+  | { status: "no_account" | "too_soon" }
+  | { status: "rate_limited"; detail?: string };
+export type SignInWithCodeResult =
+  | { status: "ok"; isNew: boolean; role: Session["role"] }
+  | { status: "invalid" | "expired" | "too_many_attempts" }
+  /** Technical failure after a valid code; `detail` is short and non-sensitive (src/lib/auth-errors.ts). */
+  | { status: "failed"; detail?: string };
+/** Sign-up form data, stored with the code and given to handle_new_user() as user metadata. */
+export interface SignupData {
+  full_name: string;
+  locale: Locale;
+  country: string | null;
+  sponsor_code: string | null;
+  application: { channels: string; terms_accepted_at: string };
+}
+
 export interface Repo extends MessagingRepo {
   // ------------------------------------------------------------- public
   getSettings(): Promise<Settings>;
@@ -91,6 +110,17 @@ export interface Repo extends MessagingRepo {
 
   // ------------------------------------------------------------- session
   getSession(): Promise<Session | null>;
+
+  // ------------------------------------------------------------- passwordless sign-in (email codes)
+  /**
+   * Emails a one-time sign-in code (Supabase Auth in production, in memory in
+   * demo). A login request for an address without an account returns
+   * `no_account` and sends nothing; the caller answers the same way (no user
+   * enumeration). On sign-up, `signup` becomes the new user's metadata.
+   */
+  sendSignInCode(input: { email: string; purpose: CodePurpose; signup: SignupData | null }): Promise<SendCodeResult>;
+  /** Checks the code; on success opens the session and provisions the profile + affiliate application if missing. */
+  signInWithCode(input: { email: string; code: string; purpose: CodePurpose }): Promise<SignInWithCodeResult>;
 
   // ------------------------------------------------------------- affiliate
   getOverview(s: Session, range: Range): Promise<Overview>;

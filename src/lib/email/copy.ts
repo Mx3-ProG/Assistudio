@@ -11,7 +11,7 @@ export type TemplateId =
   | "customer.welcome" | "customer.order_confirmation" | "customer.renewal_receipt" | "customer.payment_failed"
   | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation"
   | "dossier.invite" | "dossier.changes_requested" | "dossier.ready_to_accept"
-  | "dossier.otp" | "dossier.payment" | "dossier.active";
+  | "dossier.otp" | "dossier.payment" | "dossier.active" | "system.test";
 
 export interface TemplateCopy {
   subject: string;
@@ -19,6 +19,8 @@ export interface TemplateCopy {
   title: string;
   paragraphs: string[];
   cta?: { label: string; path: string };
+  /** Shown large and spaced (one-time codes). */
+  highlight?: string;
   footnote?: string;
 }
 
@@ -187,6 +189,12 @@ const en: Copy = {
       paragraphs: ["We received the first payment for dossier {reference}.", "Your accepted documents and evidence record remain available from your secure dossier."],
       cta: { label: "Open my dossier", path: "{access_path}" },
     },
+    "system.test": {
+      subject: "Studio ATS — test email",
+      preheader: "Email delivery works.",
+      title: "Email delivery works.",
+      paragraphs: ["This test was sent from the Studio ATS admin settings. If you can read it, sign-in codes and notifications can reach your users."],
+    },
   },
 };
 
@@ -352,6 +360,12 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       title: "Votre projet Studio ATS peut commencer.",
       paragraphs: ["Nous avons reçu le premier paiement du dossier {reference}.", "Vos documents acceptés et le dossier de preuve restent disponibles dans votre espace sécurisé."],
       cta: { label: "Ouvrir mon dossier", path: "{access_path}" },
+    },
+    "system.test": {
+      subject: "Studio ATS — email de test",
+      preheader: "L’envoi des emails fonctionne.",
+      title: "L’envoi des emails fonctionne.",
+      paragraphs: ["Ce test a été envoyé depuis les paramètres admin de Studio ATS. Si vous le lisez, les codes de connexion et les notifications peuvent atteindre vos utilisateurs."],
     },
   },
 };

@@ -40,7 +40,25 @@ Create the first super admin after signing up through `/register`:
 update public.profiles set role = 'super_admin' where email = 'you@example.com';
 ```
 
-Then configure in Supabase Auth: email confirmations, magic links, redirect URL `https://<site>/auth/callback`, and any OAuth providers (listed in `NEXT_PUBLIC_OAUTH_PROVIDERS`).
+Then configure **Supabase → Authentication** (sign-in codes are sent by Supabase Auth):
+
+- **Providers → Email**: enabled; *Email OTP Expiration* `300` (5 minutes); *Email OTP Length* `6` (or set `NEXT_PUBLIC_AUTH_OTP_LENGTH`).
+- **Emails → Templates → "Magic Link"** and **"Confirm signup"**: the body must contain the code, `{{ .Token }}` (e.g. `<p>Votre code : <strong>{{ .Token }}</strong> (valable 5 minutes)</p>`). Without it Supabase sends a link and no code.
+- **Emails → SMTP Settings**: the built-in mailer only sends a few emails per hour. Enable *Custom SMTP* (Resend: host `smtp.resend.com`, port `465`, user `resend`, password = Resend API key, sender `contact@atonservice.org`).
+- Redirect URL `https://<site>/auth/callback` only if you enable OAuth providers (`NEXT_PUBLIC_OAUTH_PROVIDERS`).
+
+## Sign-in (passwordless, email code)
+
+There are no passwords. Login and sign-up are the same two steps:
+
+1. The person enters their email (plus the partner application on `/register`, including the sponsor code from `?sponsor=`). **Supabase Auth emails a one-time code** (`signInWithOtp`; on sign-up the application becomes the new user's metadata). A login for an unknown address shows the same screen and sends nothing (no account enumeration).
+2. They type the code → `verifyOtp` opens the session in the current browser. The profile + affiliate application (+ sponsor) are provisioned by `provision_account()` if missing — the `auth.users` trigger is optional (creating it can fail with "must be owner of table users"), and the app falls back to direct inserts when the provisioning migrations are not applied yet.
+
+Expiry, OTP length and rate limits are Supabase Auth settings. Every technical failure shows a short *Technical detail* under the error (`src/lib/auth-errors.ts`). `/api/health/email?key=<CRON_SECRET>` reports the configuration (never secret values). In demo mode the code is shown on screen, labelled.
+
+**Emails (all of them).** Sender: `Studio ATS <contact@atonservice.org>` by default (`EMAIL_FROM` / `EMAIL_REPLY_TO` override it). Transactional emails go through Resend: everything the database queues (`email_events`: affiliate welcome, lead confirmation, new lead, payouts, commissions…) is sent right after the action that queued it (`kickEmailOutbox()`), after Stripe webhooks, and retried by the daily cron. On production a missing `RESEND_API_KEY` makes every send fail (marked `failed`, retried later) instead of silently logging.
+
+**Not receiving emails?** Admin → Settings → *Send me a test email* shows the sender, whether the key is set, and Resend's exact answer. Most common cause: the domain of `EMAIL_FROM` (`atonservice.org`) is not **verified in Resend** — then Resend only delivers to the account owner's own address.
 
 ## Architecture
 
@@ -60,6 +78,7 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 | Email service (templates, Resend, outbox) | `src/lib/email` |
 | Messaging: rules, RLS, Storage bucket, Realtime (audited moderation) | `supabase/migrations/20261002000001_messaging.sql`, mirrored in `src/lib/messaging/policy.ts` |
 | Messaging UI (threads, voice/video recorder, drag & drop) | `src/components/messaging`, `src/app/actions/messaging.ts` |
+| Passwordless sign-in (Supabase Auth email codes) | `src/app/actions/auth.ts`, `src/lib/data/supabase.ts` (`sendSignInCode`, `signInWithCode`), `…_ensure_profile.sql` |
 
 **Money & commissions.** Amounts are integer cents. A commission is created only when Stripe confirms the payment: `pending` during the configurable validation period, then `available`, then `paid` via a payout; `disputed` when a human must decide. Refunds / chargebacks reverse it (a `clawback` if it was already paid out, recovered from the next payout). Renewal commissions are created by each renewal payment — never in advance. Every movement is an append-only `commission_ledger` entry. The UI never shows pending money as earned; projections are always labelled as projections.
 
@@ -74,7 +93,7 @@ Then configure in Supabase Auth: email confirmations, magic links, redirect URL 
 ## Routes
 
 - Public (indexable, 8 locales): `/`, `/studio`, `/pricing`, `/partners`, `/faq`, `/about`, `/contact`, `/security`, legal pages
-- Auth: `/login`, `/register`, `/forgot`, `/auth/callback`
+- Auth: `/login`, `/register` (email code, no password), `/auth/callback` (OAuth only); `/forgot` redirects to `/login`
 - Affiliate: `/dashboard` + `messages`, `welcome`, `link`, `campaigns`, `prospects`, `find`, `sales-kit`, `product`, `sales`, `commissions`, `recurring`, `payouts`, `analytics`, `leaderboard`, `notifications`, `settings`
 - Admin: `/admin` + `messages` (+ `messages/reports`), `affiliates`, `leads`, `sales`, `commissions`, `payouts`, `fraud`, `markets`, `content`, `settings`, `audit`
 

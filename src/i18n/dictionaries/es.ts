@@ -15,7 +15,7 @@ const dict: PartialDictionary = {
     steps: { share: { title: "Comparte", body: "Obtén tu enlace personal y mensajes de venta listos para usar." }, sell: { title: "Vende", body: "Presenta Studio ATS a profesionales de los mercados sugeridos." }, earn: { title: "Gana", body: "Recibe tu comisión por las ventas elegibles efectivamente cobradas." } },
     sellTitle: "Un solo lugar para su negocio.", marketsTitle: "Profesionales para quienes cada cliente cuenta.", finalTitle: "Tu primera venta podría generar hasta 1.500 € de comisión." },
   studio: { heroTitle: "Convierte tu tráfico en oportunidades.", heroTitle2: "Convierte tus oportunidades en citas.", cta: "Solicitar Studio ATS" },
-  auth: { loginTitle: "Bienvenido de nuevo.", registerTitle: "Hazte partner de Studio ATS.", email: "Email", password: "Contraseña", submitLogin: "Entrar", logout: "Cerrar sesión" },
+  auth: { loginTitle: "Bienvenido de nuevo.", registerTitle: "Hazte partner de Studio ATS.", email: "Email", submitLogin: "Entrar", logout: "Cerrar sesión" },
   dash: { greetingMorning: "Buenos días, {name}.", greetingAfternoon: "Buenas tardes, {name}.", greetingEvening: "Buenas noches, {name}." },
   cookieBanner: { text: "Usamos cookies necesarias, incluida una cookie de referencia para atribuir el partner que recomendó Studio ATS. Las cookies analíticas opcionales permanecen desactivadas hasta que las aceptes.", accept: "Aceptar analítica", decline: "Solo necesarias", policy: "Política de cookies" },
 };

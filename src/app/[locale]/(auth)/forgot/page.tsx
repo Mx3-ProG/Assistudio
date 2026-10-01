@@ -1,6 +1,7 @@
-import { isDemoMode } from "@/lib/env";
-import { ForgotForm } from "@/components/auth-forms";
+import { redirect } from "next/navigation";
 
-export default function Forgot() {
-  return <ForgotForm demo={isDemoMode} />;
+/** Passwords are gone: sign-in is by emailed code. Old "forgot password" links land on login. */
+export default async function Forgot({ params }: PageProps<"/[locale]/forgot">) {
+  const { locale } = await params;
+  redirect(`/${locale}/login`);
 }

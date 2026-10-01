@@ -43,3 +43,4 @@ test("links point to the locale-prefixed dashboard", () => {
 test("RTL locale sets dir=rtl", () => {
   assert.ok(renderEmail("affiliate.welcome", { code: "X" }, { ...opts, locale: "ar" }).html.includes('dir="rtl"'));
 });
+

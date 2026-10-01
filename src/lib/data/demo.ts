@@ -9,7 +9,8 @@ import { assetsFor } from "@/content/sales-kit";
 import { maxEarningOffer } from "@/lib/offers";
 import { defaultSalesContent } from "@/content/sales-center/content";
 import type { SalesContent, ContentKind } from "@/lib/sales/content";
-import type { Repo, Range } from "./repo";
+import type { Repo, Range, SignupData } from "./repo";
+import { CODE_TTL_SECONDS, MAX_ATTEMPTS, RESEND_AFTER_SECONDS, generateCode, type CodePurpose } from "@/lib/auth-code";
 import { summarizeBook } from "./book";
 import { createDemoMessaging } from "./messaging.demo";
 import type {
@@ -381,6 +382,9 @@ function seed(): Store {
   return s;
 }
 
+interface DemoCode { purpose: CodePurpose; code: string; signup: SignupData | null; attempts: number; createdAt: number; expiresAt: number; consumed: boolean }
+const demoCodes = () => ((g as { __studioDemoCodes?: Map<string, DemoCode> }).__studioDemoCodes ??= new Map());
+
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
 const STORE_VERSION = 5;
 const g = globalThis as unknown as { __studioDemo?: Store & { v?: number } };
@@ -604,6 +608,51 @@ export const demoRepo: Repo = {
         sponsorId: aff.sponsorId,
       },
     };
+  },
+
+  // ------------------------------------------------------------- passwordless sign-in (demo: in memory; no email, the code is shown on screen)
+  async sendSignInCode({ email, purpose, signup }) {
+    const st = db();
+    if (purpose === "login" && !st.users.some((u) => u.email === email)) return { status: "no_account" };
+    const codes = demoCodes();
+    const prev = codes.get(email);
+    if (prev && now() - prev.createdAt < RESEND_AFTER_SECONDS * 1000) return { status: "too_soon" };
+    const code = generateCode();
+    codes.set(email, { purpose, code, signup, attempts: 0, createdAt: now(), expiresAt: now() + CODE_TTL_SECONDS * 1000, consumed: false });
+    return { status: "sent", demoCode: code };
+  },
+
+  async signInWithCode({ email, code }) {
+    const c = demoCodes().get(email);
+    if (!c || c.consumed) return { status: "invalid" };
+    if (c.expiresAt <= now()) return { status: "expired" };
+    if (c.attempts >= MAX_ATTEMPTS) return { status: "too_many_attempts" };
+    c.attempts++;
+    if (c.code !== code) return { status: c.attempts >= MAX_ATTEMPTS ? "too_many_attempts" : "invalid" };
+    c.consumed = true;
+
+    const st = db();
+    let user = st.users.find((u) => u.email === email);
+    const isNew = !user;
+    if (!user) {
+      if (c.purpose !== "signup" || !c.signup) return { status: "invalid" };
+      // Mirrors handle_new_user(): profile + pending affiliate application + sponsor from the code.
+      const key = id("new").replace(/^new_/, "");
+      const sponsorCode = c.signup.sponsor_code?.toLowerCase();
+      const sponsor = sponsorCode ? st.affiliates.find((a) => a.status === "approved" && (a.code.toLowerCase() === sponsorCode || a.slug === sponsorCode)) : undefined;
+      const affId = `aff_${key}`;
+      const code = `NEW${key.toUpperCase()}`.slice(0, 8);
+      user = { userId: `usr_${key}`, email, role: "affiliate", fullName: c.signup.full_name, displayName: null, leaderboardOptIn: false, affiliateId: affId };
+      st.users.push(user);
+      st.affiliates.push({
+        id: affId, userId: user.userId, code, slug: null, status: st.settings.autoApprove ? "approved" : "pending",
+        country: c.signup.country, onboardingStep: 0, onboardingCompletedAt: null, monthlyGoalSales: null, createdAt: iso(now()),
+        application: c.signup.application, sponsorId: sponsor?.id ?? null,
+      });
+      st.links.push({ id: `lnk_${key}`, affiliateId: affId, code: `${code}01`, name: "Default", campaignId: null, isDefault: true, createdAt: iso(now()) });
+    }
+    (await cookies()).set(DEMO_SESSION_COOKIE, user.userId, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 7 });
+    return { status: "ok", isNew, role: user.role };
   },
 
   async getBalances(s) {

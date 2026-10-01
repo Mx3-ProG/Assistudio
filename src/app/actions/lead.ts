@@ -7,6 +7,7 @@ import { isLocale } from "@/i18n/config";
 import type { ReferralTarget } from "@/lib/data/types";
 import { isDemoMode } from "@/lib/env";
 import { resolveForConversion } from "@/lib/services/attribution";
+import { kickEmailOutbox } from "@/lib/email/service";
 
 const schema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -88,5 +89,6 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
     requestType: d.requestType ?? null,
     advisorConsent: d.advisorConsent,
   });
+  kickEmailOutbox(); // lead.confirmation + affiliate.new_lead, queued by the leads trigger
   return { status: "success" };
 }

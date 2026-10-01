@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { MailCheck } from "lucide-react";
-import { signIn, signUp, signOut, forgotPassword, updatePassword, demoSignIn, signInWithProvider, type AuthState } from "@/app/actions/auth";
+import { codeAuth, demoSignIn, signInWithProvider, signOut, type AuthState } from "@/app/actions/auth";
 import { useI18n } from "@/components/providers";
 import { Field, inputClass, Notice } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
+import { CODE_LENGTH, RESEND_AFTER_SECONDS } from "@/lib/auth-code-rules";
 
 function Shell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
@@ -13,25 +15,6 @@ function Shell({ title, subtitle, children }: { title: string; subtitle: string;
       <h1 className="text-[32px] font-semibold tracking-[-0.035em]">{title}</h1>
       <p className="mt-2 text-[15px] text-muted">{subtitle}</p>
       <div className="card mt-8 p-6 shadow-soft sm:p-7">{children}</div>
-    </div>
-  );
-}
-
-type AuthDict = ReturnType<typeof useI18n>["t"]["auth"];
-const MESSAGE_KEYS = [
-  "invalid", "unconfirmed", "rateLimited", "unavailable", "linkExpired", "accountUnavailable",
-  "passwordMismatch", "passwordTooShort", "samePassword", "weakPassword",
-] as const;
-export type AuthNotice = (typeof MESSAGE_KEYS)[number];
-const authMessage = (t: AuthDict, key?: string) =>
-  t[(MESSAGE_KEYS as readonly string[]).includes(key ?? "") ? (key as AuthNotice) : "invalid"];
-
-function Sent() {
-  const { t } = useI18n();
-  return (
-    <div className="flex flex-col items-center gap-3 py-6 text-center">
-      <MailCheck className="size-10 text-success" />
-      <p className="text-[15px]">{t.auth.checkEmail}</p>
     </div>
   );
 }
@@ -74,15 +57,93 @@ function Providers() {
   );
 }
 
+/** Shown above the login form: a session without a usable account, or a failed OAuth callback. */
+export type AuthNotice = "accountUnavailable" | "linkExpired";
+
+function ErrorText({ state }: { state: AuthState }) {
+  const { t } = useI18n();
+  if (!state.error) return null;
+  return (
+    <div role="alert" className="grid gap-1">
+      <p className="text-[13px] text-danger">{t.auth.errors[state.error]}</p>
+      {state.detail && <p className="break-words font-mono text-[11.5px] text-muted">{t.auth.technicalDetail} {state.detail}</p>}
+    </div>
+  );
+}
+
+function Hidden({ values }: { values: Record<string, string | undefined> }) {
+  return Object.entries(values).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null));
+}
+
+/** Seconds left before a new code may be requested. */
+function useCountdown(sentAt?: number) {
+  const [left, setLeft] = useState(RESEND_AFTER_SECONDS);
+  useEffect(() => {
+    const tick = () => setLeft(sentAt ? Math.max(0, Math.ceil((sentAt + RESEND_AFTER_SECONDS * 1000 - Date.now()) / 1000)) : 0);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [sentAt]);
+  return left;
+}
+
+/** Step 2 — type the 6-digit code received by email. */
+function CodeStep({ state, action, pending, next }: { state: AuthState; action: (f: FormData) => void; pending: boolean; next?: string }) {
+  const { t, locale } = useI18n();
+  const left = useCountdown(state.sentAt);
+  const verifyRef = useRef<HTMLButtonElement>(null);
+  const signup = state.purpose === "signup";
+  const application = Object.fromEntries(Object.entries(state.values ?? {}).filter(([k]) => k !== "email"));
+  return (
+    <form action={action} className="grid gap-4">
+      <Hidden values={{ locale, purpose: state.purpose, email: state.email, next, ...(signup ? application : {}) }} />
+      <div className="flex flex-col items-center gap-2 pb-1 text-center">
+        <MailCheck className="size-9 text-success" />
+        <p className="text-[16px] font-semibold">{t.auth.codeSentTitle}</p>
+        <p className="text-[13.5px] text-fg-2">{(signup ? t.auth.codeSentToSignup : t.auth.codeSentTo).replace("{email}", state.email ?? "")}</p>
+      </div>
+      {state.demoCode && (
+        <Notice tone="warning">
+          {t.auth.demoCode} <strong className="font-mono text-[15px] tracking-[0.2em] text-fg">{state.demoCode}</strong>
+        </Notice>
+      )}
+      <Field label={t.auth.codeLabel}>
+        <input
+          name="code" required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={CODE_LENGTH + 2}
+          placeholder="000000" aria-invalid={!!state.error}
+          className={cn(inputClass, "h-14 text-center font-mono text-[24px] tracking-[0.4em]")}
+          onInput={(e) => {
+            const digits = e.currentTarget.value.replace(/\D/g, "");
+            if (digits.length === CODE_LENGTH && !pending) e.currentTarget.form?.requestSubmit(verifyRef.current);
+          }}
+        />
+      </Field>
+      <ErrorText state={state} />
+      <button ref={verifyRef} name="intent" value="verify" disabled={pending} className={buttonClass("primary", "lg", "w-full")}>
+        {pending ? t.common.loading : signup ? t.auth.verify : t.auth.submitLogin}
+      </button>
+      <div className="flex items-center justify-between gap-3 text-[13px]">
+        <button name="intent" value="send" formNoValidate disabled={pending || left > 0} className="text-accent hover:underline disabled:text-muted disabled:no-underline">
+          {left > 0 ? t.auth.resendIn.replace("{s}", String(left)) : t.auth.resend}
+        </button>
+        <button name="intent" value="edit" formNoValidate disabled={pending} className="text-muted hover:text-fg">{t.auth.changeEmail}</button>
+      </div>
+      {!signup && <p className="text-[12.5px] text-muted">{t.auth.noCodeHint}</p>}
+    </form>
+  );
+}
+
+const invalid = (state: AuthState, field: string) => state.status === "error" && !!state.fields?.includes(field);
+
 export function LoginForm({ demo, next, notice }: { demo: boolean; next?: string; notice?: AuthNotice }) {
   const { t, locale } = useI18n();
-  const [mode, setMode] = useState<"password" | "magic">("password");
-  const [state, action, pending] = useActionState<AuthState, FormData>(signIn, { status: "idle" });
+  const [state, action, pending] = useActionState<AuthState, FormData>(codeAuth, { status: "idle" });
+  const v = state.values ?? {};
   return (
     <Shell title={t.auth.loginTitle} subtitle={t.auth.loginSubtitle}>
       {notice && state.status === "idle" && (
         <div className="mb-4 grid gap-3">
-          <Notice tone="warning">{authMessage(t.auth, notice)}</Notice>
+          <Notice tone="warning">{t.auth[notice]}</Notice>
           {notice === "accountUnavailable" && (
             <form action={signOut}>
               <input type="hidden" name="locale" value={locale} />
@@ -91,32 +152,16 @@ export function LoginForm({ demo, next, notice }: { demo: boolean; next?: string
           )}
         </div>
       )}
-      {state.status === "sent" ? <Sent /> : demo ? (
-        <Notice>{t.auth.demoBody}</Notice>
-      ) : (
-        <form action={action} className="grid gap-4">
-          <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="mode" value={mode} />
-          {next && <input type="hidden" name="next" value={next} />}
-          <Field label={t.auth.email}><input name="email" type="email" required autoComplete="email" defaultValue={state.email} className={inputClass} /></Field>
-          {mode === "password" && (
-            <Field label={t.auth.password}><input name="password" type="password" required autoComplete="current-password" className={inputClass} /></Field>
-          )}
-          {state.status === "error" && <p role="alert" className="text-[13px] text-danger">{authMessage(t.auth, state.message)}</p>}
-          <button disabled={pending} className={buttonClass("primary", "lg", "w-full")}>
-            {pending ? t.common.loading : mode === "password" ? t.auth.submitLogin : t.auth.magicLink}
+      {state.status === "code" ? <CodeStep state={state} action={action} pending={pending} next={next} /> : (
+        <form key={JSON.stringify(v)} action={action} className="grid gap-4">
+          <Hidden values={{ locale, purpose: "login", next }} />
+          <Field label={t.auth.email} hint={t.auth.noPassword}>
+            <input name="email" type="email" required autoFocus autoComplete="email" defaultValue={v.email} className={inputClass} />
+          </Field>
+          <ErrorText state={state} />
+          <button name="intent" value="send" disabled={pending} className={buttonClass("primary", "lg", "w-full")}>
+            {pending ? t.common.loading : t.auth.sendCode}
           </button>
-          {state.message === "unconfirmed" && (
-            <button name="intent" value="resend" formNoValidate disabled={pending} className={buttonClass("secondary", "md", "w-full")}>
-              {t.auth.resendConfirmation}
-            </button>
-          )}
-          <div className="flex items-center justify-between text-[13px]">
-            <button type="button" onClick={() => setMode(mode === "password" ? "magic" : "password")} className="text-accent hover:underline">
-              {mode === "password" ? t.auth.magicLink : t.auth.password}
-            </button>
-            <Link href={`/${locale}/forgot`} className="text-muted hover:text-fg">{t.auth.forgot}</Link>
-          </div>
           <Providers />
         </form>
       )}
@@ -130,27 +175,32 @@ export function LoginForm({ demo, next, notice }: { demo: boolean; next?: string
 
 export function RegisterForm({ demo, sponsorCode, sponsorName }: { demo: boolean; sponsorCode?: string | null; sponsorName?: string | null }) {
   const { t, locale } = useI18n();
-  const [state, action, pending] = useActionState<AuthState, FormData>(signUp, { status: "idle" });
+  const [state, action, pending] = useActionState<AuthState, FormData>(codeAuth, { status: "idle" });
+  const v = state.values ?? {};
   return (
     <Shell title={t.auth.registerTitle} subtitle={t.auth.registerSubtitle}>
-      {state.status === "sent" ? <Sent /> : demo ? <Notice>{t.auth.demoBody}</Notice> : (
-        <form action={action} className="grid gap-4">
-          <input type="hidden" name="locale" value={locale} />
-          {sponsorCode && <input type="hidden" name="sponsorCode" value={sponsorCode} />}
+      {state.status === "code" ? <CodeStep state={state} action={action} pending={pending} /> : (
+        <form key={JSON.stringify(v)} action={action} className="grid gap-4">
+          <Hidden values={{ locale, purpose: "signup", sponsorCode: sponsorCode ?? undefined }} />
           {sponsorCode && <Notice>{sponsorName ? t.auth.sponsorInvite.replace("{name}", sponsorName) : t.auth.sponsorInviteGeneric}</Notice>}
-          <Field label={t.auth.fullName}><input name="fullName" required autoComplete="name" className={inputClass} /></Field>
-          <Field label={t.auth.email}><input name="email" type="email" required autoComplete="email" className={inputClass} /></Field>
-          <Field label={t.auth.password} hint="10+"><input name="password" type="password" required minLength={10} autoComplete="new-password" className={inputClass} /></Field>
-          <Field label={t.auth.country}><input name="country" maxLength={2} placeholder="FR" autoComplete="country" className={inputClass} /></Field>
-          <Field label={t.auth.channels}><input name="channels" className={inputClass} /></Field>
+          <Field label={t.auth.fullName}>
+            <input name="fullName" required minLength={2} autoComplete="name" defaultValue={v.fullName} aria-invalid={invalid(state, "fullName")} className={inputClass} />
+          </Field>
+          <Field label={t.auth.email} hint={t.auth.noPassword}>
+            <input name="email" type="email" required autoComplete="email" defaultValue={v.email} aria-invalid={state.error === "invalidEmail"} className={inputClass} />
+          </Field>
+          <Field label={t.auth.country}>
+            <input name="country" maxLength={2} placeholder="FR" autoComplete="country" defaultValue={v.country} aria-invalid={invalid(state, "country")} className={inputClass} />
+          </Field>
+          <Field label={t.auth.channels}><input name="channels" defaultValue={v.channels} className={inputClass} /></Field>
           <label className="flex items-start gap-3 text-[13px] text-fg-2">
-            <input type="checkbox" name="terms" required className="mt-0.5 size-4 accent-[var(--accent)]" />
+            <input type="checkbox" name="terms" required defaultChecked={v.terms === "on"} className="mt-0.5 size-4 accent-[var(--accent)]" />
             <span>
               <Link href={`/${locale}/affiliate-terms`} className="underline underline-offset-2">{t.auth.acceptTerms}</Link>
             </span>
           </label>
-          {state.status === "error" && <p className="text-[13px] text-danger">{state.message}</p>}
-          <button disabled={pending} className={buttonClass("accent", "lg", "w-full")}>{pending ? t.common.loading : t.auth.submitRegister}</button>
+          <ErrorText state={state} />
+          <button name="intent" value="send" disabled={pending} className={buttonClass("accent", "lg", "w-full")}>{pending ? t.common.loading : t.auth.submitRegister}</button>
           <Providers />
         </form>
       )}
@@ -158,48 +208,6 @@ export function RegisterForm({ demo, sponsorCode, sponsorName }: { demo: boolean
       <p className="mt-6 text-center text-[13px] text-muted">
         {t.auth.haveAccount} <Link href={`/${locale}/login`} className="font-medium text-fg hover:underline">{t.nav.login}</Link>
       </p>
-    </Shell>
-  );
-}
-
-export function ForgotForm({ demo }: { demo: boolean }) {
-  const { t, locale } = useI18n();
-  const [state, action, pending] = useActionState<AuthState, FormData>(forgotPassword, { status: "idle" });
-  return (
-    <Shell title={t.auth.forgotTitle} subtitle={t.auth.forgotSubtitle}>
-      {state.status === "sent" ? <Sent /> : demo ? <Notice>{t.auth.demoBody}</Notice> : (
-        <form action={action} className="grid gap-4">
-          <input type="hidden" name="locale" value={locale} />
-          <Field label={t.auth.email}><input name="email" type="email" required autoComplete="email" className={inputClass} /></Field>
-          <button disabled={pending} className={buttonClass("primary", "lg", "w-full")}>{pending ? t.common.loading : t.auth.submitForgot}</button>
-        </form>
-      )}
-      <p className="mt-6 text-center text-[13px]"><Link href={`/${locale}/login`} className="text-muted hover:text-fg">{t.common.back}</Link></p>
-    </Shell>
-  );
-}
-
-export function ResetForm({ demo, hasSession }: { demo: boolean; hasSession: boolean }) {
-  const { t, locale } = useI18n();
-  const [state, action, pending] = useActionState<AuthState, FormData>(updatePassword, { status: "idle" });
-  const expired = !demo && (!hasSession || state.message === "linkExpired");
-  return (
-    <Shell title={t.auth.resetTitle} subtitle={t.auth.resetSubtitle}>
-      {demo ? <Notice>{t.auth.demoBody}</Notice> : expired ? (
-        <div className="grid gap-4">
-          <Notice tone="warning">{t.auth.linkExpired}</Notice>
-          <Link href={`/${locale}/forgot`} className={buttonClass("primary", "lg", "w-full")}>{t.auth.requestNewLink}</Link>
-        </div>
-      ) : (
-        <form action={action} className="grid gap-4">
-          <input type="hidden" name="locale" value={locale} />
-          <Field label={t.auth.newPassword} hint="10+"><input name="password" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputClass} /></Field>
-          <Field label={t.auth.confirmPassword}><input name="confirm" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputClass} /></Field>
-          {state.status === "error" && <p role="alert" className="text-[13px] text-danger">{authMessage(t.auth, state.message)}</p>}
-          <button disabled={pending} className={buttonClass("primary", "lg", "w-full")}>{pending ? t.common.loading : t.auth.submitReset}</button>
-        </form>
-      )}
-      <p className="mt-6 text-center text-[13px]"><Link href={`/${locale}/login`} className="text-muted hover:text-fg">{t.common.back}</Link></p>
     </Shell>
   );
 }

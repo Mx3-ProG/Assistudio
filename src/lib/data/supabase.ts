@@ -11,6 +11,8 @@ import type { Repo, Range } from "./repo";
 import type { SalesContent } from "@/lib/sales/content";
 import { summarizeBook } from "./book";
 import { supabaseMessaging } from "./messaging.supabase";
+import { log } from "@/lib/log";
+import { StepError, describeError, isDuplicate, isMissingDbObject } from "@/lib/auth-errors";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
@@ -89,6 +91,58 @@ async function linkStats(sb: any, filter: { affiliate_id?: string; link_id?: str
     revenueCents: s.reduce((a, x) => a + x.gross_amount_cents, 0),
     commissionCents: s.reduce((a, x) => a + (x.commissions?.[0]?.amount_cents ?? 0), 0),
   };
+}
+
+type Account = { id: string; role: Session["role"]; deleted: boolean };
+type Svc = ReturnType<typeof supabaseService>;
+
+/**
+ * Makes sure an auth user has a profile + affiliate application. Tolerates the
+ * optional auth.users trigger having done it already, and a database where the
+ * idempotent provision_account() is missing or still the old non-idempotent one.
+ */
+async function provisionIfMissing(svc: Svc, id: string, email: string, meta: Record<string, any>): Promise<Account> {
+  const read = async () => {
+    const { data, error } = await svc.from("profiles").select("id, role, deleted_at").eq("id", id).maybeSingle();
+    if (error) throw new StepError("profiles_lookup", error);
+    return data ? { id, role: (data as any).role, deleted: !!(data as any).deleted_at } as Account : null;
+  };
+  const existing = await read();
+  if (existing) return existing;
+
+  const { error } = await svc.rpc("provision_account", { p_id: id, p_email: email, p_meta: meta });
+  if (error && isMissingDbObject(error)) {
+    log.warn("auth", "provision_account missing: direct provisioning fallback");
+    await provisionDirect(svc, id, email, meta);
+  } else if (error && !isDuplicate(error)) {
+    throw new StepError("provision", error);
+  }
+  const account = await read();
+  if (!account) throw new StepError("provision", "profile still missing after provisioning");
+  return account;
+}
+
+/** Same rules as provision_account() in SQL, for a database without it. */
+async function provisionDirect(svc: Svc, id: string, email: string, meta: Record<string, any>) {
+  const { error: pe } = await svc.from("profiles").upsert(
+    { id, email, full_name: String(meta.full_name ?? ""), locale: String(meta.locale ?? "en") },
+    { onConflict: "id", ignoreDuplicates: true },
+  );
+  if (pe) throw new StepError("provision_profile", pe);
+  const { data: setting } = await svc.from("settings").select("value").eq("key", "affiliates.auto_approve").maybeSingle();
+  const autoApprove = (setting as any)?.value === true || (setting as any)?.value === "true";
+  let sponsorId: string | null = null;
+  const code = typeof meta.sponsor_code === "string" && isValidCode(meta.sponsor_code) ? meta.sponsor_code : null;
+  if (code) {
+    const { data: sp } = await svc.from("affiliates").select("id").is("deleted_at", null).eq("status", "approved")
+      .or(`code.ilike.${code},slug.ilike.${code}`).limit(1).maybeSingle();
+    sponsorId = (sp as any)?.id ?? null;
+  }
+  const { error: ae } = await svc.from("affiliates").upsert({
+    profile_id: id, status: autoApprove ? "approved" : "pending", approved_at: autoApprove ? new Date().toISOString() : null,
+    country: meta.country ?? null, application: meta.application ?? {}, sponsor_id: sponsorId,
+  }, { onConflict: "profile_id", ignoreDuplicates: true });
+  if (ae) throw new StepError("provision_affiliate", ae);
 }
 
 export const supabaseRepo: Repo = {
@@ -278,8 +332,14 @@ export const supabaseRepo: Repo = {
     let profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
     if (!profile) {
       // Auth user without a profile (created outside /register): provision it once, audited.
-      const { data: healed } = await sb.rpc("ensure_my_account");
+      const { data: healed, error: healError } = await sb.rpc("ensure_my_account");
       if (healed) profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+      else if (healError && isMissingDbObject(healError) && user.email) {
+        // Self-heal migration not applied: provision with the service role instead.
+        await provisionIfMissing(supabaseService(), user.id, user.email, (user.user_metadata ?? {}) as Record<string, any>)
+          .catch((e) => log.error("auth", "profile provisioning failed", { detail: describeError(e) }));
+        profile = check(await sb.from("profiles").select("*").eq("id", user.id).maybeSingle()) as any;
+      }
     }
     if (!profile || profile.deleted_at) return null;
     const aff = check(await sb.from("affiliates").select("*").eq("profile_id", user.id).maybeSingle()) as any;
@@ -300,6 +360,58 @@ export const supabaseRepo: Repo = {
         sponsorId: aff.sponsor_id ?? null,
       },
     };
+  },
+
+  // ------------------------------------------------------------- passwordless sign-in
+  // Supabase Auth sends the code (signInWithOtp: the "Magic Link" / "Confirm
+  // signup" templates must contain {{ .Token }}) and checks it (verifyOtp,
+  // which writes the session cookies in the current browser). Expiry, OTP
+  // length, rate limits and the SMTP sender are Supabase Auth settings.
+  async sendSignInCode({ email, purpose, signup }) {
+    const { error } = await (await supabaseServer()).auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: purpose === "signup",
+        // Becomes raw_user_meta_data of a NEW user (ignored for an existing one).
+        ...(signup ? { data: signup as unknown as Record<string, unknown> } : {}),
+      },
+    });
+    if (!error) return { status: "sent" };
+    const code = String((error as any).code ?? "");
+    // Login for an unknown address: Supabase refuses to create the user.
+    if (purpose === "login" && (code === "otp_disabled" || code === "signup_disabled" || /signups? not allowed/i.test(error.message))) {
+      return { status: "no_account" };
+    }
+    if (error.status === 429 || code.startsWith("over_")) {
+      // "For security purposes, you can only request this after N seconds" → too soon; otherwise the email quota.
+      if (/after \d+ seconds?/i.test(error.message)) return { status: "too_soon" };
+      return { status: "rate_limited", detail: describeError(new StepError("send_code", error)) };
+    }
+    throw new StepError("send_code", error);
+  },
+
+  async signInWithCode({ email, code, purpose }) {
+    const { data, error } = await (await supabaseServer()).auth.verifyOtp({ email, token: code, type: "email" });
+    if (error) {
+      const c = String((error as any).code ?? "");
+      if (error.status === 429 || c.startsWith("over_")) return { status: "too_many_attempts" };
+      // Supabase answers "Token has expired or is invalid" (otp_expired) for both cases.
+      if (c === "otp_expired" || error.status === 403 || error.status === 400) return { status: "invalid" };
+      throw new StepError("verify_code", error);
+    }
+    const user = data.user;
+    if (!user) throw new StepError("verify_code", "no user in the verified session");
+    try {
+      // Without the optional auth.users trigger, nothing else creates the profile + affiliate application.
+      const account = await provisionIfMissing(supabaseService(), user.id, email, (user.user_metadata ?? {}) as Record<string, any>);
+      if (account.deleted) return { status: "invalid" };
+      const isNew = purpose === "signup" && Date.now() - Date.parse(user.created_at) < 30 * 60_000;
+      return { status: "ok", isNew, role: account.role };
+    } catch (e) {
+      const detail = describeError(e);
+      log.error("auth", "profile provisioning failed after a valid code", { detail });
+      return { status: "failed", detail };
+    }
   },
 
   // ------------------------------------------------------------- affiliate

@@ -4,27 +4,141 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { env, isDemoMode } from "@/lib/env";
 import { supabaseServer } from "@/lib/supabase/server";
+import { repo } from "@/lib/data";
 import { DEMO_SESSION_COOKIE, demoUserId } from "@/lib/data/demo";
+import type { SignupData } from "@/lib/data/repo";
+import { normalizeCode, normalizeEmail, type CodePurpose } from "@/lib/auth-code";
+import { kickEmailOutbox } from "@/lib/email/service";
+import { log } from "@/lib/log";
+import { describeError } from "@/lib/auth-errors";
 import { isLocale, type Locale } from "@/i18n/config";
 
-export type AuthState = { status: "idle" | "error" | "sent"; message?: string; email?: string };
+/**
+ * Passwordless sign-in. Login and sign-up are the same two steps:
+ *   1. email (+ partner application on sign-up) → Supabase Auth emails a
+ *      one-time code (signInWithOtp; template, expiry and sender are set in
+ *      Supabase → Authentication);
+ *   2. the code → session opened (verifyOtp); the account is created on the
+ *      first sign-up and its profile + affiliate application provisioned.
+ * There are no passwords. OAuth stays available when configured.
+ */
+export type AuthError =
+  | "invalidEmail" | "invalidForm" | "rateLimited" | "tooSoon" | "sendFailed"
+  | "codeInvalid" | "codeExpired" | "tooManyAttempts" | "failed";
+export type AuthState = {
+  /** "code": the code step is shown (a code was sent, or would have been). */
+  status: "idle" | "error" | "code";
+  error?: AuthError;
+  /** Invalid sign-up fields (input names). */
+  fields?: string[];
+  email?: string;
+  purpose?: CodePurpose;
+  /** When the last code was requested (ms) — drives the "resend" countdown. */
+  sentAt?: number;
+  /** Development mode only (no real email is sent): shown on screen, clearly labelled. */
+  demoCode?: string;
+  /** Short, non-sensitive technical detail shown under a technical error (src/lib/auth-errors.ts). */
+  detail?: string;
+  /** What was typed (React resets forms after an action; sign-up "resend" needs the application again). */
+  values?: Record<string, string>;
+};
 
-/** Supabase auth errors → dictionary keys (t.auth.*). Never echoes whether an account exists. */
-type AuthErrorKey = "invalid" | "unconfirmed" | "rateLimited" | "unavailable" | "samePassword" | "weakPassword";
-function authErrorKey(error: { code?: string; status?: number } | null): AuthErrorKey {
-  const code = error?.code ?? "";
-  if (code === "email_not_confirmed") return "unconfirmed";
-  if (code === "same_password") return "samePassword";
-  if (code === "weak_password") return "weakPassword";
-  if (code.startsWith("over_") || error?.status === 429) return "rateLimited";
-  if (!error?.status || error.status >= 500) return "unavailable";
-  return "invalid";
-}
+const VALUE_KEYS = ["email", "fullName", "country", "channels", "sponsorCode", "terms"] as const;
+const valuesOf = (form: FormData) =>
+  Object.fromEntries(VALUE_KEYS.flatMap((k) => (typeof form.get(k) === "string" ? [[k, String(form.get(k)).slice(0, 500)]] : [])));
 
 const loc = (v: FormDataEntryValue | null): Locale => (typeof v === "string" && isLocale(v) ? v : "en");
 const safeNext = (v: FormDataEntryValue | null, locale: Locale) =>
   typeof v === "string" && v.startsWith("/") && !v.startsWith("//") ? v : `/${locale}/dashboard`;
 const callback = (next: string) => `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}`;
+const purposeOf = (v: FormDataEntryValue | null): CodePurpose => (v === "signup" ? "signup" : "login");
+
+const registerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  country: z.string().trim().max(2).optional().default(""),
+  channels: z.string().trim().max(500).optional().default(""),
+  sponsorCode: z.string().trim().regex(/^[A-Za-z0-9-]{3,40}$/).optional(),
+  terms: z.literal("on"),
+});
+
+function parseEmail(v: FormDataEntryValue | null): string | null {
+  const parsed = z.email().safeParse(String(v ?? "").trim());
+  return parsed.success ? normalizeEmail(parsed.data) : null;
+}
+
+/** One action for the whole form: intent = send | verify | edit. */
+export async function codeAuth(prev: AuthState, form: FormData): Promise<AuthState> {
+  const intent = form.get("intent");
+  if (intent === "edit") return { status: "idle", values: valuesOf(form) };
+  if (intent === "verify") return verifyCode(prev, form);
+  return requestCode(form);
+}
+
+async function requestCode(form: FormData): Promise<AuthState> {
+  const state = await issue(form);
+  return { ...state, values: valuesOf(form) };
+}
+
+async function issue(form: FormData): Promise<AuthState> {
+  const locale = loc(form.get("locale"));
+  const purpose = purposeOf(form.get("purpose"));
+  const email = parseEmail(form.get("email"));
+  if (!email) return { status: "error", error: "invalidEmail" };
+
+  let signup: SignupData | null = null;
+  if (purpose === "signup") {
+    const fields = Object.fromEntries([...form].filter(([k]) => k in registerSchema.shape));
+    const parsed = registerSchema.safeParse(fields);
+    if (!parsed.success) {
+      return { status: "error", error: "invalidForm", fields: [...new Set(parsed.error.issues.map((i) => String(i.path[0])))] };
+    }
+    const d = parsed.data;
+    signup = {
+      full_name: d.fullName, locale, country: d.country.toUpperCase() || null, sponsor_code: d.sponsorCode ?? null,
+      application: { channels: d.channels, terms_accepted_at: new Date().toISOString() },
+    };
+  }
+
+  const base = { email, purpose };
+  let res;
+  try {
+    res = await repo().sendSignInCode({ email, purpose, signup });
+  } catch (e) {
+    const detail = describeError(e);
+    log.error("auth", "send code failed", { detail });
+    return { status: "error", error: "sendFailed", detail };
+  }
+  if (res.status === "rate_limited") return { status: "error", error: "rateLimited", detail: res.detail };
+  if (res.status === "too_soon") return { status: "code", ...base, error: "tooSoon" };
+  // "no_account" (unknown address on login): same screen, nothing sent (no account enumeration).
+  return { status: "code", ...base, sentAt: Date.now(), ...(res.status === "sent" && res.demoCode ? { demoCode: res.demoCode } : {}) };
+}
+
+async function verifyCode(prev: AuthState, form: FormData): Promise<AuthState> {
+  const locale = loc(form.get("locale"));
+  const email = parseEmail(form.get("email"));
+  if (!email) return { status: "error", error: "invalidEmail" };
+  const purpose = purposeOf(form.get("purpose"));
+  const keep = { status: "code" as const, email, purpose, sentAt: prev.sentAt, demoCode: prev.demoCode, values: prev.values };
+
+  const code = normalizeCode(form.get("code"));
+  if (!code) return { ...keep, error: "codeInvalid" };
+  let res;
+  try {
+    res = await repo().signInWithCode({ email, code, purpose });
+  } catch (e) {
+    const detail = describeError(e);
+    log.error("auth", "verify code failed", { detail });
+    return { ...keep, error: "failed", detail };
+  }
+  if (res.status !== "ok") {
+    if (res.status === "failed") return { ...keep, error: "failed", detail: res.detail };
+    const errors = { invalid: "codeInvalid", expired: "codeExpired", too_many_attempts: "tooManyAttempts" } as const;
+    return { ...keep, error: errors[res.status] };
+  }
+  if (res.isNew) kickEmailOutbox(); // affiliate.welcome, queued when the account was created
+  redirect(res.isNew ? `/${locale}/dashboard/welcome` : safeNext(form.get("next"), locale));
+}
 
 export async function demoSignIn(form: FormData) {
   if (!isDemoMode) throw new Error("Demo mode is disabled");
@@ -32,79 +146,6 @@ export async function demoSignIn(form: FormData) {
   const persona = form.get("persona") === "admin" ? "admin" : form.get("persona") === "pending" ? "pending" : "affiliate";
   (await cookies()).set(DEMO_SESSION_COOKIE, demoUserId(persona), { path: "/", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 7 });
   redirect(persona === "admin" ? `/${locale}/admin` : `/${locale}/dashboard`);
-}
-
-export async function signIn(_prev: AuthState, form: FormData): Promise<AuthState> {
-  const locale = loc(form.get("locale"));
-  const next = safeNext(form.get("next"), locale);
-  const email = z.email().safeParse(form.get("email"));
-  if (!email.success) return { status: "error", message: "invalid" };
-  const sb = await supabaseServer();
-
-  if (form.get("intent") === "resend") {
-    const { error } = await sb.auth.resend({ type: "signup", email: email.data, options: { emailRedirectTo: callback(`/${locale}/dashboard/welcome`) } });
-    return error && authErrorKey(error) !== "invalid" ? { status: "error", message: authErrorKey(error), email: email.data } : { status: "sent" };
-  }
-  if (form.get("mode") === "magic") {
-    const { error } = await sb.auth.signInWithOtp({ email: email.data, options: { emailRedirectTo: callback(next), shouldCreateUser: false } });
-    return error ? { status: "error", message: authErrorKey(error), email: email.data } : { status: "sent" };
-  }
-  const password = String(form.get("password") ?? "");
-  const { error } = await sb.auth.signInWithPassword({ email: email.data, password });
-  if (error) return { status: "error", message: authErrorKey(error), email: email.data };
-  redirect(next);
-}
-
-const registerSchema = z.object({
-  fullName: z.string().trim().min(2).max(120),
-  email: z.email(),
-  password: z.string().min(10).max(200),
-  country: z.string().trim().max(2).optional().default(""),
-  channels: z.string().trim().max(500).optional().default(""),
-  sponsorCode: z.string().trim().regex(/^[A-Za-z0-9-]{3,40}$/).optional(),
-  terms: z.literal("on"),
-});
-
-export async function signUp(_prev: AuthState, form: FormData): Promise<AuthState> {
-  const locale = loc(form.get("locale"));
-  const parsed = registerSchema.safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues.map((i) => i.path[0]).join(", ") };
-  const d = parsed.data;
-  const sb = await supabaseServer();
-  const { error } = await sb.auth.signUp({
-    email: d.email,
-    password: d.password,
-    options: {
-      emailRedirectTo: callback(`/${locale}/dashboard/welcome`),
-      // Read by the handle_new_user() trigger → profile + affiliate application.
-      data: { full_name: d.fullName, locale, country: d.country.toUpperCase() || null, sponsor_code: d.sponsorCode ?? null, application: { channels: d.channels, terms_accepted_at: new Date().toISOString() } },
-    },
-  });
-  return error ? { status: "error", message: error.message } : { status: "sent" };
-}
-
-export async function forgotPassword(_prev: AuthState, form: FormData): Promise<AuthState> {
-  const locale = loc(form.get("locale"));
-  const email = z.email().safeParse(form.get("email"));
-  if (!email.success) return { status: "error", message: "invalid" };
-  const sb = await supabaseServer();
-  await sb.auth.resetPasswordForEmail(email.data, { redirectTo: callback(`/${locale}/reset`) });
-  // Same answer whether or not the account exists (no user enumeration).
-  return { status: "sent" };
-}
-
-/** Lands here from the recovery email (via /auth/callback, which opened a session). */
-export async function updatePassword(_prev: AuthState, form: FormData): Promise<AuthState> {
-  const locale = loc(form.get("locale"));
-  const password = String(form.get("password") ?? "");
-  if (password.length < 10 || password.length > 200) return { status: "error", message: "passwordTooShort" };
-  if (password !== String(form.get("confirm") ?? "")) return { status: "error", message: "passwordMismatch" };
-  const sb = await supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { status: "error", message: "linkExpired" };
-  const { error } = await sb.auth.updateUser({ password });
-  if (error) return { status: "error", message: authErrorKey(error) };
-  redirect(`/${locale}/dashboard`);
 }
 
 export async function signInWithProvider(form: FormData) {

@@ -1,8 +1,7 @@
-import { isDemoMode } from "@/lib/env";
-import { hasAuthUser } from "@/lib/auth";
-import { ResetForm } from "@/components/auth-forms";
+import { redirect } from "next/navigation";
 
-/** Reached from the password-recovery email, after /auth/callback opened a session. */
-export default async function Reset() {
-  return <ResetForm demo={isDemoMode} hasSession={await hasAuthUser()} />;
+/** Passwords are gone: sign-in is by emailed code. Old password-reset links land on login. */
+export default async function Reset({ params }: PageProps<"/[locale]/reset">) {
+  const { locale } = await params;
+  redirect(`/${locale}/login`);
 }
