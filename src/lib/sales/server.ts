@@ -7,6 +7,11 @@ import { marketContent } from "@/content/markets";
 import type { Locale } from "@/i18n/config";
 import { pickLocale, contentText, isKind, type SalesContent, type ContentKind } from "./content";
 import type { SearchDoc } from "./search";
+import { followUpBoard } from "./follow-up";
+import { recommend, guideFor } from "./guide";
+import { personalize } from "./personalize";
+import type { Dictionary } from "@/i18n/dictionaries/en";
+import type { FollowUpItem } from "@/components/copilot/follow-up-list";
 
 type AffiliateSession = Session & { affiliate: NonNullable<Session["affiliate"]> };
 
@@ -57,6 +62,8 @@ export function ofKind<K extends ContentKind>(content: SalesContent[], kind: K):
 const SECTION_OF: Partial<Record<ContentKind, string>> = {
   playbook: "playbooks", call_script: "calls", message: "messages", email_template: "emails",
   objection: "objections", knowledge: "product", asset: "assets", journey: "first-week",
+  case_study: "assets", pitch: "pitch", diagnostic: "pitch", sequence: "follow-ups",
+  signal: "signals",
 };
 
 /** Compact search index shipped to the browser (instant, offline-tolerant). */
@@ -78,4 +85,67 @@ export function searchDocs(content: SalesContent[], markets: Market[], locale: L
     });
   }
   return docs;
+}
+
+/**
+ * Today's follow-ups computed on the CRM prospects + the published sequences,
+ * with the message already personalised (prospect first name, company, the
+ * best link for the prospect's sector). Shared by the hub badge and the page.
+ */
+export async function followUps(s: AffiliateSession, locale: Locale, t: Dictionary) {
+  const [ctx, prospects] = await Promise.all([salesContext(s, locale), repo().listProspects(s)]);
+  const sequences = ofKind(ctx.content, "sequence").map((x) => ({ key: x.key, stage: x.stage, steps: x.body.steps }));
+  const markets = new Map(ctx.markets.map((m) => [m.id, m]));
+  const board = followUpBoard(prospects, sequences, Date.now());
+  const item = (r: (typeof board)[number]): FollowUpItem => {
+    const p = r.prospect;
+    const market = p.marketId ? markets.get(p.marketId) : undefined;
+    const vars = {
+      firstName: p.name.split(" ")[0], company: p.company, advisorName: ctx.advisorName,
+      affiliateUrl: ctx.urlForTarget(market?.slug ?? null), sector: market ? marketContent(market, locale).name : null,
+    };
+    return {
+      id: p.id, name: p.name, company: p.company, email: p.email, phone: p.phone,
+      stageLabel: t.dash.prospects.stages[p.stage], daysSince: r.status.daysSince, sequenceKey: r.sequenceKey,
+      step: r.step ? { ...r.step, text: personalize(r.step.text, vars, t.sc.messages.vars).text } : null,
+      plannedAt: r.status.planned ? p.nextActionAt : r.status.next?.at ?? null,
+      plannedLabel: r.status.planned ? p.nextAction : r.next ? `J+${r.next.day} · ${r.next.goal}` : null,
+    };
+  };
+  return {
+    due: board.filter((r) => r.status.due !== null).map(item),
+    upcoming: board.filter((r) => r.status.due === null).map(item),
+  };
+}
+
+/** Slim sector list for the browser-side matcher: names + synonyms only, every locale. */
+export function sectorOptions(markets: Market[], locale: Locale) {
+  return markets.map((m) => ({
+    slug: m.slug, icon: m.icon, name: marketContent(m, locale).name,
+    content: Object.fromEntries(Object.entries(m.content).map(([l, c]) => [l, c && { name: c.name, keywords: c.keywords }])),
+  }));
+}
+
+/**
+ * V0.5 guided pipeline: the next best action of every open prospect, most
+ * urgent first (follow-up due → act now → wait). Shared by the home and the
+ * prospects board.
+ */
+export async function nextActions(s: AffiliateSession, locale: Locale) {
+  const [ctx, prospects] = await Promise.all([salesContext(s, locale), repo().listProspects(s)]);
+  const guides = ofKind(ctx.content, "stage_guide");
+  const sequences = ofKind(ctx.content, "sequence").map((x) => ({ key: x.key, stage: x.stage, steps: x.body.steps }));
+  const slugOf = new Map(ctx.markets.map((m) => [m.id, m.slug]));
+  const now = Date.now();
+  const order = { follow_up: 0, act: 1, wait: 2 } as const;
+  return prospects
+    .filter((p) => p.stage !== "won" && p.stage !== "lost")
+    .map((p) => {
+      const sector = p.marketId ? slugOf.get(p.marketId) ?? null : null;
+      const rec = recommend(p, sequences, now);
+      const guide = guideFor(guides, p.stage, sector);
+      const planned = p.nextActionAt && Date.parse(p.nextActionAt) > now ? p.nextActionAt : null;
+      return { prospect: p, rec, guide, planned, label: rec.mode === "follow_up" && rec.step ? `J+${rec.step.day} · ${rec.step.goal}` : guide?.body.action ?? null };
+    })
+    .sort((a, b) => order[a.rec.mode] - order[b.rec.mode] || Date.parse(a.rec.waitUntil ?? a.prospect.createdAt) - Date.parse(b.rec.waitUntil ?? b.prospect.createdAt));
 }

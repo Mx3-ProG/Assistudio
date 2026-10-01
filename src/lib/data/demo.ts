@@ -18,7 +18,7 @@ import type {
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
   ClickInput, LeadInput, ReferralTarget, LinkStats, RecurringContract, SubscriptionStatus,
   PerformanceRow, ProductView,
-  PromoCode,
+  PromoCode, ProspectEvent,
 } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -100,6 +100,7 @@ interface Store {
   clicks: DemoClick[];
   leads: DemoLead[];
   prospects: (Prospect & { affiliateId: string; deletedAt: string | null })[];
+  prospectEvents: (ProspectEvent & { affiliateId: string })[];
   customers: DemoCustomer[];
   subscriptions: DemoSubscription[];
   sales: DemoSale[];
@@ -150,7 +151,7 @@ function seed(): Store {
   const s: Store = {
     markets: structuredClone(defaultMarkets).map((m) => ({ ...m, active: true })),
     settings, offer, offers, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
-    prospects: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
+    prospects: [], prospectEvents: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
     activity: [], notifications: [], promoCodes: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
     content: defaultSalesContent.map((c, i) => ({
       id: `cnt_${i}`, kind: c.kind, key: c.key, locale: c.locale, version: 1, status: c.status, productId: "prod_studio",
@@ -789,6 +790,16 @@ export const demoRepo: Repo = {
     if (patch.stage && patch.stage !== p.stage) p.stageChangedAt = iso(now());
     Object.assign(p, patch);
   },
+  async listProspectEvents(s, prospectId) {
+    const aff = mustAffiliate(s);
+    return db().prospectEvents.filter((e) => e.affiliateId === aff && (!prospectId || e.prospectId === prospectId))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+  async addProspectEvent(s, prospectId, type, stage, payload = {}) {
+    const aff = mustAffiliate(s);
+    if (!db().prospects.some((p) => p.id === prospectId && p.affiliateId === aff && !p.deletedAt)) throw new Error("not_found");
+    db().prospectEvents.push({ id: id("pev"), prospectId, type, stage, payload, createdAt: iso(now()), affiliateId: aff });
+  },
   async deleteProspect(s, pid) {
     const aff = mustAffiliate(s);
     const p = db().prospects.find((x) => x.id === pid && x.affiliateId === aff);
@@ -1031,6 +1042,7 @@ export const demoRepo: Repo = {
       profile: st.users.find((u) => u.userId === s.userId),
       affiliate: st.affiliates.find((a) => a.id === aff),
       prospects: st.prospects.filter((p) => p.affiliateId === aff),
+      prospectEvents: st.prospectEvents.filter((e) => e.affiliateId === aff),
       campaigns: st.campaigns.filter((c) => c.affiliateId === aff),
       commissions: st.commissions.filter((c) => c.affiliateId === aff),
       payouts: st.payouts.filter((p) => p.affiliateId === aff),

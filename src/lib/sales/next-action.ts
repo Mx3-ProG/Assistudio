@@ -8,7 +8,8 @@
  */
 
 export type Stage =
-  | "new" | "contacted" | "replied" | "qualified" | "interested" | "appointment" | "proposal" | "checkout" | "won" | "lost";
+  | "new" | "contacted" | "replied" | "qualified" | "interested" | "proof_sent" | "appointment" | "proposal"
+  | "handed_off" | "checkout" | "won" | "lost";
 
 export type ActionKind =
   | "planned" | "send_first_message" | "wait_reply" | "follow_up" | "qualify_call" | "book_appointment"

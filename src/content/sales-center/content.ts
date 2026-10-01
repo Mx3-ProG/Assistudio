@@ -13,6 +13,10 @@
  * {{affiliateUrl}} {{campaign}} — see src/lib/sales/personalize.ts.
  */
 import type { BodyByKind, Channel, ContentKind, FunnelStage } from "../../lib/sales/content.ts";
+import { copilotContent } from "./copilot.ts";
+import { defaultCaseStudies } from "./case-studies.ts";
+import { guidedContent } from "./guided.ts";
+import { v1CommercialContent } from "./v1-commercial.ts";
 
 export interface SeedContent<K extends ContentKind = ContentKind> {
   kind: K;
@@ -633,4 +637,10 @@ const journey = both("journey", "first-week", { sort: 0 },
 
 export const defaultSalesContent: SeedContent[] = [
   ...template, ...variants, ...angles, ...playbooks, ...scripts, ...messages, ...emails, ...objections, ...knowledge, ...assets, ...journey,
+  // V0.4 ambassador copilot
+  ...copilotContent, ...defaultCaseStudies,
+  // V0.5 guided pipeline
+  ...guidedContent,
+  // V1 brief completion: opportunity signals and minimum usable libraries.
+  ...v1CommercialContent,
 ];

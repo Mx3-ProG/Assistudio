@@ -174,3 +174,25 @@ test("seeded targets have the Sales Center fields in EN and FR", async () => {
     }
   }
 });
+
+test("V1 ships a usable commercial library in every source language", async () => {
+  const { defaultSalesContent } = await import("../../content/sales-center/content.ts");
+  for (const locale of ["en", "fr"]) {
+    const items = defaultSalesContent.filter((x) => x.locale === locale);
+    const count = (kind: string) => items.filter((x) => x.kind === kind).length;
+    assert.ok(count("signal") >= 20, `${locale}: 20 buying signals`);
+    assert.ok(count("message") >= 10, `${locale}: 10 ready messages`);
+    assert.ok(count("email_template") >= 8, `${locale}: 8 emails`);
+    assert.ok(count("call_script") >= 5, `${locale}: 5 call scripts`);
+    assert.ok(count("objection") >= 15, `${locale}: 15 objections`);
+    const questions = items.filter((x) => x.kind === "diagnostic")
+      .reduce((n, x) => n + (x.body as { questions: unknown[] }).questions.length, 0);
+    assert.ok(questions >= 20, `${locale}: 20 discovery questions`);
+  }
+});
+
+test("unverified portfolio references stay unpublished until Studio approves them", async () => {
+  const { defaultCaseStudies } = await import("../../content/sales-center/case-studies.ts");
+  assert.ok(defaultCaseStudies.length > 0);
+  assert.ok(defaultCaseStudies.every((item) => item.status === "draft"));
+});

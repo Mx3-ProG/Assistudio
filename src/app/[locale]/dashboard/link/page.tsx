@@ -41,6 +41,14 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
       <SharePanel url={url} qrDataUrl={qr} />
       <Card className="mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:p-6">
         <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-semibold">{t.cp.kit.code}</h2>
+          <p className="mt-0.5 text-[13px] text-muted">{t.cp.kit.codeHint}</p>
+        </div>
+        <p className="font-mono text-[20px] font-semibold tracking-[0.08em]" dir="ltr">{s.affiliate.code}</p>
+        <CopyButton value={s.affiliate.code} />
+      </Card>
+      <Card className="mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:p-6">
+        <div className="min-w-0 flex-1">
           <h2 className="text-[15px] font-semibold">{t.dash.link.checkoutTitle}</h2>
           <p className="mt-0.5 text-[13px] text-muted">{t.dash.link.checkoutHint}</p>
           <p className="mt-2 truncate font-mono text-[12px] text-fg-2">{checkoutUrl}</p>

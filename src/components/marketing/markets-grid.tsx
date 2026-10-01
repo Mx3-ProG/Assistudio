@@ -4,15 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import {
   Camera, Gem, Video, Ruler, Sofa, Hammer, CookingPot, Leaf, Waves, Briefcase, Users, Sparkles, X, ArrowUpRight,
   Wrench, Car, HardHat, HeartPulse, Megaphone, Store, User, Handshake,
+  Hotel, UtensilsCrossed, GraduationCap, ShoppingCart, Factory, Scale,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { CopyButton } from "@/components/ui/copy-button";
-import { marketContent, type Market } from "@/content/markets";
+import { marketContent, MARKET_IMAGES, type Market } from "@/content/markets";
 
 const ICONS: Record<string, typeof Camera> = {
   camera: Camera, rings: Gem, video: Video, ruler: Ruler, sofa: Sofa, hammer: Hammer, kitchen: CookingPot,
   leaf: Leaf, waves: Waves, briefcase: Briefcase, users: Users, sparkles: Sparkles,
   wrench: Wrench, car: Car, hardhat: HardHat, health: HeartPulse, megaphone: Megaphone, store: Store, user: User, handshake: Handshake,
+  hotel: Hotel, utensils: UtensilsCrossed, graduation: GraduationCap, cart: ShoppingCart, factory: Factory, scale: Scale,
 };
 export function MarketIcon({ name, className }: { name: string; className?: string }) {
   const Icon = ICONS[name] ?? Sparkles;
@@ -43,13 +45,17 @@ export function MarketsGrid({ markets, action }: { markets: Market[]; action?: (
                 onClick={() => setOpen(m)}
                 className="group relative flex h-full min-h-48 w-full flex-col items-start gap-4 overflow-hidden rounded-[var(--radius)] border border-white/15 bg-[#090b16] p-4 text-start text-white shadow-sm transition hover:-translate-y-0.5 hover:border-white/25 hover:shadow-md sm:min-h-56 sm:p-5"
               >
-                <Image
-                  src={`/images/markets/${m.slug}.webp`}
-                  alt=""
-                  fill
-                  sizes="(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"
-                  className="object-cover transition duration-500 group-hover:scale-[1.035]"
-                />
+                {MARKET_IMAGES.has(m.slug) ? (
+                  <Image
+                    src={`/images/markets/${m.slug}.webp`}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"
+                    className="object-cover transition duration-500 group-hover:scale-[1.035]"
+                  />
+                ) : (
+                  <span aria-hidden className="absolute inset-0 bg-[radial-gradient(120%_90%_at_20%_0%,var(--accent)_0%,transparent_60%)] opacity-50" />
+                )}
                 <span aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/35 to-black/90" />
                 <span className="relative grid size-10 place-items-center rounded-xl border border-white/20 bg-black/35 text-white shadow-sm backdrop-blur-md">
                   <MarketIcon name={m.icon} className="size-5" />

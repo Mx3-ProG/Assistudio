@@ -4,7 +4,8 @@ import { z } from "zod";
 import { repo, getSession } from "@/lib/data";
 import type { Session } from "@/lib/data/types";
 import { locales } from "@/i18n/config";
-import { CTA_MODES, CHANNELS, KEY_PATTERN } from "@/lib/sales/content";
+import { CTA_MODES, CHANNELS, KEY_PATTERN, pickLocale, type SequenceBody } from "@/lib/sales/content";
+import { nextPlannedAt } from "@/lib/sales/follow-up";
 import { cleanAdvisor } from "@/lib/sales/landing";
 import { GENERAL_PATH } from "@/lib/sales/server";
 import type { FormState } from "./dashboard";
@@ -124,4 +125,27 @@ export async function createLink(_: FormState, form: FormData): Promise<FormStat
   }
   refresh();
   return { ok: true };
+}
+
+/**
+ * Follow-up sent → plan the next step of the sequence in the prospect's own
+ * CRM fields (`nextAction` / `nextActionAt`). Nothing is sent by Studio ATS;
+ * the sequence and its steps are read on the server, never trusted from the form.
+ */
+export async function markFollowUpSent(prospectId: string, sequenceKey: string, uiLocale: string): Promise<{ ok: boolean; finished?: boolean }> {
+  const s = await affiliateSession();
+  const r = repo();
+  const [prospects, content] = await Promise.all([r.listProspects(s), r.listSalesContent(s, ["sequence"])]);
+  const p = prospects.find((x) => x.id === z.string().min(1).max(64).parse(prospectId));
+  // The planned step is written in the language the ambassador is using.
+  const seq = pickLocale(content, (locales as readonly string[]).includes(uiLocale) ? uiLocale : s.locale).find((c) => c.key === keySchema.parse(sequenceKey));
+  if (!p || !seq || seq.kind !== "sequence") return { ok: false };
+  const steps = (seq.body as SequenceBody).steps;
+  const next = nextPlannedAt(p, steps, Date.now());
+  await r.updateProspect(s, p.id, next
+    ? { nextAction: `${steps[next.index].goal} (J+${steps[next.index].day})`, nextActionAt: next.at }
+    : { nextAction: null, nextActionAt: null });
+  await r.addProspectEvent(s, p.id, "follow_up_sent", p.stage, { sequence: seq.key }).catch(() => undefined);
+  refresh();
+  return { ok: true, finished: !next };
 }

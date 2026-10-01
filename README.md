@@ -10,6 +10,10 @@ AFFILIATE → LINK → PROSPECT/LEAD → SALE → PAYMENT → COMMISSION → REN
 
 **V0.2** connects Stripe (Checkout, Billing, webhooks, Connect preparation), a real commission ledger with recurring commissions, and Resend transactional emails. Read **[docs/V0.2-payments.md](docs/V0.2-payments.md)** for the pipeline, setup in Stripe test mode, email responsibilities, test coverage and the business decisions still to confirm.
 
+**V0.4 — ambassador copilot**: the Sales Center becomes a "What do you want to do?" copilot (sector search, sector sheets, projects to show, follow-ups on the CRM, typed ambassador code at checkout). Audit, decisions and report: **[docs/V0.4-ambassador-copilot.md](docs/V0.4-ambassador-copilot.md)**.
+
+**V0.5 — guided pipeline**: every prospect has a "next best action" page (why · what to do · say · show · and then?), prospect replies with answer levels 1/2/3, "Hand over to Studio" (attribution kept), official facts, first-sale path. **[docs/V0.5-guided-pipeline.md](docs/V0.5-guided-pipeline.md)**.
+
 ## Quick start (demo mode, no setup)
 
 ```bash

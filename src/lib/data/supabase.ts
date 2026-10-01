@@ -596,6 +596,17 @@ export const supabaseRepo: Repo = {
     const sb = await supabaseServer();
     check(await sb.from("prospects").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("affiliate_id", mustAffiliate(s)));
   },
+  async listProspectEvents(s, prospectId) {
+    const sb = await supabaseServer();
+    let q = sb.from("prospect_events").select("id, prospect_id, type, stage, payload, created_at").eq("affiliate_id", mustAffiliate(s))
+      .order("created_at", { ascending: false }).limit(prospectId ? 100 : 2000);
+    if (prospectId) q = q.eq("prospect_id", prospectId);
+    return (check(await q) as any[]).map((r) => ({ id: r.id, prospectId: r.prospect_id, type: r.type, stage: r.stage, payload: r.payload ?? {}, createdAt: r.created_at }));
+  },
+  async addProspectEvent(s, prospectId, type, stage, payload = {}) {
+    const sb = await supabaseServer();
+    check(await sb.from("prospect_events").insert({ affiliate_id: mustAffiliate(s), prospect_id: prospectId, type, stage, payload }));
+  },
   async listSales(s) {
     const sb = await supabaseServer();
     const [rows, customers] = await Promise.all([
@@ -828,7 +839,7 @@ export const supabaseRepo: Repo = {
   async exportMyData(s) {
     const sb = await supabaseServer();
     const aff = s.affiliate?.id ?? "";
-    const tables = ["prospects", "campaigns", "affiliate_links", "private_sales_pages", "commissions", "payouts", "goals"] as const;
+    const tables = ["prospects", "prospect_events", "campaigns", "affiliate_links", "private_sales_pages", "commissions", "payouts", "goals"] as const;
     const out: Record<string, unknown> = {
       profile: check(await sb.from("profiles").select("*").eq("id", s.userId).single()),
       affiliate: check(await sb.from("affiliates").select("*").eq("id", aff).maybeSingle()),

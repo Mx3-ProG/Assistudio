@@ -5,6 +5,7 @@
  */
 import type { Locale } from "@/i18n/config";
 import { salesTargets } from "./sales-center/targets.ts";
+import { SECTOR_META, copilotSectors } from "./sales-center/sectors.ts";
 
 export interface MarketContent {
   name: string;
@@ -21,6 +22,10 @@ export interface MarketContent {
   discovery?: string[];
   /** What NOT to sell this target (e.g. "a small website"). */
   avoid?: string;
+  /** V0.4 copilot: synonyms the sector search matches ("hôtel", "b&b", "gîte"…), any language. */
+  keywords?: string[];
+  /** V0.4 copilot: the offer to suggest first for this sector. */
+  offer?: "one" | "pro" | "premium";
 }
 
 export interface Market {
@@ -272,7 +277,18 @@ const baseMarkets: Market[] = [
     }),
 ];
 
-export const defaultMarkets: Market[] = [...salesTargets, ...baseMarkets];
+/** Markets that ship a card photo in public/images/markets (others get a gradient). */
+export const MARKET_IMAGES = new Set([...salesTargets, ...baseMarkets].map((m) => m.slug));
+
+/** Adds the copilot synonyms + recommended offer to a seed market (every locale). */
+function withMeta(m: Market): Market {
+  const meta = SECTOR_META[m.slug];
+  if (!meta) return m;
+  const content = Object.fromEntries(Object.entries(m.content).map(([l, c]) => [l, { ...c, ...meta }])) as Market["content"];
+  return { ...m, content };
+}
+
+export const defaultMarkets: Market[] = [...salesTargets, ...baseMarkets].map(withMeta).concat(copilotSectors);
 
 export function marketContent(market: Market, locale: Locale): MarketContent {
   return market.content[locale] ?? market.content.en;

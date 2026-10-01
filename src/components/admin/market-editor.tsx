@@ -51,6 +51,21 @@ export function MarketEditor({ markets, editLocale }: { markets: (Market & { act
           ))}
           <Field label="message"><textarea name="message" rows={5} required defaultValue={(c ?? m.content.en).message} className={textareaClass} /></Field>
           <Field label="searches (one per line)"><textarea name="searches" rows={3} defaultValue={(c ?? m.content.en).searches.join("\n")} className={textareaClass} /></Field>
+          {(["pains", "needs", "outcomes", "discovery"] as const).map((k) => (
+            <Field key={k} label={`${k} (one per line)`}>
+              <textarea name={k} rows={4} defaultValue={((c ?? m.content.en)[k] ?? []).join("\n")} className={textareaClass} />
+            </Field>
+          ))}
+          <Field label="avoid"><textarea name="avoid" rows={2} defaultValue={(c ?? m.content.en).avoid ?? ""} className={textareaClass} /></Field>
+          <Field label="keywords — copilot sector search synonyms, any language (one per line or comma-separated)">
+            <textarea name="keywords" rows={3} defaultValue={((c ?? m.content.en).keywords ?? []).join(", ")} className={textareaClass} />
+          </Field>
+          <Field label="offer — recommended first offer">
+            <select name="offer" defaultValue={(c ?? m.content.en).offer ?? ""} className={inputClass}>
+              <option value="">—</option>
+              {(["one", "pro", "premium"] as const).map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </Field>
           <label className="flex items-center gap-3 text-[14px]"><input type="checkbox" name="active" defaultChecked={m.active} className="size-4 accent-[var(--accent)]" />Active</label>
           <div className="flex items-center gap-3">
             <button disabled={pending} className={buttonClass("primary", "md")}>{t.common.save}</button>

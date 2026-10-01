@@ -16,8 +16,8 @@ import { CheckoutButton } from "@/components/marketing/checkout-button";
 import { OfferPrice } from "@/components/marketing/pricing-plans";
 import { Money } from "@/components/ui/money";
 import { VISITOR_COOKIE } from "@/lib/attribution";
-import { resolveForConversion } from "@/lib/services/attribution";
-import { discountCents, normalizePromoCode, resolvePromoCode } from "@/lib/services/promo";
+import { resolveCheckoutAttribution } from "@/lib/services/attribution";
+import { discountCents, normalizePromoCode } from "@/lib/services/promo";
 import { formatPercent } from "@/lib/money";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/buy">): Promise<Metadata> {
@@ -46,11 +46,14 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
   const offer = offers.find((o) => o.tier === tier) ?? offers[offers.length - 1];
   const requestedPromo = normalizePromoCode(sp.promo);
   const jar = await cookies();
-  const attribution = !isDemoMode ? await resolveForConversion({
-    sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null, privatePageSlug: page,
+  // Same resolution as the checkout: a typed code (promo or ambassador code) only
+  // attributes when no tracked click / private page does.
+  const resolved = !isDemoMode ? await resolveCheckoutAttribution({
+    sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null, privatePageSlug: page, code: requestedPromo,
   }) : null;
-  const promo = !isDemoMode ? await resolvePromoCode(requestedPromo, attribution?.affiliateId ?? null) : null;
-  const promoInvalid = !!requestedPromo && !promo;
+  const promo = resolved?.promo ?? null;
+  const promoInvalid = !!requestedPromo && (isDemoMode || resolved?.code === "invalid");
+  const codeAdvisor = resolved?.code === "attributed" ? resolved.advisor : null;
   const discount = promo ? discountCents(offer.priceCents, promo.discountRate) : 0;
   const finalPrice = offer.priceCents - discount;
   const plan = t.pricing.plans[offer.tier];
@@ -101,6 +104,9 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
               <button className="h-11 rounded-full bg-fg px-5 text-[13px] font-medium text-bg">{C.applyPromo}</button>
             </div>
             {promoInvalid && <p className="mt-2 text-[12px] text-danger">{C.promoInvalid}</p>}
+            {resolved?.code === "attributed" && requestedPromo && <p className="mt-2 text-[12px] text-success">
+              {codeAdvisor ? fmt(C.codeRecognisedBy, { code: requestedPromo, name: codeAdvisor }) : fmt(C.codeRecognised, { code: requestedPromo })}
+            </p>}
             {promo && <p className="mt-2 text-[12px] text-success">
               {C.promoApplied.replace("{code}", promo.code).split("{amount}")[0]}
               <Money cents={discount} sourceCurrency={offer.currency} />
@@ -144,7 +150,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
               </Link>
             </div>
           ) : (
-            <CheckoutButton locale={locale} page={page} promo={promo?.code} origin={origin} offer={offer.tier} label={C.pay} pendingLabel={C.paying} />
+            <CheckoutButton locale={locale} page={page} promo={promo?.code ?? (resolved?.code === "attributed" ? requestedPromo : null)} origin={origin} offer={offer.tier} label={C.pay} pendingLabel={C.paying} />
           )}
           <p className="mt-4 flex items-center justify-center gap-2 text-center text-[12px] text-muted"><Lock className="size-3.5" />{C.secure}</p>
         </section>

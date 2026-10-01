@@ -4,10 +4,14 @@
  */
 import sc from "./sales-center.en";
 import msg from "./messaging.en";
+import cp from "./copilot.en";
+import gd from "./guided.en";
 
 const en = {
   sc,
   msg,
+  cp,
+  gd,
   meta: {
     homeTitle: "Studio ATS Partners — Sell Studio ATS, earn up to €1,500 per sale",
     homeDescription:
@@ -498,16 +502,18 @@ const en = {
       board: "Board",
       list: "List",
       stages: {
-        new: "New",
-        contacted: "Contacted",
-        replied: "Replied",
-        qualified: "Qualified",
-        checkout: "Checkout started",
-        interested: "Interested",
-        appointment: "Appointment",
-        proposal: "Proposal",
-        won: "Won",
-        lost: "Lost",
+        new: "To contact",
+        contacted: "First message sent",
+        replied: "Reply received",
+        qualified: "Need identified",
+        interested: "Interest detected",
+        proof_sent: "Proof sent",
+        proposal: "Offer presented",
+        appointment: "Meeting requested",
+        handed_off: "Handed to Studio",
+        checkout: "Quote / checkout",
+        won: "Sale",
+        lost: "Lost / revisit later",
       },
       fields: {
         name: "Name",
@@ -1089,11 +1095,13 @@ const en = {
     unavailable: "Online payment is not available right now. Leave your details and we will contact you.",
     requestInstead: "Request a call instead",
     referredBy: "Recommended by {name}",
-    promoLabel: "Promo code",
+    promoLabel: "Promo or ambassador code",
     promoPlaceholder: "Your code",
     applyPromo: "Apply",
     promoApplied: "Code {code} applied: you save {amount} on this first payment.",
     promoInvalid: "This code is not valid for this partner link.",
+    codeRecognised: "Code {code} recognised — your Studio ATS advisor will be credited.",
+    codeRecognisedBy: "Code {code} recognised — your Studio ATS advisor: {name}.",
     catalogPrice: "Catalog price",
     discountLine: "{rate} discount",
     totalToday: "Total today",

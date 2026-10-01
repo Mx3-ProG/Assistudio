@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  LayoutGrid, Link2, Megaphone, Users, Compass, MessageSquareText, Package, ShoppingBag, Wallet, Repeat,
+  LayoutGrid, Link2, Users, ShoppingBag, Wallet, Repeat,
   Banknote, BarChart3, Trophy, Bell, MessageCircle, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag, FileSignature,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
@@ -33,17 +33,15 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
       { href: `${base}/messages`, label: t.msg.nav, icon: MessageCircle, badge: messages.unread },
     ] },
     {
+      // V0.4: the copilot is the entry point; the V0 pages it replaces (sales kit,
+      // product, find, campaigns) stay reachable from its toolbox, not from here.
       label: n.groupSell,
       items: [
-        { href: `${base}/sales-center`, label: t.sc.title, icon: Rocket },
-        { href: `${base}/link`, label: n.link, icon: Link2 },
-        { href: `${base}/promo-codes`, label: n.promoCodes, icon: Tag },
-        { href: `${base}/campaigns`, label: n.campaigns, icon: Megaphone },
+        { href: `${base}/sales-center`, label: t.cp.nav.copilot, icon: Rocket },
         { href: `${base}/prospects`, label: n.prospects, icon: Users },
+        { href: `${base}/link`, label: t.cp.nav.linkCode, icon: Link2 },
+        { href: `${base}/promo-codes`, label: n.promoCodes, icon: Tag },
         { href: `${base}/documents`, label: locale === "fr" ? "Documents & contrats" : "Documents & contracts", icon: FileSignature },
-        { href: `${base}/find`, label: n.find, icon: Compass },
-        { href: `${base}/sales-kit`, label: n.salesKit, icon: MessageSquareText },
-        { href: `${base}/product`, label: n.product, icon: Package },
       ],
     },
     {
@@ -70,8 +68,8 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
   const isActive = (href: string) => (href === base ? pathname === base : pathname.startsWith(href));
   const tabs: Item[] = [
     { href: base, label: n.overview, icon: LayoutGrid },
+    { href: `${base}/sales-center`, label: t.cp.nav.copilot, icon: Rocket },
     { href: `${base}/prospects`, label: n.prospects, icon: Users },
-    { href: `${base}/link`, label: n.link, icon: Link2 },
     { href: `${base}/commissions`, label: n.commissions, icon: Wallet },
   ];
 

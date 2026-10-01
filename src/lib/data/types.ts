@@ -9,7 +9,9 @@ import type { OfferTier } from "@/lib/offers";
 export type Role = "super_admin" | "admin" | "affiliate_manager" | "agency" | "sales_closer" | "affiliate";
 export type AffiliateStatus = "pending" | "approved" | "rejected" | "suspended";
 /** "interested" is legacy (V0.1): migrated to "qualified", never offered anymore. */
-export type ProspectStage = "new" | "contacted" | "replied" | "qualified" | "interested" | "appointment" | "proposal" | "checkout" | "won" | "lost";
+export type ProspectStage =
+  | "new" | "contacted" | "replied" | "qualified" | "interested" | "proof_sent" | "proposal" | "appointment"
+  | "handed_off" | "checkout" | "won" | "lost";
 export type PayoutStatus = "scheduled" | "processing" | "paid" | "failed" | "cancelled";
 export type ActivityType =
   | "click" | "visitor" | "lead" | "appointment" | "checkout_started" | "sale_pending" | "payment_confirmed"
@@ -23,7 +25,24 @@ export type FraudType =
   | "abnormal_clicks" | "duplicate_account" | "commission_dispute" | "manual_review";
 export type FraudStatus = "open" | "reviewing" | "dismissed" | "confirmed";
 
-export const PROSPECT_STAGES: ProspectStage[] = ["new", "contacted", "replied", "qualified", "appointment", "proposal", "checkout", "won", "lost"];
+/** V0.5 guided pipeline, in commercial order (Find → Contact → Understand → Interest → Prove → Hand over / Close). */
+export const PROSPECT_STAGES: ProspectStage[] = [
+  "new", "contacted", "replied", "qualified", "interested", "proof_sent", "proposal", "appointment", "handed_off", "checkout", "won", "lost",
+];
+
+export const PROSPECT_EVENT_TYPES = [
+  "created", "message_sent", "reply_received", "need_identified", "interest", "proof_sent",
+  "offer_presented", "meeting", "handed_off", "quote", "won", "lost", "follow_up_sent", "stage_changed",
+] as const;
+export type ProspectEventType = (typeof PROSPECT_EVENT_TYPES)[number];
+export interface ProspectEvent {
+  id: string;
+  prospectId: string;
+  type: ProspectEventType;
+  stage: ProspectStage | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
 export const STAFF_ROLES: Role[] = ["super_admin", "admin"];
 
 export interface Session {

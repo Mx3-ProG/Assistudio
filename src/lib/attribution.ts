@@ -97,3 +97,15 @@ export function deviceType(userAgent: string | null): "mobile" | "tablet" | "des
   if (/mobi|android|iphone/i.test(userAgent)) return "mobile";
   return "desktop";
 }
+
+/**
+ * Ambassador code typed by the customer (promo code or the ambassador's own
+ * code). It only fills an EMPTY attribution: a tracked click or a private page
+ * keeps priority, so a code found elsewhere can never take a sale away from
+ * the ambassador who actually brought the customer.
+ */
+export function withAmbassadorCode(trackedAffiliateId: string | null, codeAffiliateId: string | null):
+  { affiliateId: string | null; byCode: boolean; conflict: boolean } {
+  if (trackedAffiliateId) return { affiliateId: trackedAffiliateId, byCode: false, conflict: !!codeAffiliateId && codeAffiliateId !== trackedAffiliateId };
+  return { affiliateId: codeAffiliateId, byCode: !!codeAffiliateId, conflict: false };
+}

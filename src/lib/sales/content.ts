@@ -15,6 +15,10 @@ import { z } from "zod";
 export const CONTENT_KINDS = [
   "playbook", "call_script", "message", "email_template", "objection", "knowledge",
   "asset", "sales_angle", "page_template", "page_variant", "journey",
+  // V0.4 ambassador copilot
+  "pitch", "case_study", "diagnostic", "sequence",
+  // V0.5 guided pipeline
+  "stage_guide", "reply", "fact", "find_source", "signal",
 ] as const;
 export type ContentKind = (typeof CONTENT_KINDS)[number];
 
@@ -50,6 +54,29 @@ export const ASSET_CATEGORIES = [
   "pdf", "technical_sheet", "presentation", "image", "video", "demo", "brochure", "document",
 ] as const;
 export type AssetCategory = (typeof ASSET_CATEGORIES)[number];
+
+/** What a commercial asset is — never present a template or an internal product as a client. */
+export const CASE_STUDY_TYPES = ["client", "template", "product", "demo"] as const;
+export type CaseStudyType = (typeof CASE_STUDY_TYPES)[number];
+
+export const OFFER_TIERS = ["one", "pro", "premium"] as const;
+export type OfferTierKey = (typeof OFFER_TIERS)[number];
+
+/** CRM stages the guidance can target (mirror of PROSPECT_STAGES, kept here so this module stays pure). */
+export const GUIDE_STAGES = [
+  "new", "contacted", "replied", "qualified", "interested", "proof_sent", "proposal", "appointment", "handed_off", "checkout", "won", "lost",
+] as const;
+export type GuideStage = (typeof GUIDE_STAGES)[number];
+export const GUIDE_EVENTS = [
+  "message_sent", "reply_received", "need_identified", "interest", "proof_sent", "offer_presented",
+  "meeting", "handed_off", "quote", "won", "lost", "stage_changed",
+] as const;
+export const SHOW_KINDS = ["none", "case_study", "page", "offer"] as const;
+export const FACT_CATEGORIES = [
+  "promises", "company", "contact", "offers", "pricing", "process", "delays", "payment", "support",
+  "maintenance", "commissions", "after_sale", "references", "faq", "documents",
+] as const;
+export const FIND_SOURCES = ["network", "linkedin", "instagram", "past_clients", "professional", "local", "contacts"] as const;
 
 export const PAGE_SECTIONS = [
   "hero", "problem", "solution", "value", "how", "benefits", "included", "who", "faq", "offer", "cta",
@@ -123,6 +150,96 @@ export interface JourneyBody {
   days: { day: number; title: string; body: string; tasks: string[] }[];
 }
 
+/** "Understand Studio" — the pitch at three lengths. */
+export interface PitchBody {
+  oneLiner: string;
+  short: string;   // 15 seconds
+  medium: string;  // 30 seconds
+  long: string;    // when the prospect is interested
+  problem: string;
+  forWhom: string;
+  whatTheyBuy: string[];
+  notThis?: string[];
+}
+/** A real project, template or product an ambassador can show. */
+export interface CaseStudyBody {
+  type: CaseStudyType;
+  name: string;
+  sector: string;
+  clientType: string;
+  description: string;
+  problem: string;
+  solution: string;
+  features: string[];
+  argument: string;
+  offer?: OfferTierKey;
+  url?: string;
+  image?: string;
+  imageMobile?: string;
+}
+export interface DiagnosticBody {
+  intro?: string;
+  questions: { question: string; listenFor: string; studio: string }[];
+}
+export interface SequenceBody {
+  intro?: string;
+  steps: { day: number; channel: Channel; goal: string; text: string }[];
+}
+
+/** What to do at one CRM stage. `targetKey` on the row = a sector-specific override. */
+export interface StageGuideBody {
+  stage: GuideStage;
+  goal: string;
+  why: string;
+  action: string;
+  dont?: string;
+  /** Message stage to recommend (messages library). */
+  say?: FunnelStage;
+  show: (typeof SHOW_KINDS)[number];
+  /** Show the sector's discovery questions. */
+  ask?: "yes" | "no";
+  collect?: string[];
+  outcomes?: { label: string; to: GuideStage; event: (typeof GUIDE_EVENTS)[number] }[];
+  escalate?: string;
+}
+/** What the prospect said → how to answer (level 1 answer yourself, 2 recommended answer, 3 hand over to Studio). */
+export interface ReplyBody {
+  said: string;
+  level: number;
+  meaning?: string;
+  answer: string;
+  question?: string;
+  objection?: string;
+  show: (typeof SHOW_KINDS)[number];
+  to?: GuideStage;
+  next: string;
+  stages?: GuideStage[];
+}
+/** Official Studio information — the ambassador's source of truth. */
+export interface FactBody {
+  category: (typeof FACT_CATEGORIES)[number];
+  question: string;
+  answer: string;
+  level: number;
+  can?: string[];
+  cannot?: string[];
+}
+export interface FindSourceBody {
+  source: (typeof FIND_SOURCES)[number];
+  how: string;
+  action: string;
+  tip?: string;
+}
+/** A phrase or observable situation that can reveal a Studio opportunity. */
+export interface SignalBody {
+  signal: string;
+  problem: string;
+  question: string;
+  studio: string;
+  proof: string;
+  next: string;
+}
+
 export interface BodyByKind {
   playbook: PlaybookBody;
   call_script: CallScriptBody;
@@ -135,6 +252,15 @@ export interface BodyByKind {
   page_template: PageTemplateBody;
   page_variant: PageVariantBody;
   journey: JourneyBody;
+  pitch: PitchBody;
+  case_study: CaseStudyBody;
+  diagnostic: DiagnosticBody;
+  sequence: SequenceBody;
+  stage_guide: StageGuideBody;
+  reply: ReplyBody;
+  fact: FactBody;
+  find_source: FindSourceBody;
+  signal: SignalBody;
 }
 
 export interface SalesContent<K extends ContentKind = ContentKind> {
@@ -224,6 +350,44 @@ export const BODY_FIELDS: { [K in ContentKind]: FieldSpec[] } = {
     area("disclaimer", true, 600),
     group("days", [{ name: "day", type: "number", required: true }, text("title"), area("body", true, 1200), list("tasks", true)]),
   ],
+  pitch: [
+    text("oneLiner", true, 300), area("short", true, 600), area("medium", true, 1200), area("long", true, 4000),
+    area("problem", true, 1500), area("forWhom", true, 1500), list("whatTheyBuy", true), list("notThis"),
+  ],
+  case_study: [
+    select("type", CASE_STUDY_TYPES), text("name", true, 120), text("sector", true, 120), text("clientType", true, 200),
+    area("description", true, 600), area("problem", true, 1500), area("solution", true, 1500), list("features", true),
+    area("argument", true, 800), select("offer", OFFER_TIERS, false),
+    text("url", false, 1000), text("image", false, 400), text("imageMobile", false, 400),
+  ],
+  diagnostic: [
+    area("intro", false, 1200),
+    group("questions", [text("question"), area("listenFor", true, 800), area("studio", true, 800)]),
+  ],
+  sequence: [
+    area("intro", false, 1200),
+    group("steps", [{ name: "day", type: "number", required: true }, select("channel", CHANNELS), text("goal"), area("text", true, 3000)]),
+  ],
+  stage_guide: [
+    select("stage", GUIDE_STAGES), text("goal"), area("why", true, 600), area("action", true, 600), area("dont", false, 600),
+    select("say", FUNNEL_STAGES, false), select("show", SHOW_KINDS), select("ask", ["yes", "no"], false), list("collect"),
+    group("outcomes", [text("label", true, 120), select("to", GUIDE_STAGES), select("event", GUIDE_EVENTS)], false),
+    area("escalate", false, 600),
+  ],
+  reply: [
+    text("said", true, 200), { name: "level", type: "number", required: true }, area("meaning", false, 600), area("answer", true, 1500),
+    area("question", false, 600), text("objection", false, 80), select("show", SHOW_KINDS), select("to", GUIDE_STAGES, false),
+    area("next", true, 600), { name: "stages", type: "multiselect", options: GUIDE_STAGES, required: false },
+  ],
+  fact: [
+    select("category", FACT_CATEGORIES), text("question", true, 300), area("answer", true, 3000),
+    { name: "level", type: "number", required: true }, list("can"), list("cannot"),
+  ],
+  find_source: [select("source", FIND_SOURCES), area("how", true, 1200), area("action", true, 400), area("tip", false, 600)],
+  signal: [
+    text("signal", true, 300), area("problem", true, 1000), area("question", true, 600),
+    area("studio", true, 1000), area("proof", true, 600), area("next", true, 600),
+  ],
 };
 
 // ------------------------------------------------------------------ validation
@@ -295,10 +459,27 @@ function kindRules<K extends ContentKind>(kind: K, body: BodyByKind[K]): string[
   }
   if (kind === "asset") {
     const u = (body as AssetBody).url;
-    if (!/^(https:\/\/|\/)/.test(u) || u.startsWith("//")) return ["url"];
+    if (!safeUrl(u)) return ["url"];
+  }
+  if (kind === "case_study") {
+    const b = body as CaseStudyBody;
+    const bad = (["url", "image", "imageMobile"] as const).filter((k) => b[k] !== undefined && !safeUrl(b[k]!));
+    if (bad.length) return [...bad];
+  }
+  if (kind === "reply" || kind === "fact") {
+    const level = (body as ReplyBody | FactBody).level;
+    if (![1, 2, 3].includes(level)) return ["level"];
+  }
+  if (kind === "stage_guide" && ((body as StageGuideBody).outcomes?.length ?? 0) > 6) return ["outcomes"];
+  if (kind === "sequence") {
+    const days = (body as SequenceBody).steps.map((s) => s.day);
+    if (days.some((d, i) => i > 0 && d <= days[i - 1])) return ["steps"];
   }
   return [];
 }
+
+/** https:// or a site-relative path — never javascript:, data: or protocol-relative URLs. */
+const safeUrl = (u: string) => /^(https:\/\/|\/)/.test(u) && !u.startsWith("//");
 
 export const KEY_PATTERN = /^[a-z0-9][a-z0-9_.:-]{0,79}$/;
 

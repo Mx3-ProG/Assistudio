@@ -2,10 +2,14 @@ import type { Dictionary } from "./en";
 
 import sc from "./sales-center.fr";
 import msg from "./messaging.fr";
+import cp from "./copilot.fr";
+import gd from "./guided.fr";
 
 const fr: Dictionary = {
   sc,
   msg,
+  cp,
+  gd,
   meta: {
     homeTitle: "Studio ATS Partners — Vendez Studio ATS, gagnez jusqu’à 1 500 € par vente",
     homeDescription:
@@ -494,16 +498,18 @@ const fr: Dictionary = {
       board: "Tableau",
       list: "Liste",
       stages: {
-        new: "Nouveau",
-        contacted: "Contacté",
-        replied: "A répondu",
-        qualified: "Qualifié",
-        checkout: "Paiement commencé",
-        interested: "Intéressé",
-        appointment: "Rendez-vous",
-        proposal: "Proposition",
-        won: "Gagné",
-        lost: "Perdu",
+        new: "À contacter",
+        contacted: "Premier message envoyé",
+        replied: "Réponse reçue",
+        qualified: "Besoin identifié",
+        interested: "Intérêt détecté",
+        proof_sent: "Preuve envoyée",
+        proposal: "Offre présentée",
+        appointment: "Rendez-vous demandé",
+        handed_off: "Transmis à Studio",
+        checkout: "Devis / paiement",
+        won: "Vente",
+        lost: "Perdu / à relancer",
       },
       fields: {
         name: "Nom",
@@ -1085,11 +1091,13 @@ const fr: Dictionary = {
     unavailable: "Le paiement en ligne n’est pas disponible pour le moment. Laissez vos coordonnées, nous vous recontactons.",
     requestInstead: "Être rappelé à la place",
     referredBy: "Recommandé par {name}",
-    promoLabel: "Code promotionnel",
+    promoLabel: "Code promo ou code ambassadeur",
     promoPlaceholder: "Votre code",
     applyPromo: "Appliquer",
     promoApplied: "Code {code} appliqué : vous économisez {amount} sur ce premier paiement.",
     promoInvalid: "Ce code n’est pas valide pour ce lien partenaire.",
+    codeRecognised: "Code {code} reconnu — votre conseiller Studio ATS sera crédité.",
+    codeRecognisedBy: "Code {code} reconnu — votre conseiller Studio ATS : {name}.",
     catalogPrice: "Prix catalogue",
     discountLine: "Remise {rate}",
     totalToday: "Total aujourd’hui",

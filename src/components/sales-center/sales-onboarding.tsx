@@ -15,12 +15,18 @@ import { TrackedCopy } from "./tracked-copy";
 import type { StartTarget } from "./start-selling";
 import { cn } from "@/lib/cn";
 
-const STEPS = 7;
+const STEPS = 6;
 
-/** First run: understand → target → problem → pitch → page → message → prospect. */
-export function SalesOnboarding({ productLine, offerLine, targets, messages, templateKey, pageBase, existingPages, startStep, pending, advisorName }: {
-  productLine: string; offerLine: string | null; targets: (StartTarget & { id: string })[]; messages: SalesContent<"message">[];
+/**
+ * First run, six short steps: understand Studio → choose a sector → what to
+ * say → my link & code → first message → first prospect. The finish screen
+ * explains how the commission comes back. Success = they know who to contact,
+ * what to say, what to show and how they get paid — not "modules completed".
+ */
+export function SalesOnboarding({ productLine, pitch, offerLine, targets, messages, templateKey, pageBase, existingPages, startStep, pending, advisorName, link, code }: {
+  productLine: string; pitch: string | null; offerLine: string | null; targets: (StartTarget & { id: string })[]; messages: SalesContent<"message">[];
   templateKey: string | null; pageBase: string; existingPages: Record<string, string>; startStep: number; pending: boolean; advisorName: string;
+  link: string; code: string;
 }) {
   const { t, locale } = useI18n();
   const O = t.sc.onboarding;
@@ -49,6 +55,12 @@ export function SalesOnboarding({ productLine, offerLine, targets, messages, tem
         <PartyPopper className="mx-auto size-12 text-accent" />
         <h1 className="display mt-6 text-[34px] sm:text-[44px]">{O.doneTitle}</h1>
         <p className="mt-4 text-[17px] text-fg-2">{O.doneBody}</p>
+        <div className="mt-6 rounded-2xl bg-surface-2 p-5 text-start">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-accent">{O.paidTitle}</p>
+          <ol className="mt-3 grid gap-2">
+            {O.paidSteps.map((x, i) => <li key={x} className="flex gap-3 text-[14.5px]"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-semibold text-accent-fg">{i + 1}</span>{x}</li>)}
+          </ol>
+        </div>
         <Link href={`/${locale}/dashboard/sales-center`} className={buttonClass("accent", "lg", "mt-8")}>{O.doneCta}<ArrowRight className="flip-rtl size-4" /></Link>
       </div>
     );
@@ -58,7 +70,9 @@ export function SalesOnboarding({ productLine, offerLine, targets, messages, tem
   const url = pageUrl ?? (target ? existingPages[target.slug] : null) ?? null;
   const msg = target && ([...messages.filter((m) => m.targetKey === target.slug), ...messages.filter((m) => !m.targetKey)]
     .find((m) => m.stage === "first_contact"));
-  const msgText = msg ? personalize(msg.body.text, { advisorName, affiliateUrl: url ?? pageBase }, t.sc.messages.vars).text : "";
+  // The sector's own first message wins (most specific); the generic one is the fallback.
+  const msgSource = c?.message || msg?.body.text || "";
+  const msgText = msgSource ? personalize(msgSource, { advisorName, affiliateUrl: url ?? link, sector: c?.name }, t.sc.messages.vars).text : "";
   const needsTarget = step >= 2 && !target;
 
   return (
@@ -81,7 +95,8 @@ export function SalesOnboarding({ productLine, offerLine, targets, messages, tem
         {step === 0 && (
           <div className="mt-4 grid gap-3">
             <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{O.productLead}</p>
-            <p className="text-[17px] leading-relaxed">{productLine}</p>
+            <p className="text-[19px] font-semibold leading-snug">{productLine}</p>
+            {pitch && <p className="rounded-2xl bg-accent-soft p-4 text-[15.5px] leading-relaxed">{pitch}</p>}
             {offerLine && <p className="rounded-2xl bg-surface-2 p-4 text-[15px] font-medium">{offerLine}</p>}
             <Next onClick={() => go(1)} label={O.continue} />
           </div>
@@ -107,23 +122,27 @@ export function SalesOnboarding({ productLine, offerLine, targets, messages, tem
         {step === 2 && c && (
           <div className="mt-4 grid gap-3">
             <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{fmt(O.problemLead, { target: c.name })}</p>
-            <ul className="grid gap-2">{(c.pains?.length ? c.pains : [c.problem]).map((p) => <li key={p} className="rounded-xl bg-surface-2 px-3 py-2 text-[15px]">{p}</li>)}</ul>
+            <ul className="grid gap-2">{(c.pains?.length ? c.pains.slice(0, 3) : [c.problem]).map((p) => <li key={p} className="rounded-xl bg-surface-2 px-3 py-2 text-[15px]">{p}</li>)}</ul>
+            <p className="mt-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{fmt(O.pitchLead, { target: c.name })}</p>
+            <p className="rounded-2xl bg-accent-soft p-4 text-[16px] leading-relaxed">{c.angle}</p>
+            {c.avoid && <p className="text-[14px] text-fg-2">⚠︎ {c.avoid}</p>}
             <Next onClick={() => go(3)} label={O.continue} />
           </div>
         )}
 
-        {step === 3 && c && (
+        {step === 3 && target && (
           <div className="mt-4 grid gap-3">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{fmt(O.pitchLead, { target: c.name })}</p>
-            <p className="rounded-2xl bg-accent-soft p-4 text-[16px] leading-relaxed">{c.angle}</p>
-            {c.avoid && <p className="text-[14px] text-fg-2">⚠︎ {c.avoid}</p>}
-            <Next onClick={() => go(4)} label={O.continue} />
-          </div>
-        )}
-
-        {step === 4 && target && (
-          <div className="mt-4 grid gap-3">
-            <p className="text-[15px] text-fg-2">{fmt(O.pageLead, { target: target.c.name })}</p>
+            <p className="text-[15px] text-fg-2">{O.toolsLead}</p>
+            <div className="grid gap-1.5">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{t.cp.kit.link}</p>
+              <div className="flex items-center gap-2"><p className="min-w-0 flex-1 truncate rounded-xl bg-surface-2 px-3 py-2 font-mono text-[13px]" dir="ltr">{link}</p><TrackedCopy value={link} size="md" /></div>
+            </div>
+            <div className="grid gap-1.5">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{t.cp.kit.code}</p>
+              <div className="flex items-center gap-2"><p className="rounded-xl bg-surface-2 px-3 py-2 font-mono text-[18px] font-semibold tracking-[0.08em]" dir="ltr">{code}</p><TrackedCopy value={code} size="md" /></div>
+              <p className="text-[12.5px] text-muted">{t.cp.kit.codeHint}</p>
+            </div>
+            <p className="mt-2 text-[15px] text-fg-2">{fmt(O.pageLead, { target: target.c.name })}</p>
             {url ? (
               <>
                 <p className="flex items-center gap-2 text-[14px] font-medium text-success"><Check className="size-4" />{O.pageReady}</p>
@@ -132,7 +151,7 @@ export function SalesOnboarding({ productLine, offerLine, targets, messages, tem
                   <TrackedCopy value={url} size="md" />
                   <a href={url} target="_blank" rel="noopener" className={buttonClass("secondary", "md")}>{t.sc.preview}</a>
                 </div>
-                <Next onClick={() => go(5)} label={O.continue} />
+                <Next onClick={() => go(4)} label={O.continue} />
               </>
             ) : templateKey ? (
               <form action={makePage}>
@@ -143,24 +162,25 @@ export function SalesOnboarding({ productLine, offerLine, targets, messages, tem
                 <input type="hidden" name="ctaMode" value="lead" />
                 <input type="hidden" name="showAdvisor" value="on" />
                 <button disabled={making} className={buttonClass("accent", "lg")}><Sparkles className="size-4" />{t.sc.pages.generate}</button>
+                <button type="button" onClick={() => go(4)} className={buttonClass("ghost", "lg", "ms-2")}>{O.skip}</button>
                 {pageState.error && <p className="mt-2 text-[13px] text-danger">{t.sc.pages.errors[pageState.error as keyof typeof t.sc.pages.errors] ?? t.sc.pages.errors.generic}</p>}
               </form>
-            ) : <Next onClick={() => go(5)} label={O.skip} />}
+            ) : <Next onClick={() => go(4)} label={O.continue} />}
           </div>
         )}
 
-        {step === 5 && target && (
+        {step === 4 && target && (
           <div className="mt-4 grid gap-3">
             <p className="text-[15px] text-fg-2">{O.messageLead}</p>
-            {msg && <p className="whitespace-pre-line rounded-2xl bg-surface-2 p-4 text-[15px] leading-relaxed">{msgText}</p>}
+            {msgText && <p className="whitespace-pre-line rounded-2xl bg-surface-2 p-4 text-[15px] leading-relaxed">{msgText}</p>}
             <div className="flex flex-wrap gap-2">
-              {msg && <TrackedCopy value={msgText} kind="message" contentKey={msg.key} variant="accent" size="lg" />}
-              <button onClick={() => go(6)} className={buttonClass("primary", "lg")}>{O.continue}<ArrowRight className="flip-rtl size-4" /></button>
+              {msgText && <TrackedCopy value={msgText} kind="message" contentKey={c?.message ? undefined : msg?.key} variant="accent" size="lg" />}
+              <button onClick={() => go(5)} className={buttonClass("primary", "lg")}>{O.continue}<ArrowRight className="flip-rtl size-4" /></button>
             </div>
           </div>
         )}
 
-        {step === 6 && (
+        {step === 5 && (
           <form action={addProspect} className="mt-4 grid gap-3">
             <p className="text-[15px] text-fg-2">{O.prospectLead}</p>
             <input type="hidden" name="stage" value="contacted" />

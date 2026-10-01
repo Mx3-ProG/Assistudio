@@ -122,9 +122,17 @@ export async function updateMarket(_: AdminState, f: FormData) {
   const s = await staff();
   const locale = z.enum(locales).parse(f.get("locale"));
   const t = (k: string) => z.string().trim().min(1).max(2000).parse(f.get(k));
+  const lines = (k: string, max = 12, sep: RegExp = /\n/) => String(f.get(k) ?? "").split(sep).map((x) => x.trim()).filter(Boolean).slice(0, max).map((x) => x.slice(0, 400));
+  const opt = <T,>(xs: T[]) => (xs.length ? xs : undefined);
+  const avoid = String(f.get("avoid") ?? "").trim().slice(0, 1000);
+  const offer = z.enum(["one", "pro", "premium"]).optional().catch(undefined).parse(f.get("offer") || undefined);
+  // Every field the editor shows is written back, so a save never drops the
+  // Sales Center / copilot fields (pains, discovery, keywords…).
   const content = {
     name: t("name"), who: t("who"), why: t("why"), problem: t("problem"), angle: t("angle"), message: t("message"),
     searches: String(f.get("searches") ?? "").split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 10),
+    pains: opt(lines("pains")), needs: opt(lines("needs")), outcomes: opt(lines("outcomes")), discovery: opt(lines("discovery")),
+    avoid: avoid || undefined, keywords: opt(lines("keywords", 60, /[\n,]/)), offer,
   };
   return run(() => repo().adminUpdateMarket(s, id(f), locale, content, f.get("active") === "on"));
 }

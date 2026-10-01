@@ -4,11 +4,11 @@ import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import { supabaseService } from "@/lib/supabase/server";
 import { stripe, checkoutLocale, stripeMode } from "@/lib/services/stripe";
-import { resolveForConversion } from "@/lib/services/attribution";
+import { resolveCheckoutAttribution } from "@/lib/services/attribution";
 import { CHECKOUT_METADATA_KEY } from "@/lib/stripe/normalize";
 import type { Locale } from "@/i18n/config";
 import { OFFER_LOOKUP_KEYS, type OfferTier } from "@/lib/offers";
-import { discountCents, resolvePromoCode } from "@/lib/services/promo";
+import { discountCents } from "@/lib/services/promo";
 
 export type CheckoutOrigin = "public" | "affiliate_link" | "private_page" | "dashboard_cta";
 
@@ -86,12 +86,12 @@ export async function createCheckoutSession(input: {
   if (enabled && enabled.value === false) throw new CheckoutUnavailableError("checkout disabled");
 
   const offer = await activeOffer(input.productSlug ?? "studio", input.tier);
-  const [priceId, attribution] = await Promise.all([
+  const [priceId, resolved] = await Promise.all([
     stripePriceFor(offer),
-    resolveForConversion({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug }),
+    resolveCheckoutAttribution({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug, code: input.promoCode ?? null }),
   ]);
-  const promo = await resolvePromoCode(input.promoCode ?? null, attribution.affiliateId);
-  if (input.promoCode && !promo) throw new CheckoutUnavailableError("promo code does not match attribution");
+  const { attribution, promo } = resolved;
+  if (resolved.code === "invalid") throw new CheckoutUnavailableError("code does not match attribution");
   const promoDiscountCents = promo ? discountCents(offer.price_cents, promo.discountRate) : 0;
 
   const { data: row, error } = await sb.from("checkout_sessions").insert({
@@ -135,7 +135,7 @@ export async function createCheckoutSession(input: {
     billing_address_collection: "required",
     locale: checkoutLocale(input.locale),
     success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&cancelled=1${promo ? `&promo=${encodeURIComponent(promo.code)}` : ""}`,
+    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&cancelled=1${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
   }, { idempotencyKey: `checkout:${row.id}` });
 
   await sb.from("checkout_sessions").update({

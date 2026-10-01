@@ -1,7 +1,8 @@
 import "server-only";
 import { supabaseService } from "@/lib/supabase/server";
 import { repo } from "@/lib/data";
-import { isValidCode } from "@/lib/attribution";
+import { isValidCode, withAmbassadorCode } from "@/lib/attribution";
+import { resolveAmbassadorCode, type ResolvedPromo } from "@/lib/services/promo";
 import { log } from "@/lib/log";
 
 /**
@@ -11,7 +12,8 @@ import { log } from "@/lib/log";
  * key; the touches behind it were recorded server-side by /s/{code}. The model
  * (first click / last click / manual) and the window come from settings and
  * are applied in SQL (public.resolve_attribution). An explicit context — a
- * private sales page — wins, but only for an approved affiliate.
+ * private sales page — wins, but only for an approved affiliate. A code typed
+ * by the customer (`manual`) only attributes when nothing else does.
  */
 export type AttributionSource = "private_page" | "first_click" | "last_click" | "manual" | "none";
 
@@ -57,4 +59,32 @@ export async function resolveForConversion(input: { sessionKey: string | null; p
     affiliateId: row.affiliate_id, referralSessionId: row.id, linkId: row.link_id, campaignId: row.campaign_id,
     privatePageId: null, source: settings.attributionModel,
   };
+}
+
+export type CodeStatus = "none" | "applied" | "attributed" | "ignored" | "invalid";
+
+/**
+ * Attribution for a purchase, including a code the customer typed (promo
+ * code or ambassador code). The tracked click / private page wins; the code
+ * only fills an empty attribution (withAmbassadorCode). A promo discount is
+ * granted only when its owner is the attributed ambassador.
+ *   applied    — promo code of the attributed ambassador (discount)
+ *   attributed — ambassador code recognised, no discount
+ *   ignored    — valid ambassador code, but another ambassador brought the customer
+ *   invalid    — unknown code, or a promo code of another ambassador
+ */
+export async function resolveCheckoutAttribution(input: { sessionKey: string | null; privatePageSlug?: string | null; code: string | null }):
+  Promise<{ attribution: ResolvedAttribution; promo: ResolvedPromo | null; code: CodeStatus; advisor: string | null }> {
+  const [tracked, owner] = await Promise.all([
+    resolveForConversion({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug }),
+    resolveAmbassadorCode(input.code),
+  ]);
+  if (!input.code) return { attribution: tracked, promo: null, code: "none", advisor: null };
+  if (!owner) return { attribution: tracked, promo: null, code: "invalid", advisor: null };
+  const d = withAmbassadorCode(tracked.affiliateId, owner.affiliateId);
+  if (d.conflict) return { attribution: tracked, promo: null, code: owner.promo ? "invalid" : "ignored", advisor: null };
+  const attribution: ResolvedAttribution = d.byCode
+    ? { affiliateId: owner.affiliateId, referralSessionId: null, linkId: owner.linkId, campaignId: null, privatePageId: null, source: "manual" }
+    : tracked;
+  return { attribution, promo: owner.promo, code: owner.promo ? "applied" : "attributed", advisor: owner.displayName };
 }

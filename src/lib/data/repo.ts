@@ -5,7 +5,7 @@ import type {
   ReferralTarget, ReferralDashboard, LeadInput, ClickInput, Market, SalesAsset, AdminOverview, AdminAffiliateRow,
   AdminCommissionRow, AdminSaleRow, AdminLeadRow, FraudFlag, FraudStatus, AuditLog, AdminPayoutCandidate, AffiliateStatus,
   SalesPageInput, PerformanceRow, ProductView, SalesEventInput, SalesContentInput, SalesAnalytics,
-  PromoCode,
+  PromoCode, ProspectEvent, ProspectEventType, ProspectStage,
 } from "./types";
 import type { SalesContent, ContentKind, ContentStatus } from "@/lib/sales/content";
 import type { Balances } from "@/lib/commission";
@@ -141,6 +141,9 @@ export interface Repo extends MessagingRepo {
   createProspect(s: Session, input: ProspectInput): Promise<Prospect>;
   updateProspect(s: Session, id: string, patch: Partial<ProspectInput>): Promise<void>;
   deleteProspect(s: Session, id: string): Promise<void>;
+  /** V0.5: append-only history of the affiliate's prospects (one prospect, or all when omitted), newest first. */
+  listProspectEvents(s: Session, prospectId?: string): Promise<ProspectEvent[]>;
+  addProspectEvent(s: Session, prospectId: string, type: ProspectEventType, stage: ProspectStage | null, payload?: Record<string, unknown>): Promise<void>;
   listSales(s: Session): Promise<SaleRow[]>;
   listCommissions(s: Session): Promise<CommissionRow[]>;
   getRecurringBook(s: Session): Promise<RecurringBook>;

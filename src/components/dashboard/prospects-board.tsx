@@ -10,24 +10,30 @@ import { formatMoney, formatDate, formatRelative } from "@/lib/money";
 import { PROSPECT_STAGES, type Prospect, type ProspectStage } from "@/lib/data/types";
 import { marketContent, type Market } from "@/content/markets";
 import { cn } from "@/lib/cn";
-import { NextAction } from "@/components/sales-center/next-action";
-import { DEFAULT_RULES, type Rules } from "@/lib/sales/next-action";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import type { Rules } from "@/lib/sales/next-action";
 
 const STAGE_TONE: Record<ProspectStage, "neutral" | "accent" | "success" | "warning" | "danger"> = {
-  new: "neutral", contacted: "accent", replied: "accent", qualified: "accent", interested: "accent", appointment: "warning", proposal: "warning", checkout: "warning", won: "success", lost: "danger",
+  new: "neutral", contacted: "accent", replied: "accent", qualified: "accent", interested: "accent", proof_sent: "accent",
+  proposal: "warning", appointment: "warning", handed_off: "warning", checkout: "warning", won: "success", lost: "danger",
 };
 
-export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCents, rules = DEFAULT_RULES, now, initialNew = false, initialMarketId = null }: {
+export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCents, initialNew = false, initialMarketId = null, initialEdit = null, nextLabels = {} }: {
   prospects: Prospect[]; markets: Market[]; campaigns: { id: string; name: string }[]; defaultValueCents: number;
-  rules?: Rules; now: number; initialNew?: boolean; initialMarketId?: string | null;
+  /** @deprecated V0.5: the guided page (prospects/[id]) computes the next action. */
+  rules?: Rules; now?: number; initialNew?: boolean; initialMarketId?: string | null;
+  initialEdit?: string | null;
+  /** V0.5: the next best action of each open prospect (id → label), from the guided pipeline. */
+  nextLabels?: Record<string, string>;
 }) {
-  const slugOf = (id: string | null) => markets.find((m) => m.id === id)?.slug ?? null;
   const { t, locale } = useI18n();
   const P = t.dash.prospects;
   const [storedView, setStoredView] = useStored("studio-prospects-view", "board");
   const view = storedView === "list" ? "list" : "board";
   const [q, setQ] = useState("");
-  const [editing, setEditing] = useState<Prospect | "new" | null>(initialNew ? "new" : null);
+  const [editing, setEditing] = useState<Prospect | "new" | null>(initialNew ? "new" : prospects.find((p) => p.id === initialEdit) ?? null);
+  const guided = (id: string) => `/${locale}/dashboard/prospects/${id}`;
   const [, startTransition] = useTransition();
   const [optimistic, applyMove] = useOptimistic(prospects, (list, m: { id: string; stage: ProspectStage }) =>
     list.map((p) => (p.id === m.id ? { ...p, stage: m.stage } : p)),
@@ -98,7 +104,7 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
                         onDragStart={(e) => e.dataTransfer.setData("text/prospect", p.id)}
                         className="card cursor-grab p-3 transition hover:shadow-md active:cursor-grabbing"
                       >
-                        <button onClick={() => setEditing(p)} className="block w-full text-start">
+                        <Link href={guided(p.id)} className="block w-full text-start">
                           <p className="truncate text-[14px] font-medium">{p.name}</p>
                           {(p.company || p.profession) && <p className="truncate text-[12px] text-muted">{[p.company, p.profession].filter(Boolean).join(" · ")}</p>}
                           {p.nextAction && (
@@ -108,8 +114,12 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
                               {p.nextActionAt && <span className="shrink-0 text-muted">· {formatRelative(p.nextActionAt, locale)}</span>}
                             </p>
                           )}
-                          <NextAction compact prospect={p} rules={rules} now={now} targetSlug={slugOf(p.marketId)} />
-                        </button>
+                          {nextLabels[p.id] && (
+                            <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-accent-soft px-2 py-1 text-[12px] font-medium text-accent">
+                              <ArrowRight className="flip-rtl size-3 shrink-0" /><span className="truncate">{nextLabels[p.id]}</span>
+                            </p>
+                          )}
+                        </Link>
                         <select
                           aria-label={P.moveTo}
                           value={p.stage}
@@ -132,7 +142,7 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
             {filtered.length === 0 && <li className="p-10 text-center text-muted">{P.empty}</li>}
             {filtered.map((p) => (
               <li key={p.id}>
-                <button onClick={() => setEditing(p)} className="flex w-full items-center gap-3 px-4 py-3 text-start hover:bg-surface-2/50 sm:px-5">
+                <Link href={guided(p.id)} className="flex w-full items-center gap-3 px-4 py-3 text-start hover:bg-surface-2/50 sm:px-5">
                   <div className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-[13px] font-semibold">{p.name[0]}</div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-medium">{p.name}</p>
@@ -140,7 +150,7 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
                   </div>
                   <span className="hidden text-[12px] text-muted sm:block">{p.nextAction}</span>
                   <Badge tone={STAGE_TONE[p.stage]}>{P.stages[p.stage]}</Badge>
-                </button>
+                </Link>
               </li>
             ))}
           </ul>
@@ -156,7 +166,6 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
         <ProspectDialog
           prospect={editing === "new" ? null : editing}
           initialMarketId={initialMarketId}
-          nextAction={editing !== "new" ? <NextAction prospect={editing} rules={rules} now={now} targetSlug={slugOf(editing.marketId)} /> : null}
           markets={markets}
           campaigns={campaigns}
           defaultValueCents={defaultValueCents}

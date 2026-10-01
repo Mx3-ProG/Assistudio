@@ -132,7 +132,8 @@ export async function createProspect(_: FormState, form: FormData): Promise<Form
   const s = await affiliateSession();
   const d = prospectSchema.safeParse(Object.fromEntries(form));
   if (!d.success) return { error: d.error.issues.map((i) => i.path[0]).join(",") };
-  await repo().createProspect(s, toProspectInput(d.data));
+  const p = await repo().createProspect(s, toProspectInput(d.data));
+  await repo().addProspectEvent(s, p.id, "created", p.stage).catch(() => undefined); // history is best-effort
   refresh();
   return { ok: true };
 }
@@ -151,6 +152,7 @@ export async function moveProspect(id: string, stage: ProspectStage) {
   const s = await affiliateSession();
   if (!PROSPECT_STAGES.includes(stage)) throw new Error("invalid stage");
   await repo().updateProspect(s, id, { stage });
+  await repo().addProspectEvent(s, id, "stage_changed", stage).catch(() => undefined);
   refresh();
 }
 
