@@ -142,8 +142,6 @@ async function provisionDirect(svc: Svc, id: string, email: string, meta: Record
     { onConflict: "id", ignoreDuplicates: true },
   );
   if (pe) throw new StepError("provision_profile", pe);
-  const { data: setting } = await svc.from("settings").select("value").eq("key", "affiliates.auto_approve").maybeSingle();
-  const autoApprove = (setting as any)?.value === true || (setting as any)?.value === "true";
   let sponsorId: string | null = null;
   const code = typeof meta.sponsor_code === "string" && isValidCode(meta.sponsor_code) ? meta.sponsor_code : null;
   if (code) {
@@ -152,7 +150,7 @@ async function provisionDirect(svc: Svc, id: string, email: string, meta: Record
     sponsorId = (sp as any)?.id ?? null;
   }
   const { error: ae } = await svc.from("affiliates").upsert({
-    profile_id: id, status: autoApprove ? "approved" : "pending", approved_at: autoApprove ? new Date().toISOString() : null,
+    profile_id: id, status: "approved", approved_at: new Date().toISOString(),
     country: meta.country ?? null, application: meta.application ?? {}, sponsor_id: sponsorId,
   }, { onConflict: "profile_id", ignoreDuplicates: true });
   if (ae) throw new StepError("provision_affiliate", ae);
@@ -172,7 +170,6 @@ export const supabaseRepo: Repo = {
       commissionValidationDays: Number(v["commission.validation_days"] ?? 30),
       payoutMinimumCents: Number(v["payout.minimum_cents"] ?? 5000),
       leaderboardEnabled: Boolean(v["leaderboard.enabled"]),
-      autoApprove: Boolean(v["affiliates.auto_approve"]),
       refundPartialPolicy: (["proportional", "full_reversal"].includes(v["refund.partial_policy"]) ? v["refund.partial_policy"] : "manual_review"),
       billingEmailsOwner: v["emails.customer_billing_owner"] === "studio" ? "studio" : "stripe",
       connectEnabled: v["payouts.connect_enabled"] === true,
@@ -1043,7 +1040,6 @@ export const supabaseRepo: Repo = {
     if (patch.commissionValidationDays !== undefined) map.c = ["commission.validation_days", patch.commissionValidationDays];
     if (patch.payoutMinimumCents !== undefined) map.d = ["payout.minimum_cents", patch.payoutMinimumCents];
     if (patch.leaderboardEnabled !== undefined) map.e = ["leaderboard.enabled", patch.leaderboardEnabled];
-    if (patch.autoApprove !== undefined) map.f = ["affiliates.auto_approve", patch.autoApprove];
     if (patch.refundPartialPolicy !== undefined) map.g = ["refund.partial_policy", patch.refundPartialPolicy];
     if (patch.billingEmailsOwner !== undefined) map.h = ["emails.customer_billing_owner", patch.billingEmailsOwner];
     if (patch.connectEnabled !== undefined) map.i = ["payouts.connect_enabled", patch.connectEnabled];

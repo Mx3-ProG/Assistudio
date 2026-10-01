@@ -27,8 +27,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
 update public.profiles set role = 'super_admin' where id = '00000000-0000-0000-0000-0000000000ad';
 
 select pg_temp.assert((select count(*) from public.affiliates) = 3, 'signup trigger creates profile + affiliate application');
-select pg_temp.assert((select status from public.affiliates a join public.profiles p on p.id = a.profile_id where p.email = 'alice@test.invalid') = 'pending',
-  'new affiliates start pending (auto-approve off)');
+select pg_temp.assert((select status from public.affiliates a join public.profiles p on p.id = a.profile_id where p.email = 'alice@test.invalid') = 'approved',
+  'new affiliates are active immediately');
 
 -- ---------------------------------------------------------------- staff approves
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000ad');

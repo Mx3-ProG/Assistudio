@@ -37,7 +37,7 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
   return (
     <>
       <PageHeader title={t.sc.links.title} subtitle={t.sc.links.subtitle} action={<LinkForm pages={pages.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, label: p.pathKey ?? p.slug }))} targets={markets.map((m) => ({ id: m.id, name: marketContent(m, locale).name }))} />} />
-      {s.affiliate.status !== "approved" && <div className="mb-6"><Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice></div>}
+      {s.affiliate.status !== "approved" && s.role === "affiliate" && <div className="mb-6"><Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice></div>}
       <SharePanel url={url} qrDataUrl={qr} />
       <Card className="mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:p-6">
         <div className="min-w-0 flex-1">

@@ -130,7 +130,6 @@ function seed(): Store {
     commissionValidationDays: 30,
     payoutMinimumCents: 5000,
     leaderboardEnabled: true,
-    autoApprove: false,
     refundPartialPolicy: "manual_review",
     billingEmailsOwner: "stripe",
     connectEnabled: false,
@@ -637,7 +636,7 @@ export const demoRepo: Repo = {
     const isNew = !user;
     if (!user) {
       if (c.purpose !== "signup" || !c.signup) return { status: "invalid" };
-      // Mirrors handle_new_user(): profile + pending affiliate application + sponsor from the code.
+      // New affiliates are active immediately; staff can restrict them later if needed.
       const key = id("new").replace(/^new_/, "");
       const sponsorCode = c.signup.sponsor_code?.toLowerCase();
       const sponsor = sponsorCode ? st.affiliates.find((a) => a.status === "approved" && (a.code.toLowerCase() === sponsorCode || a.slug === sponsorCode)) : undefined;
@@ -646,7 +645,7 @@ export const demoRepo: Repo = {
       user = { userId: `usr_${key}`, email, role: "affiliate", fullName: c.signup.full_name, displayName: null, leaderboardOptIn: false, affiliateId: affId };
       st.users.push(user);
       st.affiliates.push({
-        id: affId, userId: user.userId, code, slug: null, status: st.settings.autoApprove ? "approved" : "pending",
+        id: affId, userId: user.userId, code, slug: null, status: "approved",
         country: c.signup.country, onboardingStep: 0, onboardingCompletedAt: null, monthlyGoalSales: null, createdAt: iso(now()),
         application: c.signup.application, sponsorId: sponsor?.id ?? null,
       });

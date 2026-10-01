@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/money";
 import { salesContext, ofKind, salesPageUrl } from "@/lib/sales/server";
 import { SalesOnboarding } from "@/components/sales-center/sales-onboarding";
 import { getDictionary } from "@/i18n";
+import { isStaff } from "@/lib/auth";
 
 /** Six-step first run: understand → sector → what to say → link & code → message → prospect. */
 export default async function Welcome({ params }: PageProps<"/[locale]/dashboard/welcome">) {
@@ -22,5 +23,5 @@ export default async function Welcome({ params }: PageProps<"/[locale]/dashboard
   return <div className="py-4 sm:py-10"><SalesOnboarding productLine={productLine} pitch={pitch?.body.short ?? null} link={ctx.defaultLink} code={s.affiliate.code} offerLine={`${formatMoney(offer.priceCents, locale, offer.currency)} ${t.sc.product.perInterval.year}`}
     targets={ctx.markets.map((m) => ({ id: m.id, slug: m.slug, icon: m.icon, relevance: m.relevance ?? 3, c: marketContent(m, locale) }))}
     messages={ofKind(ctx.content, "message")} templateKey={template?.key ?? null} pageBase={pageBase} existingPages={existingPages}
-    startStep={s.affiliate.onboardingCompletedAt ? 0 : s.affiliate.onboardingStep} pending={s.affiliate.status !== "approved"} advisorName={ctx.advisorName}/></div>;
+    startStep={s.affiliate.onboardingCompletedAt ? 0 : s.affiliate.onboardingStep} pending={s.affiliate.status !== "approved" && !isStaff(s) && s.role === "affiliate"} advisorName={ctx.advisorName}/></div>;
 }

@@ -78,7 +78,6 @@ export interface Settings {
   commissionValidationDays: number;
   payoutMinimumCents: number;
   leaderboardEnabled: boolean;
-  autoApprove: boolean;
   refundPartialPolicy: "manual_review" | "proportional" | "full_reversal";
   billingEmailsOwner: "stripe" | "studio";
   connectEnabled: boolean;

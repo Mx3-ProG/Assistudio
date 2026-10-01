@@ -110,7 +110,6 @@ export async function updateSettings(_: AdminState, f: FormData) {
     commissionValidationDays: d.commissionValidationDays,
     payoutMinimumCents: Math.round(d.payoutMinimumEuros * 100),
     leaderboardEnabled: f.get("leaderboardEnabled") === "on",
-    autoApprove: f.get("autoApprove") === "on",
     refundPartialPolicy: d.refundPartialPolicy,
     billingEmailsOwner: d.billingEmailsOwner,
     connectEnabled: f.get("connectEnabled") === "on",

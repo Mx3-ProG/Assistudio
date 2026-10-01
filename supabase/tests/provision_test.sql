@@ -29,11 +29,11 @@ select public.provision_account('00000000-0000-0000-0000-00000000e002', 'new.par
   '{"full_name":"New Partner","locale":"fr","country":"FR","sponsor_code":"sponsp","application":{"channels":"LinkedIn"}}');
 select pg_temp.assert((select full_name = 'New Partner' and locale = 'fr' from public.profiles where id = '00000000-0000-0000-0000-00000000e002'),
   'provision_account creates the profile from the sign-up data');
-select pg_temp.assert((select a.status = 'pending' and a.country = 'FR' and a.application ->> 'channels' = 'LinkedIn'
+select pg_temp.assert((select a.status = 'approved' and a.country = 'FR' and a.application ->> 'channels' = 'LinkedIn'
                          and a.sponsor_id = s.id
                          from public.affiliates a join public.affiliates s on s.profile_id = '00000000-0000-0000-0000-00000000e001'
                         where a.profile_id = '00000000-0000-0000-0000-00000000e002'),
-  'provision_account creates the affiliate application with its sponsor');
+  'provision_account creates an active affiliate account with its sponsor');
 select public.provision_account('00000000-0000-0000-0000-00000000e002', 'new.partner@test.invalid', '{"full_name":"Changed"}');
 select pg_temp.assert((select count(*) = 1 from public.affiliates where profile_id = '00000000-0000-0000-0000-00000000e002')
   and (select full_name = 'New Partner' from public.profiles where id = '00000000-0000-0000-0000-00000000e002'),

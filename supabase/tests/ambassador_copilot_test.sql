@@ -18,7 +18,7 @@ select pg_temp.assert(pg_temp.fails($$insert into public.sales_content (kind, ke
   values ('testimonial', 'x', 'en', 'Test', '{}')$$), 'unknown kinds are still rejected');
 
 select pg_temp.assert((select count(*) from public.sales_content where kind = 'pitch' and status = 'active') >= 2, 'the pitch is seeded and published (en + fr)');
-select pg_temp.assert((select count(*) from public.sales_content where kind = 'case_study' and status = 'active') >= 30, 'case studies are seeded');
+select pg_temp.assert((select count(*) from public.sales_content where kind = 'case_study') >= 30, 'case studies are seeded (unverified references may remain drafts)');
 select pg_temp.assert((select status from public.sales_content where kind = 'case_study' and key = 'mcrenov' and locale = 'fr') = 'draft',
   'a reference awaiting confirmation is seeded as a draft (invisible to ambassadors)');
 select pg_temp.assert((select count(*) from public.sales_content where kind = 'sequence' and stage in ('follow_up', 'proposal')) = 4,

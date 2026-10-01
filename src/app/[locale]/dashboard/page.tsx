@@ -167,7 +167,7 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
           <ArrowRight className="flip-rtl size-4 text-accent" />
         </Link>
       )}
-      {s.affiliate.status === "pending" && <Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice>}
+      {s.affiliate.status === "pending" && s.role === "affiliate" && <Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice>}
 
       {beginner && (
         <section className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
@@ -189,7 +189,7 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
                 </li>
               ))}
             </ol>
-            {s.affiliate.status !== "approved" && <p className="mt-3 text-[12.5px] text-muted">{t.gd.path.pending}</p>}
+            {s.affiliate.status !== "approved" && s.role === "affiliate" && <p className="mt-3 text-[12.5px] text-muted">{t.gd.path.pending}</p>}
           </div>
         </section>
       )}

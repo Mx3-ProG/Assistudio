@@ -7,6 +7,7 @@ export function pageMetadata(locale: Locale, path: string, title: string, descri
   const url = `${env.siteUrl}/${locale}${path}`;
   const languages: Record<string, string> = Object.fromEntries(locales.map((l) => [l, `${env.siteUrl}/${l}${path}`]));
   languages["x-default"] = `${env.siteUrl}/${defaultLocale}${path}`;
+  const socialImage = `${env.siteUrl}/${locale}/opengraph-image?v=2`;
   return {
     title,
     description,
@@ -18,8 +19,9 @@ export function pageMetadata(locale: Locale, path: string, title: string, descri
       description,
       siteName: "Studio ATS",
       locale: (localeMeta[locale]?.intl ?? "en-GB").replace("-", "_"),
+      images: [{ url: socialImage, width: 1200, height: 630, alt: "Studio ATS — Votre studio commercial en ligne" }],
     },
-    twitter: { card: "summary_large_image", title, description },
+    twitter: { card: "summary_large_image", title, description, images: [socialImage] },
     robots: opts.noindex ? { index: false, follow: false, nocache: true } : { index: true, follow: true },
   };
 }

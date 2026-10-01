@@ -141,7 +141,7 @@ insert into public.settings (key, value, is_public, description) values
   ('commission.validation_days',  '30'::jsonb,            false, 'Days after payment before a commission becomes available'),
   ('payout.minimum_cents',        '5000'::jsonb,          false, 'Minimum available balance to trigger a payout'),
   ('payout.schedule',             '"monthly"'::jsonb,     false, 'Payout cadence'),
-  ('affiliates.auto_approve',     'false'::jsonb,         false, 'Approve new affiliates without manual review'),
+  ('affiliates.auto_approve',     'true'::jsonb,          false, 'Legacy setting; new affiliates are automatically active'),
   ('leaderboard.enabled',         'false'::jsonb,         true,  'Show the affiliate leaderboard'),
   ('fraud.click_burst_threshold', '50'::jsonb,            false, 'Clicks per visitor per hour that raises a flag');
 
