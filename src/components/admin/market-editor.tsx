@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 
 export function MarketEditor({ markets, editLocale }: { markets: (Market & { active: boolean })[]; editLocale: Locale }) {
   const { t } = useI18n();
+  const E = t.admin.marketEditor;
   const router = useRouter();
   const [selected, setSelected] = useState(markets[0]?.id);
   const m = markets.find((x) => x.id === selected);
@@ -25,8 +26,8 @@ export function MarketEditor({ markets, editLocale }: { markets: (Market & { act
           <li key={x.id}>
             <button onClick={() => setSelected(x.id)} className={cn("flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-start text-[14px]", x.id === selected ? "bg-surface-2 font-medium" : "hover:bg-surface-2/60")}>
               <MarketIcon name={x.icon} className="size-4 text-accent" />
-              <span className="flex-1 truncate">{x.content.en.name}</span>
-              {!x.active && <Badge>off</Badge>}
+              <span className="flex-1 truncate">{(x.content[editLocale] ?? x.content.en).name}</span>
+              {!x.active && <Badge>{E.off}</Badge>}
             </button>
           </li>
         ))}
@@ -43,15 +44,15 @@ export function MarketEditor({ markets, editLocale }: { markets: (Market & { act
             ))}
             <input type="hidden" name="locale" value={editLocale} />
           </div>
-          {!c && <p className="text-[13px] text-warning">No {localeMeta[editLocale].label} content yet — English is shown as fallback. Saving creates the translation.</p>}
+          {!c && <p className="text-[13px] text-warning">{E.noContent.replace("{language}", localeMeta[editLocale].label)}</p>}
           {(["name", "who", "why", "problem", "angle"] as const).map((k) => (
-            <Field key={k} label={k}>
+            <Field key={k} label={E.fields[k]}>
               <input name={k} required defaultValue={(c ?? m.content.en)[k]} className={inputClass} />
             </Field>
           ))}
-          <Field label="message"><textarea name="message" rows={5} required defaultValue={(c ?? m.content.en).message} className={textareaClass} /></Field>
-          <Field label="searches (one per line)"><textarea name="searches" rows={3} defaultValue={(c ?? m.content.en).searches.join("\n")} className={textareaClass} /></Field>
-          <label className="flex items-center gap-3 text-[14px]"><input type="checkbox" name="active" defaultChecked={m.active} className="size-4 accent-[var(--accent)]" />Active</label>
+          <Field label={E.fields.message}><textarea name="message" rows={5} required defaultValue={(c ?? m.content.en).message} className={textareaClass} /></Field>
+          <Field label={E.fields.searches}><textarea name="searches" rows={3} defaultValue={(c ?? m.content.en).searches.join("\n")} className={textareaClass} /></Field>
+          <label className="flex items-center gap-3 text-[14px]"><input type="checkbox" name="active" defaultChecked={m.active} className="size-4 accent-[var(--accent)]" />{E.active}</label>
           <div className="flex items-center gap-3">
             <button disabled={pending} className={buttonClass("primary", "md")}>{t.common.save}</button>
             {state.ok && <span className="text-[13px] text-success">{t.dash.settings.saved}</span>}

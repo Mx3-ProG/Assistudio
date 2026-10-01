@@ -868,6 +868,13 @@ const es: Dictionary = {
     settingsHint: "Las reglas de negocio se leen de la base de datos — nada está fijado en el código.",
     marketsSubtitle: "Fichas de mercado localizadas que se muestran en la página de inicio, en «Encontrar clientes» y en la bienvenida. Sin cifras de ingresos ni de ROI sin fuente.",
     auditSubtitle: "Solo se añaden entradas; nada se modifica.",
+    contentNotice: "Los elementos del kit de ventas están en la tabla sales_assets (cargada desde src/content/sales-kit.ts). La edición en la aplicación y la subida de archivos llegarán en la próxima versión del panel de administración.",
+    marketEditor: {
+      fields: { name: "Nombre", who: "Para quién", why: "Por qué", problem: "Problema", angle: "Enfoque", message: "Mensaje", searches: "Búsquedas (una por línea)" },
+      active: "Activo",
+      off: "inactivo",
+      noContent: "Todavía no hay contenido en {language}: se muestra el inglés como alternativa. Al guardar se crea la traducción.",
+    },
     settingsForm: {
       attributionWindow: "Ventana de atribución (días)",
       attributionModel: "Modelo de atribución",

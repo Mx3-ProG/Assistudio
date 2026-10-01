@@ -869,6 +869,13 @@ const en = {
     settingsHint: "Business rules are read from the database — nothing is hardcoded.",
     marketsSubtitle: "Localised market cards shown on the homepage, in Find clients and in onboarding. No unsourced revenue or ROI figures.",
     auditSubtitle: "Append-only.",
+    contentNotice: "Sales-kit entries live in the sales_assets table (seeded from src/content/sales-kit.ts). In-app editing and file uploads come in the next admin iteration.",
+    marketEditor: {
+      fields: { name: "Name", who: "Who", why: "Why", problem: "Problem", angle: "Angle", message: "Message", searches: "Searches (one per line)" },
+      active: "Active",
+      off: "off",
+      noContent: "No {language} content yet — English is shown as a fallback. Saving creates the translation.",
+    },
     settingsForm: {
       attributionWindow: "Attribution window (days)",
       attributionModel: "Attribution model",

@@ -868,6 +868,13 @@ const nl: Dictionary = {
     settingsHint: "Bedrijfsregels worden uit de database gelezen — niets is hard gecodeerd.",
     marketsSubtitle: "Gelokaliseerde marktkaarten op de homepage, bij ‘Klanten vinden’ en in de onboarding. Geen omzet- of ROI-cijfers zonder bron.",
     auditSubtitle: "Alleen toevoegen, nooit wijzigen.",
+    contentNotice: "De onderdelen van de verkoopkit staan in de tabel sales_assets (gevuld vanuit src/content/sales-kit.ts). Bewerken in de app en bestanden uploaden komen in de volgende adminversie.",
+    marketEditor: {
+      fields: { name: "Naam", who: "Voor wie", why: "Waarom", problem: "Probleem", angle: "Invalshoek", message: "Bericht", searches: "Zoekopdrachten (één per regel)" },
+      active: "Actief",
+      off: "uit",
+      noContent: "Nog geen inhoud in het {language} — Engels wordt als terugval getoond. Opslaan maakt de vertaling aan.",
+    },
     settingsForm: {
       attributionWindow: "Toeschrijvingsvenster (dagen)",
       attributionModel: "Toeschrijvingsmodel",

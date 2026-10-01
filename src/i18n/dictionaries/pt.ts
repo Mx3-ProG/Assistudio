@@ -868,6 +868,13 @@ const pt: Dictionary = {
     settingsHint: "As regras de negócio são lidas da base de dados — nada está fixo no código.",
     marketsSubtitle: "Fichas de mercado localizadas apresentadas na página inicial, em «Encontrar clientes» e no arranque. Sem números de receita ou ROI sem fonte.",
     auditSubtitle: "Só é possível acrescentar; nada é modificado.",
+    contentNotice: "Os elementos do kit de vendas estão na tabela sales_assets (carregada a partir de src/content/sales-kit.ts). A edição na aplicação e o envio de ficheiros chegam na próxima versão da administração.",
+    marketEditor: {
+      fields: { name: "Nome", who: "Para quem", why: "Porquê", problem: "Problema", angle: "Abordagem", message: "Mensagem", searches: "Pesquisas (uma por linha)" },
+      active: "Ativo",
+      off: "inativo",
+      noContent: "Ainda não há conteúdo em {language} — o inglês é mostrado como alternativa. Guardar cria a tradução.",
+    },
     settingsForm: {
       attributionWindow: "Janela de atribuição (dias)",
       attributionModel: "Modelo de atribuição",

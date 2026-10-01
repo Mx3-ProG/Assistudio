@@ -865,6 +865,13 @@ const fr: Dictionary = {
     settingsHint: "Les règles métier sont lues depuis la base — rien n’est codé en dur.",
     marketsSubtitle: "Fiches marchés localisées affichées sur l’accueil, dans « Trouver des clients » et dans l’onboarding. Aucun chiffre de revenu ou de ROI non sourcé.",
     auditSubtitle: "Ajout seul, aucune modification possible.",
+    contentNotice: "Les éléments du kit de vente sont dans la table sales_assets (alimentée depuis src/content/sales-kit.ts). L’édition dans l’application et l’envoi de fichiers arrivent dans la prochaine itération de l’admin.",
+    marketEditor: {
+      fields: { name: "Nom", who: "Pour qui", why: "Pourquoi", problem: "Problème", angle: "Angle", message: "Message", searches: "Recherches (une par ligne)" },
+      active: "Actif",
+      off: "inactif",
+      noContent: "Pas encore de contenu en {language} — l’anglais est affiché par défaut. Enregistrer crée la traduction.",
+    },
     settingsForm: {
       attributionWindow: "Fenêtre d’attribution (jours)",
       attributionModel: "Modèle d’attribution",

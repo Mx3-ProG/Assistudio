@@ -1,5 +1,5 @@
 import { getDictionary } from "@/i18n";
-import type { Locale } from "@/i18n/config";
+import { localeMeta, type Locale } from "@/i18n/config";
 import { requireStaff } from "@/lib/auth";
 import { defaultSalesAssets } from "@/content/sales-kit";
 import { PageHeader, Card, Badge, Notice } from "@/components/ui/primitives";
@@ -12,13 +12,13 @@ export default async function AdminContent({ params }: PageProps<"/[locale]/admi
   return (
     <>
       <PageHeader title={t.admin.nav.content} />
-      <div className="mb-4"><Notice>Sales-kit entries live in the <code>sales_assets</code> table (seeded from <code>src/content/sales-kit.ts</code>). In-app editing and file uploads are the next admin iteration.</Notice></div>
+      <div className="mb-4"><Notice>{t.admin.contentNotice}</Notice></div>
       <Card className="overflow-hidden">
         <ul className="divide-y divide-line">
           {defaultSalesAssets.map((a) => (
             <li key={a.id} className="flex items-center gap-3 px-5 py-3 sm:px-6">
               <Badge tone="accent">{t.dash.salesKit.sections[a.type]}</Badge>
-              <Badge>{a.locale}</Badge>
+              <Badge>{localeMeta[a.locale].label}</Badge>
               <span className="truncate text-[14px]">{a.title}</span>
             </li>
           ))}

@@ -868,6 +868,13 @@ const de: Dictionary = {
     settingsHint: "Geschäftsregeln werden aus der Datenbank gelesen — nichts ist fest codiert.",
     marketsSubtitle: "Lokalisierte Marktkarten auf der Startseite, unter „Kunden finden“ und im Onboarding. Keine unbelegten Umsatz- oder ROI-Zahlen.",
     auditSubtitle: "Nur Anfügen, keine Änderungen möglich.",
+    contentNotice: "Die Einträge des Verkaufskits liegen in der Tabelle sales_assets (befüllt aus src/content/sales-kit.ts). Bearbeitung in der App und Datei-Uploads folgen in der nächsten Admin-Version.",
+    marketEditor: {
+      fields: { name: "Name", who: "Für wen", why: "Warum", problem: "Problem", angle: "Ansatz", message: "Nachricht", searches: "Suchanfragen (eine pro Zeile)" },
+      active: "Aktiv",
+      off: "aus",
+      noContent: "Noch kein Inhalt auf {language} — Englisch wird ersatzweise angezeigt. Beim Speichern wird die Übersetzung angelegt.",
+    },
     settingsForm: {
       attributionWindow: "Zuordnungsfenster (Tage)",
       attributionModel: "Zuordnungsmodell",

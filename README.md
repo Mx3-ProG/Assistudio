@@ -100,12 +100,24 @@ Expiry, OTP length and rate limits are Supabase Auth settings. Every technical f
 
 ## Internationalisation
 
-Locales: `en fr de es pt it nl ar` (Arabic is fully RTL). All UI copy lives in `src/i18n/dictionaries`; components never hardcode business text. `en` is the reference; `fr` is complete; `de es pt it nl ar` currently cover the public headline copy and fall back to English key by key — **they need professional translation before launch**. To add a language: add it to `src/i18n/config.ts` and create a dictionary file.
+Locales: `en fr de es pt it nl ar` (Arabic is fully RTL). Every locale is complete — UI, emails, contracts/briefs/quotes/PDFs, Sales Center content, sales kit and market cards — and the tests fail if a key, placeholder or content item is missing in any language.
+
+| What | Where |
+|---|---|
+| UI copy | `src/i18n/dictionaries/{locale}.ts` (+ `messaging.*`, `sales-center.*`), typed `Dictionary` |
+| Contracts, client brief, PDFs | `src/i18n/dictionaries/contracts.{locale}.ts` via `contractsCopy(locale)` |
+| Transactional emails (incl. sign-in code) | `src/lib/email/copy*.ts` |
+| Sales Center content, sales kit, market cards | `src/content/sales-center/i18n/*`, `src/content/i18n/*` → `supabase/seed.sql` (`node scripts/generate-seed.ts`) |
+| Contract templates | migration `20261003000001_contract_templates_i18n.sql` |
+
+Components never hardcode business text. Translations beyond `en`/`fr` were produced in-house and **should get a native review before launch**. The translated legal clauses of the quote (`quote_terms`, de/es/pt/it/nl/ar) are seeded as **draft** with `needs_legal_review: true`; quotes in those languages need a lawyer to approve and publish them (`update public.contract_templates set status='published', published_at=now() where kind='quote_terms' and locale='de' and version=1;`). Supabase Auth's own hosted emails are configured in the Supabase dashboard and are not localised; sign-in codes go out through the localised Resend email instead.
+
+To add a language: add it to `src/i18n/config.ts`, then create every file listed above — the tests list what is missing.
 
 ## Checks
 
 ```bash
-npm test               # 42 unit tests: commission engine, money, Stripe normalisation + signatures, emails, attribution
+npm test               # unit tests: commission engine, money, Stripe, emails, attribution, i18n completeness
 npm run db:test:local  # 161 SQL assertions on a throwaway local Postgres (no Docker): V0.1 pipeline + the 10 V0.2 scenarios
 npm run db:test        # same suites against $DATABASE_URL (rolls back; local/staging DB only)
 npm run typecheck

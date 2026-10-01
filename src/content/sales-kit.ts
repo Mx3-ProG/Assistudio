@@ -4,10 +4,19 @@
  * staff to Supabase Storage from the admin.
  */
 import type { Locale } from "@/i18n/config";
+import de from "./i18n/sales-kit.de.ts";
+import es from "./i18n/sales-kit.es.ts";
+import pt from "./i18n/sales-kit.pt.ts";
+import it from "./i18n/sales-kit.it.ts";
+import nl from "./i18n/sales-kit.nl.ts";
+import ar from "./i18n/sales-kit.ar.ts";
 
 export type AssetType =
   | "email" | "whatsapp" | "linkedin" | "instagram" | "cold_call" | "objection"
   | "visual" | "video" | "presentation";
+
+/** A translated entry: [type, title, body], in the same order as the English ones. */
+export type KitEntry = [AssetType, string, string];
 
 export interface SalesAsset {
   id: string;
@@ -124,6 +133,13 @@ Si ce n’est pas une priorité, aucun souci — dites-le-moi et je ne vous rela
 `Je comprends. Ici, l’automatisation signifie simplement que l’email de confirmation, le rappel et la relance partent à temps — ce qu’on oublie les semaines chargées. Vous gardez la main sur chaque conversation.`),
   a("objection", "fr", "« Je dois réfléchir. »",
 `Bien sûr. Pour vous aider : qu’est-ce qui devrait être vrai pour que ça en vaille la peine pour vous ? Je vous envoie la présentation [votre lien] et je reviens vers vous [jour] — ça vous va ?`),
+  a("whatsapp", "fr", "Après un appel",
+`Merci pour l’échange, [Prénom] ! Voici la page Studio ATS dont nous avons parlé : [votre lien]. N’hésitez pas si vous avez des questions.`),
+  a("linkedin", "fr", "Message après la mise en relation",
+`Merci pour la mise en relation, [Prénom]. J’ai vu que [Entreprise] travaille sur [type de projet]. Comment vos nouveaux clients vous contactent-ils en général ? Je travaille avec Studio ATS, qui qualifie les demandes et programme automatiquement les appels de découverte. Je vous partage une courte présentation si c’est utile : [votre lien]`),
+  // ------------------------------------------- DE · ES · PT · IT · NL · AR
+  ...Object.entries({ de, es, pt, it, nl, ar }).flatMap(([locale, entries]) =>
+    entries.map(([type, title, body]) => a(type, locale as Locale, title, body))),
 ];
 
 export function assetsFor(locale: Locale): SalesAsset[] {
