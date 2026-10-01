@@ -9,7 +9,7 @@ export type TemplateId =
   | "affiliate.welcome" | "affiliate.new_lead" | "affiliate.appointment" | "affiliate.sale_detected"
   | "affiliate.commission_available" | "affiliate.payout_sent" | "affiliate.renewal" | "affiliate.customer_cancelled"
   | "customer.welcome" | "customer.order_confirmation" | "customer.renewal_receipt" | "customer.payment_failed"
-  | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation" | "auth.login_code" | "system.test";
+  | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation" | "system.test";
 
 export interface TemplateCopy {
   subject: string;
@@ -146,14 +146,6 @@ const en: Copy = {
       title: "We received your appointment request.",
       paragraphs: ["We will confirm the time with you{when}."],
     },
-    "auth.login_code": {
-      subject: "Your Studio ATS sign-in code: {code}",
-      preheader: "Valid for 5 minutes.",
-      title: "Your sign-in code",
-      paragraphs: ["Enter this code on Studio ATS to sign in. It is valid for 5 minutes and works only once."],
-      highlight: "{code}",
-      footnote: "If you did not request this code, ignore this email: nobody can sign in without it. Never share it.",
-    },
     "system.test": {
       subject: "Studio ATS — test email",
       preheader: "Email delivery works.",
@@ -284,14 +276,6 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       preheader: "Nous confirmons l’horaire avec vous.",
       title: "Nous avons bien reçu votre demande de rendez-vous.",
       paragraphs: ["Nous confirmons l’horaire avec vous{when}."],
-    },
-    "auth.login_code": {
-      subject: "Votre code de connexion Studio ATS : {code}",
-      preheader: "Valable 5 minutes.",
-      title: "Votre code de connexion",
-      paragraphs: ["Saisissez ce code sur Studio ATS pour vous connecter. Il est valable 5 minutes et ne fonctionne qu’une seule fois."],
-      highlight: "{code}",
-      footnote: "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email : personne ne peut se connecter sans ce code. Ne le communiquez jamais.",
     },
     "system.test": {
       subject: "Studio ATS — email de test",

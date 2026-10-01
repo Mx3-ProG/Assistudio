@@ -38,8 +38,6 @@ export function isMissingDbObject(e: unknown): boolean {
 
 export const isDuplicate = (e: unknown) => codeOf(e) === "23505" || /duplicate key/i.test(messageOf(e));
 
-export const isEmailAlreadyRegistered = (e: unknown) =>
-  ["email_exists", "user_already_exists"].includes(codeOf(e)) || /already (been )?registered|already exists/i.test(messageOf(e));
 
 /** Short, non-sensitive detail for the person and the logs. */
 export function describeError(e: unknown): string {

@@ -278,7 +278,7 @@ const fr: Dictionary = {
       rateLimited: "Trop de demandes. Patientez quelques minutes puis réessayez.",
       tooSoon: "Un code vient d’être envoyé. Patientez une minute avant d’en demander un nouveau.",
       sendFailed: "L’email n’a pas pu être envoyé. Réessayez dans un instant ; si ça persiste, transmettez-nous le détail ci-dessous.",
-      codeInvalid: "Ce code n’est pas valide. Vérifiez-le et réessayez.",
+      codeInvalid: "Ce code n’est pas valide ou a expiré. Vérifiez-le, ou demandez-en un nouveau.",
       codeExpired: "Ce code a expiré. Demandez-en un nouveau.",
       tooManyAttempts: "Trop d’essais incorrects. Demandez un nouveau code.",
       failed: "Une erreur technique a empêché la connexion. Demandez un nouveau code et réessayez ; si ça persiste, transmettez-nous le détail ci-dessous.",

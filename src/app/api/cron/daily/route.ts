@@ -9,7 +9,6 @@ import { log } from "@/lib/log";
  *  1. release commissions whose validation period has elapsed (pending → available)
  *  2. schedule upcoming renewals (display only — no commission is ever created in advance)
  *  3. retry emails that failed or were never sent (outbox safety net)
- *  4. purge expired one-time sign-in codes
  * Every step is idempotent.
  */
 export async function GET(req: NextRequest) {
@@ -30,8 +29,6 @@ export async function GET(req: NextRequest) {
     emails = { sent: emails.sent + batch.sent, failed: emails.failed + batch.failed, skipped: emails.skipped + batch.skipped };
     if (batch.sent + batch.failed + batch.skipped < 50) break;
   }
-  const purged = await sb.rpc("auth_code_purge");
-  if (purged.error) log.warn("auth", "sign-in code purge failed", { error: purged.error.message });
-  log.info("commissions", "daily job", { released: released.data, renewals: renewals.data, ...emails, signInCodesPurged: purged.data });
+  log.info("commissions", "daily job", { released: released.data, renewals: renewals.data, ...emails });
   return NextResponse.json({ released: released.data, renewalsScheduled: renewals.data, emails });
 }

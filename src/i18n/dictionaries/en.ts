@@ -282,7 +282,7 @@ const en = {
       rateLimited: "Too many requests. Wait a few minutes and try again.",
       tooSoon: "A code was just sent. Wait a minute before asking for a new one.",
       sendFailed: "The email couldn't be sent. Try again in a moment; if it persists, send us the detail below.",
-      codeInvalid: "This code is not valid. Check it and try again.",
+      codeInvalid: "This code is not valid or has expired. Check it, or ask for a new one.",
       codeExpired: "This code has expired. Ask for a new one.",
       tooManyAttempts: "Too many wrong attempts. Ask for a new code.",
       failed: "A technical error prevented sign-in. Ask for a new code and try again; if it persists, send us the detail below.",

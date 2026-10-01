@@ -1,6 +1,5 @@
 "use server";
-import { createHash } from "node:crypto";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { env, isDemoMode } from "@/lib/env";
@@ -8,23 +7,24 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { repo } from "@/lib/data";
 import { DEMO_SESSION_COOKIE, demoUserId } from "@/lib/data/demo";
 import type { SignupData } from "@/lib/data/repo";
-import { generateCode, hashCode, normalizeCode, normalizeEmail, type CodePurpose } from "@/lib/auth-code";
-import { sendSignInCode } from "@/lib/email/auth";
+import { normalizeCode, normalizeEmail, type CodePurpose } from "@/lib/auth-code";
 import { kickEmailOutbox } from "@/lib/email/service";
 import { log } from "@/lib/log";
-import { describeError, messageOf } from "@/lib/auth-errors";
+import { describeError } from "@/lib/auth-errors";
 import { isLocale, type Locale } from "@/i18n/config";
 
 /**
  * Passwordless sign-in. Login and sign-up are the same two steps:
- *   1. email (+ partner application on sign-up) → a 6-digit code is emailed by
- *      the app itself (Resend), valid 5 minutes, single use, 5 attempts;
- *   2. the code → session opened (account created on first sign-up).
+ *   1. email (+ partner application on sign-up) → Supabase Auth emails a
+ *      one-time code (signInWithOtp; template, expiry and sender are set in
+ *      Supabase → Authentication);
+ *   2. the code → session opened (verifyOtp); the account is created on the
+ *      first sign-up and its profile + affiliate application provisioned.
  * There are no passwords. OAuth stays available when configured.
  */
 export type AuthError =
   | "invalidEmail" | "invalidForm" | "rateLimited" | "tooSoon" | "sendFailed"
-  | "codeInvalid" | "codeExpired" | "tooManyAttempts" | "failed" | "failedRetry";
+  | "codeInvalid" | "codeExpired" | "tooManyAttempts" | "failed";
 export type AuthState = {
   /** "code": the code step is shown (a code was sent, or would have been). */
   status: "idle" | "error" | "code";
@@ -66,13 +66,6 @@ function parseEmail(v: FormDataEntryValue | null): string | null {
   return parsed.success ? normalizeEmail(parsed.data) : null;
 }
 
-/** Salted hash of the client IP, for the per-network rate limit. Never stored raw. */
-async function ipHash() {
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip");
-  return ip ? createHash("sha256").update(`${env.trackingSalt}:auth:${ip}`).digest("hex").slice(0, 32) : null;
-}
-
 /** One action for the whole form: intent = send | verify | edit. */
 export async function codeAuth(prev: AuthState, form: FormData): Promise<AuthState> {
   const intent = form.get("intent");
@@ -106,50 +99,40 @@ async function issue(form: FormData): Promise<AuthState> {
     };
   }
 
-  const code = generateCode();
   const base = { email, purpose };
-  let result;
+  let res;
   try {
-    result = await repo().issueSignInCode({ email, purpose, codeHash: hashCode(email, code, env.authCodeSecret), signup, ipHash: await ipHash() });
+    res = await repo().sendSignInCode({ email, purpose, signup });
   } catch (e) {
     const detail = describeError(e);
-    log.error("auth", "issue code failed", { detail });
-    return { status: "error", error: "failed", detail };
-  }
-  if (result === "rate_limited") return { status: "error", error: "rateLimited" };
-  if (result === "too_soon") return { status: "code", ...base, error: "tooSoon" };
-  // Unknown address on login: same screen, nothing sent (no account enumeration).
-  if (result === "no_account") return { status: "code", ...base, sentAt: Date.now() };
-
-  try {
-    await sendSignInCode({ to: email, code, locale });
-  } catch (e) {
-    // Resend's own message ("domain is not verified", "API key is invalid"…): no secret, and it says what to fix.
-    const detail = `email_provider: ${messageOf(e).replace(/\s+/g, " ").slice(0, 200)}`;
-    log.error("auth", "sign-in code email failed", { detail });
+    log.error("auth", "send code failed", { detail });
     return { status: "error", error: "sendFailed", detail };
   }
-  return { status: "code", ...base, sentAt: Date.now(), ...(isDemoMode ? { demoCode: code } : {}) };
+  if (res.status === "rate_limited") return { status: "error", error: "rateLimited", detail: res.detail };
+  if (res.status === "too_soon") return { status: "code", ...base, error: "tooSoon" };
+  // "no_account" (unknown address on login): same screen, nothing sent (no account enumeration).
+  return { status: "code", ...base, sentAt: Date.now(), ...(res.status === "sent" && res.demoCode ? { demoCode: res.demoCode } : {}) };
 }
 
 async function verifyCode(prev: AuthState, form: FormData): Promise<AuthState> {
   const locale = loc(form.get("locale"));
   const email = parseEmail(form.get("email"));
   if (!email) return { status: "error", error: "invalidEmail" };
-  const keep = { status: "code" as const, email, purpose: purposeOf(form.get("purpose")), sentAt: prev.sentAt, demoCode: prev.demoCode, values: prev.values };
+  const purpose = purposeOf(form.get("purpose"));
+  const keep = { status: "code" as const, email, purpose, sentAt: prev.sentAt, demoCode: prev.demoCode, values: prev.values };
 
   const code = normalizeCode(form.get("code"));
   if (!code) return { ...keep, error: "codeInvalid" };
   let res;
   try {
-    res = await repo().signInWithCode({ email, codeHash: hashCode(email, code, env.authCodeSecret) });
+    res = await repo().signInWithCode({ email, code, purpose });
   } catch (e) {
     const detail = describeError(e);
     log.error("auth", "verify code failed", { detail });
     return { ...keep, error: "failed", detail };
   }
   if (res.status !== "ok") {
-    if (res.status === "failed") return { ...keep, error: res.retrySameCode ? "failedRetry" : "failed", detail: res.detail };
+    if (res.status === "failed") return { ...keep, error: "failed", detail: res.detail };
     const errors = { invalid: "codeInvalid", expired: "codeExpired", too_many_attempts: "tooManyAttempts" } as const;
     return { ...keep, error: errors[res.status] };
   }

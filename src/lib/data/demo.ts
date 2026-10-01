@@ -10,7 +10,7 @@ import { maxEarningOffer } from "@/lib/offers";
 import { defaultSalesContent } from "@/content/sales-center/content";
 import type { SalesContent, ContentKind } from "@/lib/sales/content";
 import type { Repo, Range, SignupData } from "./repo";
-import { CODE_TTL_SECONDS, MAX_ATTEMPTS, RESEND_AFTER_SECONDS, type CodePurpose } from "@/lib/auth-code";
+import { CODE_TTL_SECONDS, MAX_ATTEMPTS, RESEND_AFTER_SECONDS, generateCode, type CodePurpose } from "@/lib/auth-code";
 import { summarizeBook } from "./book";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow,
@@ -381,7 +381,7 @@ function seed(): Store {
   return s;
 }
 
-interface DemoCode { purpose: CodePurpose; codeHash: string; signup: SignupData | null; attempts: number; createdAt: number; expiresAt: number; consumed: boolean }
+interface DemoCode { purpose: CodePurpose; code: string; signup: SignupData | null; attempts: number; createdAt: number; expiresAt: number; consumed: boolean }
 const demoCodes = () => ((g as { __studioDemoCodes?: Map<string, DemoCode> }).__studioDemoCodes ??= new Map());
 
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
@@ -604,24 +604,25 @@ export const demoRepo: Repo = {
     };
   },
 
-  // ------------------------------------------------------------- passwordless sign-in (demo: in memory, same rules as SQL)
-  async issueSignInCode({ email, purpose, codeHash, signup }) {
+  // ------------------------------------------------------------- passwordless sign-in (demo: in memory; no email, the code is shown on screen)
+  async sendSignInCode({ email, purpose, signup }) {
     const st = db();
-    if (purpose === "login" && !st.users.some((u) => u.email === email)) return "no_account";
+    if (purpose === "login" && !st.users.some((u) => u.email === email)) return { status: "no_account" };
     const codes = demoCodes();
     const prev = codes.get(email);
-    if (prev && now() - prev.createdAt < RESEND_AFTER_SECONDS * 1000) return "too_soon";
-    codes.set(email, { purpose, codeHash, signup, attempts: 0, createdAt: now(), expiresAt: now() + CODE_TTL_SECONDS * 1000, consumed: false });
-    return "issued";
+    if (prev && now() - prev.createdAt < RESEND_AFTER_SECONDS * 1000) return { status: "too_soon" };
+    const code = generateCode();
+    codes.set(email, { purpose, code, signup, attempts: 0, createdAt: now(), expiresAt: now() + CODE_TTL_SECONDS * 1000, consumed: false });
+    return { status: "sent", demoCode: code };
   },
 
-  async signInWithCode({ email, codeHash }) {
+  async signInWithCode({ email, code }) {
     const c = demoCodes().get(email);
     if (!c || c.consumed) return { status: "invalid" };
     if (c.expiresAt <= now()) return { status: "expired" };
     if (c.attempts >= MAX_ATTEMPTS) return { status: "too_many_attempts" };
     c.attempts++;
-    if (c.codeHash !== codeHash) return { status: c.attempts >= MAX_ATTEMPTS ? "too_many_attempts" : "invalid" };
+    if (c.code !== code) return { status: c.attempts >= MAX_ATTEMPTS ? "too_many_attempts" : "invalid" };
     c.consumed = true;
 
     const st = db();

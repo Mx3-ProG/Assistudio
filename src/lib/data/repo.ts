@@ -23,12 +23,15 @@ export type Range = "7d" | "30d" | "90d" | "1y" | "all";
  * Affiliate-scoped methods take the affiliate id from the *session*, never
  * from user input; the Supabase implementation additionally relies on RLS.
  */
-export type IssueCodeResult = "issued" | "no_account" | "too_soon" | "rate_limited";
+export type SendCodeResult =
+  | { status: "sent"; demoCode?: string }
+  | { status: "no_account" | "too_soon" }
+  | { status: "rate_limited"; detail?: string };
 export type SignInWithCodeResult =
   | { status: "ok"; isNew: boolean; role: Session["role"] }
   | { status: "invalid" | "expired" | "too_many_attempts" }
   /** Technical failure after a valid code; `detail` is short and non-sensitive (src/lib/auth-errors.ts). */
-  | { status: "failed"; detail?: string; retrySameCode?: boolean };
+  | { status: "failed"; detail?: string };
 /** Sign-up form data, stored with the code and given to handle_new_user() as user metadata. */
 export interface SignupData {
   full_name: string;
@@ -67,13 +70,14 @@ export interface Repo {
 
   // ------------------------------------------------------------- passwordless sign-in (email codes)
   /**
-   * Stores a new one-time code (its hash only — see src/lib/auth-code.ts).
-   * A login request for an address without an account returns `no_account`
-   * and stores nothing; the caller answers the same way (no user enumeration).
+   * Emails a one-time sign-in code (Supabase Auth in production, in memory in
+   * demo). A login request for an address without an account returns
+   * `no_account` and sends nothing; the caller answers the same way (no user
+   * enumeration). On sign-up, `signup` becomes the new user's metadata.
    */
-  issueSignInCode(input: { email: string; purpose: CodePurpose; codeHash: string; signup: SignupData | null; ipHash: string | null }): Promise<IssueCodeResult>;
-  /** Checks the code; on success opens the session, creating the account on a first sign-up. */
-  signInWithCode(input: { email: string; codeHash: string }): Promise<SignInWithCodeResult>;
+  sendSignInCode(input: { email: string; purpose: CodePurpose; signup: SignupData | null }): Promise<SendCodeResult>;
+  /** Checks the code; on success opens the session and provisions the profile + affiliate application if missing. */
+  signInWithCode(input: { email: string; code: string; purpose: CodePurpose }): Promise<SignInWithCodeResult>;
 
   // ------------------------------------------------------------- affiliate
   getOverview(s: Session, range: Range): Promise<Overview>;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { StepError, describeError, isDuplicate, isEmailAlreadyRegistered, isMissingDbObject } from "./auth-errors.ts";
+import { StepError, describeError, isDuplicate, isMissingDbObject } from "./auth-errors.ts";
 
 test("a missing SQL function or table is reported as a missing migration, with its step", () => {
   const pgrst = { code: "PGRST202", message: "Could not find the function public.ensure_profile(p_email) in the schema cache" };
@@ -14,10 +14,9 @@ test("configuration problems are named", () => {
   assert.equal(describeError(new StepError("create_user", { message: "Invalid API key" })), "service_key_invalid (create_user)");
 });
 
-test("duplicates and existing accounts are recognised", () => {
+test("duplicates are recognised", () => {
   assert.ok(isDuplicate({ code: "23505", message: "duplicate key value violates unique constraint" }));
-  assert.ok(isEmailAlreadyRegistered({ code: "email_exists", message: "A user with this email address has already been registered" }));
-  assert.ok(!isEmailAlreadyRegistered({ message: "Database error creating new user" }));
+  assert.ok(!isDuplicate({ message: "Database error creating new user" }));
 });
 
 test("other errors keep their step and a short message", () => {

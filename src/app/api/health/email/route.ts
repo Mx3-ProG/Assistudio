@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 /**
  * Sign-in / email diagnostic. Open in a browser:
  *   https://<site>/api/health/email?key=<CRON_SECRET>
- * Reports configuration (never secret values), whether the sign-in-code
- * migrations are applied, and which domains the Resend API key can send from.
+ * Reports configuration (never secret values), the Supabase Auth email
+ * provider (sign-in codes), the provisioning migrations, and which domains the
+ * Resend API key (transactional emails) can send from.
  * Read-only: sends nothing, writes nothing.
  */
 export async function GET(req: NextRequest) {
@@ -23,7 +24,6 @@ export async function GET(req: NextRequest) {
       supabaseAnonKey: Boolean(env.supabaseAnonKey),
       supabaseServiceKey: Boolean(env.supabaseServiceKey),
       resendApiKey: Boolean(env.resendApiKey),
-      authCodeSecret: Boolean(process.env.AUTH_CODE_SECRET),
       emailFrom: env.emailFrom,
       emailReplyTo: env.emailReplyTo,
       transport: transportKind,
@@ -42,15 +42,29 @@ export async function GET(req: NextRequest) {
         db[name] = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
       }
     };
-    await probe("table auth_login_codes (20261001090000_email_login_codes)", () => sb.from("auth_login_codes").select("id", { head: true, count: "exact" }).limit(1));
-    await probe("function ensure_profile (20261002000001_ensure_profile)", () => sb.rpc("ensure_profile", { p_email: "healthcheck@invalid.invalid" }));
-    await probe("function auth_code_consume (20261001090000_email_login_codes)", () => sb.rpc("auth_code_consume", { p_email: "healthcheck@invalid.invalid", p_hash: "x" }));
-    await probe("function auth_code_release (20261003000001_auth_code_release)", () => sb.rpc("auth_code_release", { p_email: "healthcheck@invalid.invalid", p_hash: "x" }));
+    await probe("function ensure_profile (20261002000001_ensure_profile, optional)", () => sb.rpc("ensure_profile", { p_email: "healthcheck@invalid.invalid" }));
     await probe("table profiles", () => sb.from("profiles").select("id", { head: true, count: "exact" }).limit(1));
   } else {
     db.skipped = "Supabase URL or service role key missing";
   }
   report.database = db;
+
+  // Supabase Auth: is the email provider (which sends the sign-in codes) enabled?
+  if (env.supabaseUrl && env.supabaseAnonKey) {
+    try {
+      const res = await fetch(`${env.supabaseUrl}/auth/v1/settings`, { headers: { apikey: env.supabaseAnonKey }, signal: AbortSignal.timeout(10_000) });
+      const st = (await res.json().catch(() => ({}))) as { external?: { email?: boolean }; disable_signup?: boolean; mailer_autoconfirm?: boolean };
+      report.supabaseAuth = res.ok
+        ? {
+            emailProviderEnabled: st.external?.email ?? null,
+            signupsAllowed: st.disable_signup === undefined ? null : !st.disable_signup,
+            reminder: "Sign-in codes are sent by Supabase Auth: the 'Magic Link' and 'Confirm signup' templates must contain {{ .Token }}; set Custom SMTP (e.g. Resend) to lift the built-in mailer's few-emails-per-hour limit.",
+          }
+        : { httpStatus: res.status };
+    } catch (e) {
+      report.supabaseAuth = { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
 
   // Resend: which domains does this key belong to, and are they verified?
   if (env.resendApiKey) {

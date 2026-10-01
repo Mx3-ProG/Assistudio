@@ -6,8 +6,9 @@
 -- provisions the profile + affiliate application itself, through the single
 -- provisioning function introduced by the self-heal migration
 -- (20260930000001_account_self_heal.sql):
---   - provision_account(): right after auth.admin.createUser (sign-up by code);
---   - ensure_profile(): before sending a login code and on sign-in by code.
+--   - provision_account(): after a sign-in code is verified, when the
+--     profile is missing (sign-up, or an account created without trigger);
+--   - ensure_profile(): same, looked up by email (diagnostics, scripts).
 -- (getSession keeps using ensure_my_account() for OAuth / dashboard users.)
 -- provision_account() becomes idempotent: a second call never duplicates,
 -- overwrites or resurrects anything. Service role only.
