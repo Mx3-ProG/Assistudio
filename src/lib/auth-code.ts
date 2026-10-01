@@ -6,7 +6,7 @@
  * generate codes for the in-memory demo store. Shared constants live in
  * ./auth-code-rules.ts.
  */
-import { randomInt } from "node:crypto";
+import { createHmac, randomInt } from "node:crypto";
 import { CODE_LENGTH } from "./auth-code-rules.ts";
 
 export * from "./auth-code-rules.ts";
@@ -27,3 +27,11 @@ export function normalizeCode(input: unknown): string | null {
   const digits = input.replace(/[\s-]/g, "");
   return /^\d{6,10}$/.test(digits) ? digits : null;
 }
+
+/** Keyed hash bound to the address: database rows never contain a usable code. */
+export function hashCode(email: string, code: string, secret: string): string {
+  return createHmac("sha256", secret).update(`auth-code:${normalizeEmail(email)}:${code}`).digest("hex");
+}
+
+/** "123456" → "123 456" (easier to read in an email). */
+export const formatCode = (code: string) => (code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code);

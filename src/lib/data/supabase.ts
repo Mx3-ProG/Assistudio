@@ -13,6 +13,7 @@ import { summarizeBook } from "./book";
 import { supabaseMessaging } from "./messaging.supabase";
 import { log } from "@/lib/log";
 import { StepError, describeError, isDuplicate, isMissingDbObject } from "@/lib/auth-errors";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
@@ -95,6 +96,18 @@ async function linkStats(sb: any, filter: { affiliate_id?: string; link_id?: str
 
 type Account = { id: string; role: Session["role"]; deleted: boolean };
 type Svc = ReturnType<typeof supabaseService>;
+
+/** Account for an address, repairing a legacy auth user that has no profile. */
+async function accountByEmail(email: string): Promise<Account | null> {
+  const svc = supabaseService();
+  const { data: p, error } = await svc.from("profiles").select("id, role, deleted_at").eq("email", email).maybeSingle();
+  if (error) throw new StepError("profiles_lookup", error);
+  if (p) return { id: (p as any).id, role: (p as any).role, deleted: !!(p as any).deleted_at };
+  const { data: listed, error: listError } = await svc.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (listError) throw new StepError("users_lookup", listError);
+  const user = listed.users.find((u) => u.email?.toLowerCase() === email);
+  return user ? provisionIfMissing(svc, user.id, email, (user.user_metadata ?? {}) as Record<string, any>) : null;
+}
 
 /**
  * Makes sure an auth user has a profile + affiliate application. Tolerates the
@@ -363,54 +376,57 @@ export const supabaseRepo: Repo = {
   },
 
   // ------------------------------------------------------------- passwordless sign-in
-  // Supabase Auth sends the code (signInWithOtp: the "Magic Link" / "Confirm
-  // signup" templates must contain {{ .Token }}) and checks it (verifyOtp,
-  // which writes the session cookies in the current browser). Expiry, OTP
-  // length, rate limits and the SMTP sender are Supabase Auth settings.
-  async sendSignInCode({ email, purpose, signup }) {
-    const { error } = await (await supabaseServer()).auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: purpose === "signup",
-        // Becomes raw_user_meta_data of a NEW user (ignored for an existing one).
-        ...(signup ? { data: signup as unknown as Record<string, unknown> } : {}),
-      },
+  // The app sends the raw code through Resend; Postgres stores only its keyed hash.
+  async sendSignInCode({ email, purpose, signup, codeHash, ipHash }) {
+    if (!codeHash) throw new StepError("issue_code", "missing code hash");
+    if (purpose === "login") {
+      const account = await accountByEmail(email);
+      if (!account || account.deleted) return { status: "no_account" };
+    }
+    const { data, error } = await supabaseService().rpc("auth_code_issue", {
+      p_email: email, p_purpose: purpose, p_hash: codeHash, p_payload: signup, p_ip_hash: ipHash ?? null,
     });
-    if (!error) return { status: "sent" };
-    const code = String((error as any).code ?? "");
-    // Login for an unknown address: Supabase refuses to create the user.
-    if (purpose === "login" && (code === "otp_disabled" || code === "signup_disabled" || /signups? not allowed/i.test(error.message))) {
-      return { status: "no_account" };
-    }
-    if (error.status === 429 || code.startsWith("over_")) {
-      // "For security purposes, you can only request this after N seconds" → too soon; otherwise the email quota.
-      if (/after \d+ seconds?/i.test(error.message)) return { status: "too_soon" };
-      return { status: "rate_limited", detail: describeError(new StepError("send_code", error)) };
-    }
-    throw new StepError("send_code", error);
+    if (error) throw new StepError("issue_code", error);
+    const status = ((data as any[]) ?? [])[0]?.status;
+    if (status === "issued") return { status: "sent" };
+    if (status === "too_soon") return { status: "too_soon" };
+    return { status: "rate_limited" };
   },
 
-  async signInWithCode({ email, code, purpose }) {
-    const { data, error } = await (await supabaseServer()).auth.verifyOtp({ email, token: code, type: "email" });
-    if (error) {
-      const c = String((error as any).code ?? "");
-      if (error.status === 429 || c.startsWith("over_")) return { status: "too_many_attempts" };
-      // Supabase answers "Token has expired or is invalid" (otp_expired) for both cases.
-      if (c === "otp_expired" || error.status === 403 || error.status === 400) return { status: "invalid" };
-      throw new StepError("verify_code", error);
-    }
-    const user = data.user;
-    if (!user) throw new StepError("verify_code", "no user in the verified session");
+  async signInWithCode({ email, codeHash }) {
+    if (!codeHash) throw new StepError("check_code", "missing code hash");
+    const svc = supabaseService();
+    const { data, error } = await svc.rpc("auth_code_consume", { p_email: email, p_hash: codeHash });
+    if (error) throw new StepError("check_code", error);
+    const consumed = ((data as any[]) ?? [])[0];
+    if (!consumed || consumed.status !== "ok") return { status: consumed?.status ?? "invalid" };
     try {
-      // Without the optional auth.users trigger, nothing else creates the profile + affiliate application.
-      const account = await provisionIfMissing(supabaseService(), user.id, email, (user.user_metadata ?? {}) as Record<string, any>);
+      let account = await accountByEmail(email);
+      if (account?.deleted) return { status: "invalid" };
+      let isNew = false;
+      if (!account) {
+        if (consumed.purpose !== "signup" || !consumed.payload) return { status: "invalid" };
+        const created = await svc.auth.admin.createUser({ email, email_confirm: true, user_metadata: consumed.payload });
+        if (created.error && !/already (been )?registered|already exists/i.test(created.error.message)) {
+          throw new StepError("create_user", created.error);
+        }
+        isNew = !created.error;
+      }
+      const link = await svc.auth.admin.generateLink({ type: "magiclink", email });
+      const props = link.data?.properties;
+      if (link.error || !props?.hashed_token || !link.data.user) throw new StepError("session_token", link.error ?? "no token");
+      account ??= await provisionIfMissing(svc, link.data.user.id, email, consumed.payload ?? link.data.user.user_metadata ?? {});
       if (account.deleted) return { status: "invalid" };
-      const isNew = purpose === "signup" && Date.now() - Date.parse(user.created_at) < 30 * 60_000;
+      const { error: verifyError } = await (await supabaseServer()).auth.verifyOtp({
+        type: (props.verification_type ?? "magiclink") as EmailOtpType, token_hash: props.hashed_token,
+      });
+      if (verifyError) throw new StepError("session_open", verifyError);
       return { status: "ok", isNew, role: account.role };
     } catch (e) {
       const detail = describeError(e);
       log.error("auth", "profile provisioning failed after a valid code", { detail });
-      return { status: "failed", detail };
+      const released = await svc.rpc("auth_code_release", { p_email: email, p_hash: codeHash }).then((r) => !r.error && r.data === true, () => false);
+      return { status: "failed", detail, retrySameCode: released };
     }
   },
 
@@ -580,7 +596,6 @@ export const supabaseRepo: Repo = {
     const sb = await supabaseServer();
     check(await sb.from("prospects").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("affiliate_id", mustAffiliate(s)));
   },
-
   async listSales(s) {
     const sb = await supabaseServer();
     const [rows, customers] = await Promise.all([

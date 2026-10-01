@@ -1,5 +1,6 @@
 "use server";
-import { cookies } from "next/headers";
+import { createHash, randomUUID } from "node:crypto";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { env, isDemoMode } from "@/lib/env";
@@ -7,7 +8,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { repo } from "@/lib/data";
 import { DEMO_SESSION_COOKIE, demoUserId } from "@/lib/data/demo";
 import type { SignupData } from "@/lib/data/repo";
-import { normalizeCode, normalizeEmail, type CodePurpose } from "@/lib/auth-code";
+import { formatCode, generateCode, hashCode, normalizeCode, normalizeEmail, type CodePurpose } from "@/lib/auth-code";
+import { email as emailTransport } from "@/lib/email";
 import { kickEmailOutbox } from "@/lib/email/service";
 import { log } from "@/lib/log";
 import { describeError } from "@/lib/auth-errors";
@@ -15,11 +17,10 @@ import { isLocale, type Locale } from "@/i18n/config";
 
 /**
  * Passwordless sign-in. Login and sign-up are the same two steps:
- *   1. email (+ partner application on sign-up) → Supabase Auth emails a
- *      one-time code (signInWithOtp; template, expiry and sender are set in
- *      Supabase → Authentication);
- *   2. the code → session opened (verifyOtp); the account is created on the
- *      first sign-up and its profile + affiliate application provisioned.
+ *   1. email (+ partner application on sign-up) → the app emails a one-time
+ *      code with Resend and stores only its keyed hash in Postgres;
+ *   2. the code → session opened with a Supabase one-time token; the account
+ *      is created on the first sign-up and its profile provisioned.
  * There are no passwords. OAuth stays available when configured.
  */
 export type AuthError =
@@ -66,6 +67,33 @@ function parseEmail(v: FormDataEntryValue | null): string | null {
   return parsed.success ? normalizeEmail(parsed.data) : null;
 }
 
+/** Salted client-network fingerprint for the database rate limit; never stores the raw IP. */
+async function requestIpHash() {
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip");
+  return ip ? createHash("sha256").update(`${env.trackingSalt}:auth:${ip}`).digest("hex").slice(0, 32) : null;
+}
+
+/** Authentication email is synchronous: the person is waiting for this code. */
+async function emailSignInCode(to: string, code: string, locale: Locale) {
+  const shown = formatCode(code);
+  const fr = locale === "fr";
+  const subject = fr ? `Votre code de connexion Studio ATS : ${shown}` : `Your Studio ATS sign-in code: ${shown}`;
+  const intro = fr
+    ? "Saisissez ce code sur Studio ATS pour vous connecter. Il est valable 5 minutes et ne fonctionne qu’une seule fois."
+    : "Enter this code on Studio ATS to sign in. It is valid for 5 minutes and works only once.";
+  const warning = fr
+    ? "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email et ne communiquez jamais ce code."
+    : "If you did not request this code, ignore this email and never share the code.";
+  await emailTransport.send({
+    to, subject,
+    text: `Studio ATS\n\n${intro}\n\n${shown}\n\n${warning}`,
+    html: `<!doctype html><html lang="${fr ? "fr" : "en"}"><body style="margin:0;background:#f6f6f4;padding:40px 12px"><main style="max-width:560px;margin:auto;background:#fff;border-radius:16px;padding:48px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111"><p style="letter-spacing:.24em;font-size:13px;font-weight:600;text-transform:uppercase">Studio ATS</p><h1 style="font-size:24px;margin:40px 0 20px">${fr ? "Votre code de connexion" : "Your sign-in code"}</h1><p style="font-size:16px;line-height:1.6">${intro}</p><p style="font:600 34px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.18em">${shown}</p><p style="font-size:13px;line-height:1.6;color:#6b6b6b;margin-top:32px">${warning}</p></main></body></html>`,
+    idempotencyKey: `login_code:${randomUUID()}`,
+    tags: [{ name: "template", value: "auth_login_code" }],
+  });
+}
+
 /** One action for the whole form: intent = send | verify | edit. */
 export async function codeAuth(prev: AuthState, form: FormData): Promise<AuthState> {
   const intent = form.get("intent");
@@ -99,10 +127,12 @@ async function issue(form: FormData): Promise<AuthState> {
     };
   }
 
+  const code = generateCode();
+  const codeHash = hashCode(email, code, env.trackingSalt);
   const base = { email, purpose };
   let res;
   try {
-    res = await repo().sendSignInCode({ email, purpose, signup });
+    res = await repo().sendSignInCode({ email, purpose, signup, codeHash, ipHash: await requestIpHash() });
   } catch (e) {
     const detail = describeError(e);
     log.error("auth", "send code failed", { detail });
@@ -111,7 +141,18 @@ async function issue(form: FormData): Promise<AuthState> {
   if (res.status === "rate_limited") return { status: "error", error: "rateLimited", detail: res.detail };
   if (res.status === "too_soon") return { status: "code", ...base, error: "tooSoon" };
   // "no_account" (unknown address on login): same screen, nothing sent (no account enumeration).
-  return { status: "code", ...base, sentAt: Date.now(), ...(res.status === "sent" && res.demoCode ? { demoCode: res.demoCode } : {}) };
+  if (res.status === "no_account") return { status: "code", ...base, sentAt: Date.now() };
+  const demoCode = res.status === "sent" ? res.demoCode : undefined;
+  if (!demoCode) {
+    try {
+      await emailSignInCode(email, code, locale);
+    } catch (e) {
+      const detail = describeError(e);
+      log.error("auth", "sign-in code email failed", { detail });
+      return { status: "error", error: "sendFailed", detail };
+    }
+  }
+  return { status: "code", ...base, sentAt: Date.now(), ...(demoCode ? { demoCode } : {}) };
 }
 
 async function verifyCode(prev: AuthState, form: FormData): Promise<AuthState> {
@@ -125,7 +166,7 @@ async function verifyCode(prev: AuthState, form: FormData): Promise<AuthState> {
   if (!code) return { ...keep, error: "codeInvalid" };
   let res;
   try {
-    res = await repo().signInWithCode({ email, code, purpose });
+    res = await repo().signInWithCode({ email, code, codeHash: hashCode(email, code, env.trackingSalt), purpose });
   } catch (e) {
     const detail = describeError(e);
     log.error("auth", "verify code failed", { detail });

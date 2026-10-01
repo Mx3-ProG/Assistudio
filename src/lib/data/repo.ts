@@ -118,9 +118,13 @@ export interface Repo extends MessagingRepo {
    * `no_account` and sends nothing; the caller answers the same way (no user
    * enumeration). On sign-up, `signup` becomes the new user's metadata.
    */
-  sendSignInCode(input: { email: string; purpose: CodePurpose; signup: SignupData | null }): Promise<SendCodeResult>;
+  sendSignInCode(input: {
+    email: string; purpose: CodePurpose; signup: SignupData | null;
+    /** Production stores only this keyed hash. Demo mode ignores it. */
+    codeHash?: string; ipHash?: string | null;
+  }): Promise<SendCodeResult>;
   /** Checks the code; on success opens the session and provisions the profile + affiliate application if missing. */
-  signInWithCode(input: { email: string; code: string; purpose: CodePurpose }): Promise<SignInWithCodeResult>;
+  signInWithCode(input: { email: string; code: string; codeHash?: string; purpose: CodePurpose }): Promise<SignInWithCodeResult>;
 
   // ------------------------------------------------------------- affiliate
   getOverview(s: Session, range: Range): Promise<Overview>;
