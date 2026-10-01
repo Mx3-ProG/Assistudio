@@ -14,7 +14,7 @@ export default async function AdminMarkets({ params, searchParams }: PageProps<"
   const markets = await repo().adminListMarkets(s);
   return (
     <>
-      <PageHeader title={t.admin.nav.markets} subtitle="Localised market cards shown on the homepage, in Find clients and in onboarding. No unsourced revenue or ROI figures." />
+      <PageHeader title={t.admin.nav.markets} subtitle={t.admin.marketsSubtitle} />
       <MarketEditor markets={markets} editLocale={editLocale} />
     </>
   );

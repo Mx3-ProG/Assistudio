@@ -13,7 +13,7 @@ export default async function Audit({ params }: PageProps<"/[locale]/admin/audit
   const A = t.admin;
   return (
     <>
-      <PageHeader title={A.nav.audit} subtitle="Append-only." />
+      <PageHeader title={A.nav.audit} subtitle={A.auditSubtitle} />
       <Card className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead className="text-[12px] text-muted"><tr className="border-b border-line">
