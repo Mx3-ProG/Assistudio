@@ -10,6 +10,7 @@ import { DEMO_SESSION_COOKIE, demoUserId } from "@/lib/data/demo";
 import type { SignupData } from "@/lib/data/repo";
 import { generateCode, hashCode, normalizeCode, normalizeEmail, type CodePurpose } from "@/lib/auth-code";
 import { sendSignInCode } from "@/lib/email/auth";
+import { kickEmailOutbox } from "@/lib/email/service";
 import { log } from "@/lib/log";
 import { isLocale, type Locale } from "@/i18n/config";
 
@@ -144,6 +145,7 @@ async function verifyCode(prev: AuthState, form: FormData): Promise<AuthState> {
     const errors = { invalid: "codeInvalid", expired: "codeExpired", too_many_attempts: "tooManyAttempts", failed: "failed" } as const;
     return { ...keep, error: errors[res.status] };
   }
+  if (res.isNew) kickEmailOutbox(); // affiliate.welcome, queued when the account was created
   redirect(res.isNew ? `/${locale}/dashboard/welcome` : safeNext(form.get("next"), locale));
 }
 

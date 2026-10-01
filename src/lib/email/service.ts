@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { env, isSupabaseConfigured } from "@/lib/env";
 import { log } from "@/lib/log";
 import { supabaseService } from "@/lib/supabase/server";
@@ -52,4 +53,15 @@ export async function flushEmailOutbox(opts: { limit?: number; ids?: string[] } 
     }
   }
   return stats;
+}
+
+/**
+ * Sends what the database just queued (welcome, lead confirmation, payout…)
+ * right after the response, instead of waiting for the next webhook or the
+ * daily cron. Never throws, never slows the action down; the cron still
+ * retries anything that fails here.
+ */
+export function kickEmailOutbox() {
+  if (!isSupabaseConfigured) return;
+  after(() => flushEmailOutbox({ limit: 20 }).catch((e) => log.error("email", "flush failed", { error: e instanceof Error ? e.message : String(e) })));
 }

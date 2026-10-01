@@ -51,7 +51,9 @@ There are no passwords. Login and sign-up are the same two steps:
 
 Rules (expiry, single use, attempts, rate limits: 1 code / 60 s and 5 / 15 min per address, 20 / 15 min per network) live in `…_email_login_codes.sql` (tested in `supabase/tests/auth_codes_test.sql`), mirrored by `src/lib/auth-code-rules.ts`. A login request for an unknown address shows the same screen and sends nothing (no account enumeration). Profiles do **not** depend on a trigger on `auth.users` (owned by Supabase; creating it can fail with "must be owner of table users"): the trigger is created only when allowed, and the app provisions the profile + affiliate application itself with `provision_account()` / `ensure_profile()` (`…_ensure_profile.sql`), also repairing accounts created without one. In demo mode the code is shown on screen, labelled.
 
-**Not receiving codes?** Check `RESEND_API_KEY` (production refuses to run sign-in without it), and that the domain of `EMAIL_FROM` is **verified in Resend**: otherwise Resend only delivers to the account owner's own address.
+**Emails (all of them).** Sender: `Studio ATS <contact@atonservice.org>` by default (`EMAIL_FROM` / `EMAIL_REPLY_TO` override it). Sign-in codes are sent synchronously; everything the database queues (`email_events`: affiliate welcome, lead confirmation, new lead, payouts, commissions…) is sent right after the action that queued it (`kickEmailOutbox()`), after Stripe webhooks, and retried by the daily cron. On production a missing `RESEND_API_KEY` makes every send fail (marked `failed`, retried later) instead of silently logging.
+
+**Not receiving emails?** Admin → Settings → *Send me a test email* shows the sender, whether the key is set, and Resend's exact answer. Most common cause: the domain of `EMAIL_FROM` (`atonservice.org`) is not **verified in Resend** — then Resend only delivers to the account owner's own address.
 
 ## Architecture
 

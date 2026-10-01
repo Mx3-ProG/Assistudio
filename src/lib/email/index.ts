@@ -1,10 +1,12 @@
 import "server-only";
-import { env } from "@/lib/env";
+import { env, isProductionDeployment } from "@/lib/env";
+import { chooseTransport } from "./transport";
 import { log } from "@/lib/log";
 
 /**
  * Email transport. Resend is the default adapter (REST, no SDK dependency);
- * without RESEND_API_KEY messages are logged instead of sent (dev only).
+ * without RESEND_API_KEY messages are logged instead of sent (dev only); on
+ * production a missing key makes every send fail (see ./transport.ts).
  * Callers never use this directly: they go through EmailService
  * (src/lib/email/service.ts), which renders templates and logs email_events.
  */
@@ -57,4 +59,12 @@ const logOnly: EmailAdapter = {
   },
 };
 
-export const email: EmailAdapter = env.resendApiKey ? resend : logOnly;
+const missing: EmailAdapter = {
+  name: "resend",
+  async send() {
+    throw new Error("RESEND_API_KEY is not set on this deployment: email not sent");
+  },
+};
+
+export const transportKind = chooseTransport(Boolean(env.resendApiKey), isProductionDeployment);
+export const email: EmailAdapter = { resend, log: logOnly, missing }[transportKind];

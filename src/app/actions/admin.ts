@@ -5,6 +5,10 @@ import { repo, getSession } from "@/lib/data";
 import { isStaff } from "@/lib/auth";
 import { locales } from "@/i18n/config";
 import type { Session } from "@/lib/data/types";
+import { kickEmailOutbox } from "@/lib/email/service";
+import { email } from "@/lib/email";
+import { renderEmail } from "@/lib/email/templates";
+import { env } from "@/lib/env";
 
 /**
  * Staff actions. Every financial or attribution change requires a reason and
@@ -24,6 +28,7 @@ async function run(fn: () => Promise<unknown>): Promise<AdminState> {
   try {
     await fn();
     done();
+    kickEmailOutbox(); // approvals, payouts, releases… queue emails in the same transaction
     return { ok: true };
   } catch (e) {
     return { error: e instanceof z.ZodError ? "reason_required" : e instanceof Error ? e.message : "error" };
@@ -69,6 +74,7 @@ export async function releaseDue() {
   const s = await staff();
   await repo().adminReleaseDue(s);
   done();
+  kickEmailOutbox();
 }
 
 export async function createPayout(_: AdminState, f: FormData) {
@@ -126,4 +132,19 @@ export async function updateMarket(_: AdminState, f: FormData) {
 export async function createSaleFromLead(_: AdminState, f: FormData) {
   const s = await staff();
   return run(() => repo().adminCreateSaleFromLead(s, id(f), reason(f)));
+}
+
+export type EmailTestState = { status: "idle" | "sent" | "failed"; to?: string; id?: string | null; error?: string };
+
+/** Sends a test email to the signed-in staff member and reports the provider's exact answer. */
+export async function sendTestEmail(_: EmailTestState, f: FormData): Promise<EmailTestState> {
+  const s = await staff();
+  const locale = locales.find((l) => l === f.get("locale")) ?? "en";
+  try {
+    const rendered = renderEmail("system.test", {}, { locale, appUrl: env.siteUrl });
+    const res = await email.send({ to: s.email, ...rendered, tags: [{ name: "template", value: "system_test" }] });
+    return { status: "sent", to: s.email, id: res.id };
+  } catch (e) {
+    return { status: "failed", to: s.email, error: (e instanceof Error ? e.message : String(e)).slice(0, 400) };
+  }
 }

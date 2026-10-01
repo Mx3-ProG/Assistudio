@@ -8,6 +8,8 @@
  * but this module never exposes them through NEXT_PUBLIC_*: Next only inlines
  * NEXT_PUBLIC_ variables into client bundles.
  */
+import { DEFAULT_EMAIL_FROM, DEFAULT_EMAIL_REPLY_TO, orDefault } from "./email/transport";
+
 export const env = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseAnonKey:
@@ -21,8 +23,8 @@ export const env = {
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecrets: [process.env.STRIPE_WEBHOOK_SECRET ?? "", process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? ""].filter(Boolean),
   resendApiKey: process.env.RESEND_API_KEY ?? "",
-  emailFrom: process.env.EMAIL_FROM ?? "Studio ATS <no-reply@example.com>",
-  emailReplyTo: process.env.EMAIL_REPLY_TO ?? "",
+  emailFrom: orDefault(process.env.EMAIL_FROM, DEFAULT_EMAIL_FROM),
+  emailReplyTo: orDefault(process.env.EMAIL_REPLY_TO, DEFAULT_EMAIL_REPLY_TO),
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
