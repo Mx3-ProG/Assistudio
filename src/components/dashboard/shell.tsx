@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutGrid, Link2, Users, ShoppingBag, Wallet, Repeat,
   Banknote, BarChart3, Trophy, Bell, MessageCircle, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag, FileSignature, LifeBuoy,
@@ -16,6 +16,32 @@ import { MessagesNotifier } from "@/components/messaging/messages-notifier";
 
 type Item = { href: string; label: string; icon: typeof LayoutGrid; badge?: number };
 
+const NON_TEXT_INPUTS = new Set(["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"]);
+
+/** Whether the focused element brings up the on-screen keyboard. */
+function isTextField(el: Element | null): boolean {
+  if (!el) return false;
+  if (el instanceof HTMLTextAreaElement) return !el.readOnly;
+  if (el instanceof HTMLInputElement) return !el.readOnly && !NON_TEXT_INPUTS.has(el.type);
+  return el instanceof HTMLElement && el.isContentEditable;
+}
+
+/** True while the user is typing in a field — the mobile tab bar steps aside so it never covers the text. */
+function useTyping() {
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    // focusout fires before focus lands on the next field, so re-check once it has.
+    const sync = () => setTimeout(() => setTyping(isTextField(document.activeElement)), 0);
+    document.addEventListener("focusin", sync);
+    document.addEventListener("focusout", sync);
+    return () => {
+      document.removeEventListener("focusin", sync);
+      document.removeEventListener("focusout", sync);
+    };
+  }, []);
+  return typing;
+}
+
 export function DashboardShell({ children, userName, unread, isStaff, leaderboard, messages }: {
   children: React.ReactNode; userName: string; unread: number; isStaff: boolean; leaderboard: boolean;
   /** Unread messages + who is signed in (for the live notifier). */
@@ -24,6 +50,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
   const { t, locale } = useI18n();
   const pathname = usePathname();
   const [more, setMore] = useState(false);
+  const typing = useTyping();
   const base = `/${locale}/dashboard`;
   const n = t.dash.nav;
 
@@ -152,7 +179,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
       </div>
 
       {/* Bottom tab bar (mobile) */}
-      <nav className="glass fixed inset-x-0 bottom-0 z-40 !border-x-0 !border-b-0 border-t pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Primary">
+      <nav className={cn("glass fixed inset-x-0 bottom-0 z-40 !border-x-0 !border-b-0 border-t pb-[env(safe-area-inset-bottom)] lg:hidden", typing && "hidden")} aria-label="Primary">
         <ul className="grid grid-cols-5">
           {tabs.map(({ href, label, icon: Icon }) => (
             <li key={href}>
