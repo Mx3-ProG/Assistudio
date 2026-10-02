@@ -42,6 +42,12 @@ function currencyOptions(amount: number) {
     .map((currency) => [currency.toLowerCase(), { unit_amount: convertCurrency(amount, "EUR", currency) }]));
 }
 
+function hasExpectedCurrencyOptions(price: Stripe.Price, amount: number) {
+  const expected = currencyOptions(amount);
+  return Object.entries(expected).every(([currency, option]) =>
+    price.currency_options?.[currency]?.unit_amount === option.unit_amount);
+}
+
 // A distinct Stripe product makes the exact offer name visible from Checkout to
 // invoices and receipts. Old prices/subscriptions are never edited or migrated.
 const anyExisting = (await stripe.prices.list({ lookup_keys: OFFERS.map((o) => o.lookupKey), active: true, expand: ["data.product"] })).data;
@@ -60,13 +66,14 @@ for (const o of OFFERS) {
       name: o.name, description: o.description,
       metadata: { app: "assistudio", catalog: "studio-ats", offer_tier: o.tier, offer_lookup_key: o.lookupKey },
     });
-    await stripe.prices.update(existing.id, {
-      nickname: o.name,
-      currency_options: currencyOptions(o.amount),
-      metadata: { app: "assistudio", offer_tier: o.tier, offer_lookup_key: o.lookupKey },
-    });
-    console.log(`${o.name}: price ready: ${existing.id} (${currencies.join(", ")}/${interval ?? "one-time"}).`);
-    continue;
+    if (hasExpectedCurrencyOptions(existing, o.amount)) {
+      await stripe.prices.update(existing.id, {
+        nickname: o.name,
+        metadata: { app: "assistudio", offer_tier: o.tier, offer_lookup_key: o.lookupKey },
+      });
+      console.log(`${o.name}: price ready: ${existing.id} (${currencies.join(", ")}/${interval ?? "one-time"}).`);
+      continue;
+    }
   }
   const product = productByTier.get(o.tier) ?? await stripe.products.create(
     { name: o.name, description: o.description, metadata: { app: "assistudio", catalog: "studio-ats", offer_tier: o.tier } },
@@ -83,7 +90,7 @@ for (const o of OFFERS) {
       nickname: o.name, lookup_key: o.lookupKey, transfer_lookup_key: true, tax_behavior: "unspecified",
       metadata: { app: "assistudio", offer_tier: o.tier, offer_lookup_key: o.lookupKey },
     },
-    { idempotencyKey: `assistudio-setup-price-${o.lookupKey}-${o.amount}-${o.interval ?? "once"}` },
+    { idempotencyKey: `assistudio-setup-price-${o.lookupKey}-${o.amount}-${o.interval ?? "once"}-multicurrency-v2` },
   );
   if (existing) await stripe.prices.update(existing.id, { active: false });
   console.log(`${o.name}: ${existing ? "replaced" : "created"} price ${price.id} on product ${product.id} (lookup key ${o.lookupKey}).`);

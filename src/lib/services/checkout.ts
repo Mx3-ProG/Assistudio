@@ -50,7 +50,9 @@ async function activeOffer(productSlug: string, tier: OfferTier, cadence: Billin
  * sells (amount, currency, interval). A mismatch blocks checkout: selling at a
  * price the business did not configure is worse than not selling.
  */
-async function stripePriceFor(offer: OfferRow, currency: Currency): Promise<{ id: string; amountCents: number }> {
+type CheckoutLineItem = NonNullable<Stripe.Checkout.SessionCreateParams["line_items"]>[number];
+
+async function stripePriceFor(offer: OfferRow, currency: Currency): Promise<{ lineItem: CheckoutLineItem; amountCents: number }> {
   const s = stripe();
   let price: Stripe.Price | null = offer.stripe_price_id
     ? await s.prices.retrieve(offer.stripe_price_id, { expand: ["currency_options"] }).catch(() => null)
@@ -77,13 +79,33 @@ async function stripePriceFor(offer: OfferRow, currency: Currency): Promise<{ id
   if (currency !== offer.currency.toUpperCase()) {
     const configured = price.currency_options?.[currency.toLowerCase()]?.unit_amount;
     if (configured !== amountCents) {
-      log.error("payments", "Stripe price is missing the selected catalog currency — checkout blocked", {
+      // Stripe freezes currency options once a Price has been used. Keep the
+      // canonical Product and billing cadence, but create the selected-currency
+      // Price inline for this Checkout Session. Stripe therefore records the
+      // exact currency and monthly/yearly variant instead of merely displaying
+      // a converted amount on our site.
+      const product = typeof price.product === "string" ? price.product : price.product.id;
+      log.warn("payments", "Stripe price is missing the selected catalog currency — using an inline catalog price", {
         offer_id: offer.id, stripe_price: price.id, currency, stripe_amount: configured, offer_amount: amountCents,
       });
-      throw new CheckoutUnavailableError(`currency ${currency} is not configured; run npm run stripe:setup`);
+      return {
+        amountCents,
+        lineItem: {
+          quantity: 1,
+          price_data: {
+            product,
+            currency: currency.toLowerCase(),
+            unit_amount: amountCents,
+            tax_behavior: price.tax_behavior ?? "unspecified",
+            ...(offer.price_type === "recurring" ? {
+              recurring: { interval: offer.billing_interval as "month" | "year", interval_count: offer.interval_count },
+            } : {}),
+          },
+        },
+      };
     }
   }
-  return { id: price.id, amountCents };
+  return { lineItem: { price: price.id, quantity: 1 }, amountCents };
 }
 
 /**
@@ -191,7 +213,7 @@ export async function createCheckoutSession(input: {
         cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&currency=${currency}&cancelled=1${input.referralCode ? `&referral=${encodeURIComponent(input.referralCode)}` : ""}${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
       }),
       currency: currency.toLowerCase(),
-      line_items: [{ price: selectedPrice.id, quantity: 1 }],
+      line_items: [selectedPrice.lineItem],
       ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
       client_reference_id: row.id,
       metadata,
