@@ -24,17 +24,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
+  themeColor: "#fbfbfd",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
 };
 
-// Runs before paint: applies the persisted theme choice (no flash).
-const themeScript = `try{var t=localStorage.getItem('studio-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`;
+// Runs before paint. New visitors always start in light mode; an explicit
+// light, dark or system choice is still persisted and respected.
+const themeScript = `try{var t=localStorage.getItem('studio-theme');document.documentElement.dataset.theme=t==='light'||t==='dark'||t==='system'?t:'light'}catch(e){document.documentElement.dataset.theme='light'}`;
 
 export default async function RootLayout({ children, params }: LayoutProps<"/[locale]">) {
   const { locale } = await params;
@@ -43,7 +41,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[lo
   const fonts = `${geistSans.variable} ${geistMono.variable} ${locale === "ar" ? arabic.variable : ""}`;
 
   return (
-    <html lang={locale} dir={localeMeta[locale].dir} className={fonts} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang={locale} dir={localeMeta[locale].dir} className={fonts} data-theme="light" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <Script id="studio-theme" strategy="beforeInteractive">{themeScript}</Script>
       </head>

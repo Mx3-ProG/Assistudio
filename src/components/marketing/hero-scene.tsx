@@ -42,7 +42,7 @@ export function HeroScene() {
         uA: { value: color("--accent", "#2f5bff") },
         uB: { value: color("--accent-2", "#7a5cff") },
         uC: { value: new THREE.Color("#7fe3ff") },
-        uDark: { value: document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches) ? 1 : 0 },
+        uDark: { value: document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches) ? 1 : 0 },
       };
 
       const material = new THREE.ShaderMaterial({

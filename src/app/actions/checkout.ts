@@ -1,13 +1,46 @@
 "use server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { VISITOR_COOKIE, isValidCode } from "@/lib/attribution";
 import { isLocale } from "@/i18n/config";
-import { isDemoMode, isStripeConfigured } from "@/lib/env";
+import { isDemoMode, isEmbeddedCheckoutConfigured, isStripeConfigured } from "@/lib/env";
 import { log } from "@/lib/log";
 import { createCheckoutSession, type CheckoutOrigin } from "@/lib/services/checkout";
 import { isBillingCadence, isOfferTier } from "@/lib/offers";
 import { normalizePromoCode } from "@/lib/services/promo";
+
+const embeddedInput = z.object({
+  locale: z.string(),
+  origin: z.enum(["public", "affiliate_link", "private_page", "dashboard_cta"]),
+  page: z.string().nullable(),
+  offer: z.enum(["one", "pro", "premium"]),
+  billing: z.enum(["annual", "monthly"]),
+  promo: z.string().nullable(),
+});
+
+/** Creates the Stripe Session used by the embedded form. All commercial and
+ * attribution data is resolved again on the server; the browser only provides
+ * the selected route inputs. */
+export async function createEmbeddedCheckout(input: unknown) {
+  const parsed = embeddedInput.parse(input);
+  if (!isLocale(parsed.locale) || isDemoMode || !isEmbeddedCheckoutConfigured) {
+    throw new Error("embedded checkout unavailable");
+  }
+  const jar = await cookies();
+  const result = await createCheckoutSession({
+    locale: parsed.locale,
+    origin: parsed.origin,
+    sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null,
+    privatePageSlug: parsed.page && isValidCode(parsed.page) ? parsed.page : null,
+    tier: parsed.offer,
+    cadence: parsed.offer === "one" ? "annual" : parsed.billing,
+    promoCode: normalizePromoCode(parsed.promo),
+    uiMode: "embedded",
+  });
+  if (!result.clientSecret) throw new Error("embedded checkout unavailable");
+  return { clientSecret: result.clientSecret, sessionId: result.sessionId };
+}
 
 /**
  * Starts a Stripe Checkout. Everything that matters (price, attribution) is
@@ -28,7 +61,7 @@ export async function startCheckout(form: FormData) {
 
   if (isDemoMode || !isStripeConfigured) redirect(back);
 
-  let url: string;
+  let url: string | null;
   try {
     const jar = await cookies();
     ({ url } = await createCheckoutSession({
@@ -40,5 +73,6 @@ export async function startCheckout(form: FormData) {
     log.error("payments", "checkout creation failed", { error: e });
     redirect(back);
   }
+  if (!url) redirect(back);
   redirect(url);
 }

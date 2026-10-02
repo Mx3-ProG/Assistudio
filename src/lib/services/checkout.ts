@@ -14,6 +14,13 @@ export type CheckoutOrigin = "public" | "affiliate_link" | "private_page" | "das
 
 export class CheckoutUnavailableError extends Error {}
 
+export type CheckoutUiMode = "hosted" | "embedded";
+export interface CheckoutSessionResult {
+  sessionId: string;
+  url: string | null;
+  clientSecret: string | null;
+}
+
 interface OfferRow {
   id: string;
   product_id: string;
@@ -81,7 +88,8 @@ export async function createCheckoutSession(input: {
   tier: OfferTier;
   cadence?: BillingCadence;
   promoCode?: string | null;
-}): Promise<{ url: string }> {
+  uiMode?: CheckoutUiMode;
+}): Promise<CheckoutSessionResult> {
   const sb = supabaseService();
   const { data: enabled } = await sb.from("settings").select("value").eq("key", "checkout.enabled").maybeSingle();
   if (enabled && enabled.value === false) throw new CheckoutUnavailableError("checkout disabled");
@@ -118,6 +126,7 @@ export async function createCheckoutSession(input: {
     ...(promo ? { promo_code_id: promo.id, promo_code: promo.code } : {}),
   };
   const recurring = offer.price_type === "recurring";
+  const uiMode = input.uiMode ?? "hosted";
   const coupon = promo && promoDiscountCents > 0 ? await stripe().coupons.create({
     percent_off: promo.discountRate * 100,
     duration: recurring ? "forever" : "once",
@@ -127,6 +136,14 @@ export async function createCheckoutSession(input: {
 
   const session = await stripe().checkout.sessions.create({
     mode: recurring ? "subscription" : "payment",
+    ...(uiMode === "embedded" ? {
+      ui_mode: "embedded" as const,
+      redirect_on_completion: "if_required" as const,
+      return_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
+    } : {
+      success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&cancelled=1${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
+    }),
     line_items: [{ price: priceId, quantity: 1 }],
     ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
     client_reference_id: row.id,
@@ -136,8 +153,6 @@ export async function createCheckoutSession(input: {
       : { invoice_creation: { enabled: true, invoice_data: { metadata } }, customer_creation: "always" as const }),
     billing_address_collection: "required",
     locale: checkoutLocale(input.locale),
-    success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&cancelled=1${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
   }, { idempotencyKey: `checkout:${row.id}` });
 
   await sb.from("checkout_sessions").update({
@@ -152,8 +167,9 @@ export async function createCheckoutSession(input: {
   log.info("payments", "checkout session created", {
     checkout_id: row.id, attribution: attribution.source, attributed: !!attribution.affiliateId,
   });
-  if (!session.url) throw new Error("Stripe returned no checkout URL");
-  return { url: session.url };
+  if (uiMode === "hosted" && !session.url) throw new Error("Stripe returned no checkout URL");
+  if (uiMode === "embedded" && !session.client_secret) throw new Error("Stripe returned no embedded checkout client secret");
+  return { sessionId: session.id, url: session.url, clientSecret: session.client_secret };
 }
 
 /** Checkout for a doubly accepted dossier. The immutable offer snapshot is the

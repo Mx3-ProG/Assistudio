@@ -7,19 +7,17 @@ import { useStored } from "@/lib/hooks/use-stored";
 type Theme = "light" | "dark" | "system";
 
 function applyTheme(next: Theme) {
-  const root = document.documentElement;
-  if (next === "system") delete root.dataset.theme;
-  else root.dataset.theme = next;
+  document.documentElement.dataset.theme = next;
 }
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { t } = useI18n();
-  const [stored, setStored] = useStored("studio-theme");
-  const theme: Theme = stored === "light" || stored === "dark" ? stored : "system";
+  const [stored, setStored] = useStored("studio-theme", "light");
+  const theme: Theme = stored === "dark" || stored === "system" ? stored : "light";
 
   function apply(next: Theme) {
     applyTheme(next);
-    setStored(next === "system" ? null : next);
+    setStored(next);
   }
 
   const options: { value: Theme; icon: typeof Sun; label: string }[] = [

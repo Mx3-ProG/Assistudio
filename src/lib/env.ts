@@ -19,6 +19,7 @@ export const env = {
   trackingSalt: process.env.TRACKING_HASH_SALT ?? "dev-only-salt",
   cronSecret: process.env.CRON_SECRET ?? "",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
+  stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY ?? "",
   stripeWebhookSecrets: [process.env.STRIPE_WEBHOOK_SECRET ?? "", process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? ""].filter(Boolean),
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: orDefault(process.env.EMAIL_FROM, DEFAULT_EMAIL_FROM),
@@ -27,6 +28,7 @@ export const env = {
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
 export const isStripeConfigured = Boolean(env.stripeSecretKey);
+export const isEmbeddedCheckoutConfigured = Boolean(env.stripeSecretKey && env.stripePublishableKey);
 
 export const isProductionDeployment =
   process.env.VERCEL_ENV === "production" ||

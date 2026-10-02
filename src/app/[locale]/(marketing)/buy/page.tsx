@@ -107,6 +107,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
           <div className="mt-5 [&_.text-white\/65]:text-muted [&_.text-emerald-400]:text-success"><OfferPrice offer={offer} locale={locale} t={t} dark={false} featured /></div>
           <form method="get" className="mt-6 rounded-2xl border border-line bg-surface-2/60 p-4">
             <input type="hidden" name="offer" value={offer.tier} />
+            <input type="hidden" name="billing" value={cadence} />
             {page && <input type="hidden" name="page" value={page} />}
             {origin === "dashboard_cta" && <input type="hidden" name="via" value="dashboard" />}
             <label htmlFor="promo" className="text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{C.promoLabel}</label>
