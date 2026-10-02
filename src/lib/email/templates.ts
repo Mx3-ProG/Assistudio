@@ -37,6 +37,19 @@ function date(v: unknown, locale: string) {
 }
 
 const WHO: Record<string, string> = { en: "A prospect", fr: "Un prospect" };
+/** Help request labels (staff.help_request). Emails are en/fr; other locales use English. */
+const HELP_LABELS: Record<string, Record<string, string>> = {
+  en: {
+    commission: "Commission", payout: "Payout", contract: "Contract / dossier", prospect: "Prospect", sale: "Sale",
+    account: "Account", technical: "Technical issue", training: "Training / how to sell", other: "Other",
+    low: "Low", normal: "Normal", high: "Urgent",
+  },
+  fr: {
+    commission: "Commission", payout: "Paiement", contract: "Contrat / dossier", prospect: "Prospect", sale: "Vente",
+    account: "Compte", technical: "Problème technique", training: "Formation / comment vendre", other: "Autre",
+    low: "Faible", normal: "Normale", high: "Urgent",
+  },
+};
 const ON: Record<string, string> = { en: " for {d}", fr: " pour le {d}" };
 
 /** Template placeholders, formatted for the recipient's locale. */
@@ -46,8 +59,16 @@ export function placeholders(params: Params, locale: string): Record<string, str
   const custom = Object.fromEntries(Object.entries(params)
     .filter(([, value]) => typeof value === "string" || typeof value === "number")
     .map(([key, value]) => [key, String(value)]));
+  // Any `<name>_cents` amount is also available formatted as `{name}`.
+  const amounts = Object.fromEntries(Object.entries(params)
+    .filter(([key, value]) => key.endsWith("_cents") && (typeof value === "number" || typeof value === "string"))
+    .map(([key, value]) => [key.slice(0, -6), money(value, params.currency, locale)]));
+  const labels = HELP_LABELS[locale] ?? HELP_LABELS.en;
   return {
     ...custom,
+    ...amounts,
+    category_label: labels[String(params.category ?? "")] ?? String(params.category ?? ""),
+    urgency_label: labels[String(params.urgency ?? "")] ?? String(params.urgency ?? ""),
     code: String(params.code ?? ""),
     sale_ref: String(params.sale_ref ?? ""),
     payout_ref: String(params.payout_ref ?? ""),
@@ -143,7 +164,9 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
 
   const subject = fill(t.subject, v, false);
   const title = fill(t.title, v, true);
-  const paragraphs = t.paragraphs.map((p) => fill(p, v, true));
+  // Newlines become line breaks; a paragraph that resolves to nothing is dropped.
+  const kept = t.paragraphs.filter((p) => fill(p, v, false).trim() !== "");
+  const paragraphs = kept.map((p) => fill(p, v, true).replace(/\n/g, "<br>"));
   const highlight = t.highlight ? fill(t.highlight, v, true) : null;
   const footnote = t.footnote === "pendingNote" ? copy.common.pendingNote : t.footnote;
   const ctaPath = t.cta ? fill(t.cta.path, v, false) : null;
@@ -160,7 +183,7 @@ export function renderEmail(template: TemplateId, params: Params, opts: { locale
     "",
     fill(t.title, v, false),
     "",
-    ...t.paragraphs.map((p) => fill(p, v, false)),
+    ...kept.map((p) => fill(p, v, false)),
     ...(t.highlight ? ["", fill(t.highlight, v, false)] : []),
     ...(ctaUrl ? ["", `${t.cta!.label}: ${ctaUrl}`] : []),
     ...(footnote ? ["", footnote] : []),

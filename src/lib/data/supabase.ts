@@ -17,7 +17,8 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
-  PerformanceRow, ProductView, SalesAnalytics,
+  PerformanceRow, ProductView, SalesAnalytics, AdminSaleRow, AdminCommissionRow, AdminLeadRow, Payout,
+  AdminNetworkStats, HelpRequest,
 } from "./types";
 
 const DAY = 86_400_000;
@@ -166,6 +167,45 @@ async function provisionDirect(svc: Svc, id: string, email: string, meta: Record
     if (linkError && !isDuplicate(linkError)) throw new StepError("provision_link", linkError);
   }
 }
+
+const ADMIN_SALE_COLS = "*, customers(public_ref, company_name), commissions(amount_cents, status), campaigns(name, source), affiliates(id, profiles(full_name)), subscriptions(current_period_end, status)";
+const toAdminSale = (r: any): AdminSaleRow => ({
+  id: r.id, ref: r.public_ref, customerRef: r.customers?.public_ref ?? "—", customerName: r.customers?.company_name ?? null,
+  product: "Studio ATS", date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
+  commissionCents: r.commissions?.[0]?.amount_cents ?? null, commissionStatus: r.commissions?.[0]?.status ?? null,
+  renewalDate: r.subscriptions?.status === "active" ? r.subscriptions.current_period_end : null,
+  source: r.campaigns?.source ?? null, campaign: r.campaigns?.name ?? null,
+  affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, isDemo: r.is_demo,
+});
+const ADMIN_COMMISSION_COLS = "*, sales(public_ref, customers(public_ref)), affiliates(profiles(full_name))";
+const toAdminCommission = (r: any): AdminCommissionRow => ({
+  ...toCommission({ ...r, sales: { public_ref: r.sales?.public_ref, customer_ref: r.sales?.customers?.public_ref } }),
+  affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—", kind: r.kind ?? null,
+  currency: String(r.currency).trim(), disputeReason: r.dispute_reason ?? null, recoveryStatus: r.recovery_status ?? null,
+});
+const toAdminLead = (r: any): AdminLeadRow => ({
+  id: r.id, fullName: r.full_name, company: r.company, profession: r.profession, email: r.email,
+  affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, status: r.status, createdAt: r.created_at,
+});
+const toPayout = (r: any): Payout => ({
+  id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path,
+});
+const HELP_COLS = "*, affiliates(profiles(full_name, email))";
+const toHelp = (r: any): HelpRequest => ({
+  id: r.id, ref: r.public_ref, affiliateId: r.affiliate_id,
+  affiliateName: r.affiliates?.profiles?.full_name || r.affiliates?.profiles?.email || "—", affiliateEmail: r.affiliates?.profiles?.email ?? "",
+  category: r.category, urgency: r.urgency, subject: r.subject, message: r.message, prospectId: r.prospect_id, dossierId: r.dossier_id,
+  pagePath: r.page_path, context: r.context ?? {}, status: r.status, staffNote: r.staff_note, resolvedAt: r.resolved_at, createdAt: r.created_at,
+});
+const toNetworkStats = (r: any): AdminNetworkStats => ({
+  id: r.affiliate_id, profileId: r.profile_id, name: r.full_name || r.email || "—", email: r.email ?? "", role: r.role, code: r.code,
+  status: r.status, country: r.country, sponsorId: r.sponsor_id, createdAt: r.created_at, onboardingCompleted: !!r.onboarding_completed,
+  recruits: r.recruits, prospects: r.prospects, prospectsWon: r.prospects_won, leads: r.leads, clicks30d: r.clicks_30d,
+  paidSales: r.paid_sales, renewals: r.renewals, revenueCents: Number(r.revenue_cents),
+  pendingCents: Number(r.pending_cents), disputedCents: Number(r.disputed_cents), availableCents: Number(r.available_cents),
+  paidCents: Number(r.paid_cents), sponsorEarnedCents: Number(r.sponsor_earned_cents),
+  openHelp: r.open_help, openFraud: r.open_fraud, lastActivityAt: r.last_activity_at,
+});
 
 export const supabaseRepo: Repo = {
   ...supabaseMessaging,
@@ -861,6 +901,20 @@ export const supabaseRepo: Repo = {
     return out;
   },
 
+  async submitHelpRequest(s, i) {
+    mustAffiliate(s);
+    const sb = await supabaseServer();
+    const rows = check(await sb.rpc("submit_help_request", {
+      p_category: i.category, p_urgency: i.urgency, p_subject: i.subject, p_message: i.message,
+      p_prospect_id: i.prospectId || null, p_dossier_id: i.dossierId || null, p_page_path: i.pagePath || null,
+    })) as any[];
+    return { id: rows[0].id, ref: rows[0].public_ref };
+  },
+  async listMyHelpRequests(s) {
+    const sb = await supabaseServer();
+    return (check(await sb.from("help_requests").select(HELP_COLS).eq("affiliate_id", mustAffiliate(s)).order("created_at", { ascending: false }).limit(100)) as any[]).map(toHelp);
+  },
+
   async requestErasure(s) {
     const sb = await supabaseServer();
     check(await sb.from("privacy_requests").insert({ profile_id: s.userId, kind: "erasure" }));
@@ -909,15 +963,7 @@ export const supabaseRepo: Repo = {
 
   async adminListSales() {
     const sb = await supabaseServer();
-    const rows = check(await sb.from("sales").select("*, customers(public_ref, company_name), commissions(amount_cents, status), campaigns(name, source), affiliates(id, profiles(full_name)), subscriptions(current_period_end, status)").order("created_at", { ascending: false }).limit(500)) as any[];
-    return rows.map((r) => ({
-      id: r.id, ref: r.public_ref, customerRef: r.customers?.public_ref ?? "—", customerName: r.customers?.company_name ?? null,
-      product: "Studio ATS", date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
-      commissionCents: r.commissions?.[0]?.amount_cents ?? null, commissionStatus: r.commissions?.[0]?.status ?? null,
-      renewalDate: r.subscriptions?.status === "active" ? r.subscriptions.current_period_end : null,
-      source: r.campaigns?.source ?? null, campaign: r.campaigns?.name ?? null,
-      affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, isDemo: r.is_demo,
-    }));
+    return (check(await sb.from("sales").select(ADMIN_SALE_COLS).order("created_at", { ascending: false }).limit(500)) as any[]).map(toAdminSale);
   },
 
   async adminSetSaleStatus(_s, saleId, status, reason) {
@@ -928,8 +974,7 @@ export const supabaseRepo: Repo = {
 
   async adminListLeads() {
     const sb = await supabaseServer();
-    return (check(await sb.from("leads").select("*, affiliates(profiles(full_name))").is("deleted_at", null).order("created_at", { ascending: false }).limit(300)) as any[])
-      .map((r) => ({ id: r.id, fullName: r.full_name, company: r.company, profession: r.profession, email: r.email, affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, status: r.status, createdAt: r.created_at }));
+    return (check(await sb.from("leads").select("*, affiliates(profiles(full_name))").is("deleted_at", null).order("created_at", { ascending: false }).limit(300)) as any[]).map(toAdminLead);
   },
 
   async adminCreateSaleFromLead(_s, leadId, reason) {
@@ -944,12 +989,7 @@ export const supabaseRepo: Repo = {
 
   async adminListCommissions() {
     const sb = await supabaseServer();
-    const rows = check(await sb.from("commissions").select("*, sales(public_ref, customers(public_ref)), affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(500)) as any[];
-    return rows.map((r) => ({
-      ...toCommission({ ...r, sales: { public_ref: r.sales?.public_ref, customer_ref: r.sales?.customers?.public_ref } }),
-      affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—", kind: r.kind ?? null,
-      currency: String(r.currency).trim(), disputeReason: r.dispute_reason ?? null, recoveryStatus: r.recovery_status ?? null,
-    }));
+    return (check(await sb.from("commissions").select(ADMIN_COMMISSION_COLS).order("created_at", { ascending: false }).limit(500)) as any[]).map(toAdminCommission);
   },
 
   async adminHoldCommission(_s, id, hold, reason) {
@@ -1022,7 +1062,7 @@ export const supabaseRepo: Repo = {
   async adminListPayouts() {
     const sb = await supabaseServer();
     return (check(await sb.from("payouts").select("*, affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
-      .map((r) => ({ id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path, affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
+      .map((r) => ({ ...toPayout(r), affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
   },
   async adminCreatePayout(_s, affiliateId) {
     const sb = await supabaseServer();
@@ -1128,5 +1168,36 @@ export const supabaseRepo: Repo = {
     const sb = await supabaseServer();
     check(await sb.from("private_sales_pages").update({ is_active: active }).eq("id", id));
     await supabaseService().from("audit_logs").insert({ actor_id: s.userId, action: "sales_page.active", entity: "private_sales_page", entity_id: id, after: { active }, reason });
+  },
+  async adminNetwork() {
+    const sb = await supabaseServer();
+    return (check(await sb.rpc("admin_network_stats")) as any[]).map(toNetworkStats);
+  },
+  async adminAffiliateDetail(s, affiliateId) {
+    const sb = await supabaseServer();
+    const [prospects, leads, sales, commissions, payouts, help] = await Promise.all([
+      sb.from("prospects").select("*").eq("affiliate_id", affiliateId).is("deleted_at", null).order("updated_at", { ascending: false }).limit(500),
+      sb.from("leads").select("*, affiliates(profiles(full_name))").eq("affiliate_id", affiliateId).is("deleted_at", null).order("created_at", { ascending: false }).limit(300),
+      sb.from("sales").select(ADMIN_SALE_COLS).eq("affiliate_id", affiliateId).order("created_at", { ascending: false }).limit(300),
+      sb.from("commissions").select(ADMIN_COMMISSION_COLS).eq("affiliate_id", affiliateId).order("created_at", { ascending: false }).limit(500),
+      sb.from("payouts").select("*").eq("affiliate_id", affiliateId).order("created_at", { ascending: false }).limit(100),
+      supabaseRepo.adminListHelpRequests(s, { affiliateId }),
+    ]);
+    return {
+      prospects: (check(prospects) as any[]).map(toProspect), leads: (check(leads) as any[]).map(toAdminLead),
+      sales: (check(sales) as any[]).map(toAdminSale), commissions: (check(commissions) as any[]).map(toAdminCommission),
+      payouts: (check(payouts) as any[]).map(toPayout), help,
+    };
+  },
+  async adminListHelpRequests(_s, filter = {}) {
+    const sb = await supabaseServer();
+    let q = sb.from("help_requests").select(HELP_COLS).order("created_at", { ascending: false }).limit(300);
+    if (filter.affiliateId) q = q.eq("affiliate_id", filter.affiliateId);
+    if (filter.status?.length) q = q.in("status", filter.status);
+    return (check(await q) as any[]).map(toHelp);
+  },
+  async adminUpdateHelpRequest(_s, id, status, note) {
+    const sb = await supabaseServer();
+    check(await sb.rpc("staff_update_help_request", { p_id: id, p_status: status, p_note: note }));
   },
 };

@@ -8,7 +8,7 @@ import { queueDirectEmail } from "@/lib/email/service";
 import { supabaseService } from "@/lib/supabase/server";
 import { briefHtml, proofHtml, quoteHtml, renderPdf } from "./pdf";
 import { DOSSIER_COOKIE, evidenceHash, randomOtp, randomToken, manifestHash, safeHashEqual, sha256 } from "./security";
-import { briefSections } from "@/content/contracts";
+import { briefSections, contractCopy } from "@/content/contracts";
 
 type Json = Record<string, unknown>;
 type LegalIdentity = DossierOfferSnapshot["legalIdentity"];
@@ -97,6 +97,20 @@ export async function listAdminDossiers(session: Session): Promise<CommercialDos
   if (error) throw new Error(error.message);
   return Promise.all((data ?? []).map((x) => hydrate(x as Json)));
 }
+
+/** Staff: dossiers without documents/answers (cheap), optionally for one affiliate. Used by the network pages. */
+export async function listAdminDossierSummaries(session: Session, affiliateId?: string): Promise<CommercialDossier[]> {
+  ensureStaff(session);
+  if (isDemoMode) return demoRows.filter((x) => !affiliateId || x.affiliate_id === affiliateId).map((x) => mapDossier(x, [], [], {}));
+  let q = supabaseService().from("commercial_dossiers").select("*").is("deleted_at", null).order("updated_at", { ascending: false });
+  if (affiliateId) q = q.eq("affiliate_id", affiliateId);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((x) => mapDossier(x as Json, [], [], {}));
+}
+
+/** Statuses where Studio ATS staff must act on a dossier. */
+export const STAFF_DOSSIER_STATUSES: DossierStatus[] = ["admin_review", "awaiting_studio_acceptance"];
 
 export async function getDossierForUser(session: Session, id: string): Promise<CommercialDossier | null> {
   const rows = session.role === "admin" || session.role === "super_admin" ? await listAdminDossiers(session) : await listAffiliateDossiers(session);
@@ -372,7 +386,7 @@ export async function generateFallbackDocument(session: Session, locale: Locale,
     sb.from("offers").select("id,name,price_cents,currency,billing_interval,stripe_price_id,stripe_lookup_key").eq("is_active", true).eq("stripe_lookup_key", OFFER_LOOKUP_KEYS[tier]).maybeSingle(),
   ]);
   const offer = offerResult.data; if (!offer) throw new DossierError("active_offer_missing");
-  base.adminScope = locale === "fr" ? "À compléter avant émission contractuelle." : "To be completed before contractual issuance.";
+  base.adminScope = contractCopy(locale).pdf.scopePlaceholder;
   base.validUntil = addDays(30);
   base.offerSnapshot = { offerId: offer.id, tier, name: offer.name, priceCents: Number(offer.price_cents), currency: offer.currency, interval: offer.billing_interval, stripePriceId: offer.stripe_price_id ?? "unconfigured", stripeLookupKey: offer.stripe_lookup_key ?? OFFER_LOOKUP_KEYS[tier], totalCents: Number(offer.price_cents), lockedAt: stamp, legalIdentity: { legalName: "Studio ATS", address: "À compléter / To be completed", registration: "À compléter / To be completed", representative: "À compléter / To be completed" } };
   const clauses = ((template.body as Json).clauses as string[]) ?? [];

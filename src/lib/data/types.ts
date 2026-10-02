@@ -684,3 +684,89 @@ export interface AdminPayoutCandidate {
 }
 
 export type { Market, SalesAsset };
+
+// ------------------------------------------------------------- admin network + help requests
+export const HELP_CATEGORIES = ["commission", "payout", "contract", "prospect", "sale", "account", "technical", "training", "other"] as const;
+export type HelpCategory = (typeof HELP_CATEGORIES)[number];
+export const HELP_URGENCIES = ["low", "normal", "high"] as const;
+export type HelpUrgency = (typeof HELP_URGENCIES)[number];
+export const HELP_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
+export type HelpStatus = (typeof HELP_STATUSES)[number];
+
+export interface HelpRequestInput {
+  category: HelpCategory;
+  urgency: HelpUrgency;
+  subject: string;
+  message: string;
+  prospectId?: string | null;
+  dossierId?: string | null;
+  pagePath?: string | null;
+}
+
+export interface HelpRequest {
+  id: string;
+  ref: string;
+  affiliateId: string;
+  affiliateName: string;
+  affiliateEmail: string;
+  category: HelpCategory;
+  urgency: HelpUrgency;
+  subject: string;
+  message: string;
+  prospectId: string | null;
+  dossierId: string | null;
+  pagePath: string | null;
+  /** Factual snapshot taken by the database at submission (see submit_help_request). */
+  context: Record<string, unknown>;
+  status: HelpStatus;
+  staffNote: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+/** One affiliate, as aggregated by admin_network_stats(). Money in cents. */
+export interface AdminNetworkStats {
+  id: string;
+  profileId: string;
+  name: string;
+  email: string;
+  role: Role;
+  code: string;
+  status: AffiliateStatus;
+  country: string | null;
+  sponsorId: string | null;
+  createdAt: string;
+  onboardingCompleted: boolean;
+  recruits: number;
+  /** CRM prospects (the affiliate's own pipeline). */
+  prospects: number;
+  prospectsWon: number;
+  /** Inbound leads attributed to the affiliate and not already in the CRM. */
+  leads: number;
+  clicks30d: number;
+  /** Paid first sales (conversions). */
+  paidSales: number;
+  renewals: number;
+  /** Gross of every paid sale attributed to the affiliate (new + renewals). */
+  revenueCents: number;
+  /** In validation — NOT earned. */
+  pendingCents: number;
+  disputedCents: number;
+  /** Owed now (net of unsettled clawbacks). */
+  availableCents: number;
+  paidCents: number;
+  /** Part of available + paid that comes from recruits' sales (5%). */
+  sponsorEarnedCents: number;
+  openHelp: number;
+  openFraud: number;
+  lastActivityAt: string | null;
+}
+
+export interface AdminAffiliateDetail {
+  prospects: Prospect[];
+  leads: AdminLeadRow[];
+  sales: AdminSaleRow[];
+  commissions: AdminCommissionRow[];
+  payouts: Payout[];
+  help: HelpRequest[];
+}

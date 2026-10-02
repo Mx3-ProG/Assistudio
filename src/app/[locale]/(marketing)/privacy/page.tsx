@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import { getDictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { pageMetadata } from "@/lib/seo";
-import { InfoPage } from "@/components/marketing/info-page";
+import { LegalDocument } from "@/components/marketing/legal-document";
+import { legalDocuments } from "@/content/legal";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/privacy">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
-  const t = await getDictionary(locale);
-  return pageMetadata(locale, "/privacy", `${t.pages.privacy.title} — Studio ATS`, t.pages.privacy.title);
+  const document = legalDocuments.privacy;
+  return pageMetadata(locale, "/privacy", `${document.title} — Studio ATS`, document.description);
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/privacy">) {
   const { locale } = (await params) as { locale: Locale };
-  const t = await getDictionary(locale);
-  return <InfoPage title={t.pages.privacy.title} placeholder={t.pages.placeholderBody} placeholderLabel={t.common.legalPlaceholder} />;
+  return <LegalDocument document={legalDocuments.privacy} locale={locale} />;
 }

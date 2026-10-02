@@ -196,7 +196,13 @@ export function RegisterForm({ demo, sponsorCode, sponsorName }: { demo: boolean
           <label className="flex items-start gap-3 text-[13px] text-fg-2">
             <input type="checkbox" name="terms" required defaultChecked={v.terms === "on"} className="mt-0.5 size-4 accent-[var(--accent)]" />
             <span>
-              <Link href={`/${locale}/affiliate-terms`} className="underline underline-offset-2">{t.auth.acceptTerms}</Link>
+              {t.auth.acceptTerms}
+              <span className="mt-1 block text-muted">
+                {t.common.learnMore} :{" "}
+                <Link href={`/${locale}/affiliate-terms`} className="underline underline-offset-2">{t.footer.affiliateTerms}</Link>
+                {" · "}
+                <Link href={`/${locale}/privacy`} className="underline underline-offset-2">{t.footer.privacy}</Link>
+              </span>
             </span>
           </label>
           <ErrorText state={state} />

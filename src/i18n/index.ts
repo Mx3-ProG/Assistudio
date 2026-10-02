@@ -12,6 +12,7 @@ const loaders: Record<Locale, () => Promise<{ default: Dictionary | PartialDicti
   it: () => import("./dictionaries/it"),
   nl: () => import("./dictionaries/nl"),
   ar: () => import("./dictionaries/ar"),
+  hi: () => import("./dictionaries/hi"),
 };
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

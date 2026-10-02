@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutGrid, Link2, Users, ShoppingBag, Wallet, Repeat,
-  Banknote, BarChart3, Trophy, Bell, MessageCircle, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag, FileSignature,
+  Banknote, BarChart3, Trophy, Bell, MessageCircle, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag, FileSignature, LifeBuoy,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
@@ -31,6 +31,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
     { items: [
       { href: base, label: n.overview, icon: LayoutGrid },
       { href: `${base}/messages`, label: t.msg.nav, icon: MessageCircle, badge: messages.unread },
+      { href: `${base}/help`, label: t.net.help.nav, icon: LifeBuoy },
     ] },
     {
       // V0.4: the copilot is the entry point; the V0 pages it replaces (sales kit,
@@ -41,7 +42,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
         { href: `${base}/prospects`, label: n.prospects, icon: Users },
         { href: `${base}/link`, label: t.cp.nav.linkCode, icon: Link2 },
         { href: `${base}/promo-codes`, label: n.promoCodes, icon: Tag },
-        { href: `${base}/documents`, label: locale === "fr" ? "Documents & contrats" : "Documents & contracts", icon: FileSignature },
+        { href: `${base}/documents`, label: t.ct.nav.affiliate, icon: FileSignature },
       ],
     },
     {
@@ -127,6 +128,13 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
             <div className="hidden lg:block" />
             <div className="flex items-center gap-2">
               <div className="hidden sm:flex sm:items-center sm:gap-2"><LocaleSwitcher /><ThemeToggle /></div>
+              {/* Help carries the current page so the team knows where the partner was. */}
+              <Link href={`${base}/help?from=${encodeURIComponent(pathname)}`} className="hidden h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg sm:flex" title={t.net.help.ask}>
+                <LifeBuoy className="size-[17px]" />{t.net.help.nav}
+              </Link>
+              <Link href={`${base}/help?from=${encodeURIComponent(pathname)}`} className="grid size-9 place-items-center rounded-full hover:bg-surface-2 sm:hidden" aria-label={t.net.help.ask}>
+                <LifeBuoy className="size-[18px]" />
+              </Link>
               <Link href={`${base}/messages`} className="relative grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label={t.msg.nav}>
                 <MessageCircle className="size-[18px]" />
                 {messages.unread > 0 && <span className="absolute -end-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-fg ring-2 ring-bg">{messages.unread > 99 ? "99+" : messages.unread}</span>}

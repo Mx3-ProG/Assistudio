@@ -83,6 +83,7 @@ Expiry, OTP length and rate limits are Supabase Auth settings. Every technical f
 | Email service (templates, Resend, outbox) | `src/lib/email` |
 | Messaging: rules, RLS, Storage bucket, Realtime (audited moderation) | `supabase/migrations/20261002000001_messaging.sql`, mirrored in `src/lib/messaging/policy.ts` |
 | Messaging UI (threads, voice/video recorder, drag & drop) | `src/components/messaging`, `src/app/actions/messaging.ts` |
+| Admin network + help requests (`help_requests`, `submit_help_request`, `staff_update_help_request`, `admin_network_stats`) | `supabase/migrations/20261008000001_admin_network_help.sql`, pure logic in `src/lib/admin/network.ts` |
 | Passwordless sign-in (Supabase Auth email codes) | `src/app/actions/auth.ts`, `src/lib/data/supabase.ts` (`sendSignInCode`, `signInWithCode`), `…_ensure_profile.sql` |
 
 **Money & commissions.** Amounts are integer cents. A commission is created only when Stripe confirms the payment: `pending` during the configurable validation period, then `available`, then `paid` via a payout; `disputed` when a human must decide. Refunds / chargebacks reverse it (a `clawback` if it was already paid out, recovered from the next payout). Renewal commissions are created by each renewal payment — never in advance. Every movement is an append-only `commission_ledger` entry. The UI never shows pending money as earned; projections are always labelled as projections.
@@ -99,8 +100,8 @@ Expiry, OTP length and rate limits are Supabase Auth settings. Every technical f
 
 - Public (indexable, 8 locales): `/`, `/studio`, `/pricing`, `/partners`, `/faq`, `/about`, `/contact`, `/security`, legal pages
 - Auth: `/login`, `/register` (email code, no password), `/auth/callback` (OAuth only); `/forgot` redirects to `/login`
-- Affiliate: `/dashboard` + `messages`, `welcome`, `link`, `campaigns`, `prospects`, `find`, `sales-kit`, `product`, `sales`, `commissions`, `recurring`, `payouts`, `analytics`, `leaderboard`, `notifications`, `settings`
-- Admin: `/admin` + `messages` (+ `messages/reports`), `affiliates`, `leads`, `sales`, `commissions`, `payouts`, `fraud`, `markets`, `content`, `settings`, `audit`
+- Affiliate: `/dashboard` + `messages`, `help` (help request → staff, emailed with an account snapshot), `welcome`, `link`, `campaigns`, `prospects`, `find`, `sales-kit`, `product`, `sales`, `commissions`, `recurring`, `payouts`, `analytics`, `leaderboard`, `notifications`, `settings`
+- Admin: `/admin` + `network` (+ `network/[id]` partner file: sponsor/recruits, prospects with contact details, sales, commissions owed/paid, needs, actions), `help` (help requests inbox), `messages` (+ `messages/reports`), `affiliates`, `leads`, `sales`, `commissions`, `payouts`, `fraud`, `markets`, `content`, `settings`, `audit`
 
 ## Internationalisation
 

@@ -2,7 +2,7 @@
  * Locale registry. Adding a language = add an entry here + a dictionary file.
  * No business component needs to change.
  */
-export const locales = ["en", "fr", "de", "es", "pt", "it", "nl", "ar"] as const;
+export const locales = ["en", "fr", "de", "es", "pt", "it", "nl", "ar", "hi"] as const;
 export type Locale = (typeof locales)[number];
 
 export const defaultLocale: Locale = "en";
@@ -16,6 +16,7 @@ export const localeMeta: Record<Locale, { label: string; dir: "ltr" | "rtl"; int
   it: { label: "Italiano", dir: "ltr", intl: "it-IT" },
   nl: { label: "Nederlands", dir: "ltr", intl: "nl-NL" },
   ar: { label: "العربية", dir: "rtl", intl: "ar" },
+  hi: { label: "हिन्दी", dir: "ltr", intl: "hi-IN" },
 };
 
 /** Regional variants (ar-EG, pt-BR…) resolve to their base dictionary for now. */

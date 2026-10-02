@@ -44,3 +44,21 @@ test("RTL locale sets dir=rtl", () => {
   assert.ok(renderEmail("affiliate.welcome", { code: "X" }, { ...opts, locale: "ar" }).html.includes('dir="rtl"'));
 });
 
+
+test("staff help request: full context, labels, escaped multi-line message, admin link", () => {
+  const params = {
+    ref: "HLP-ABC123", category: "prospect", urgency: "high", subject: "Closing help", message: "Line one\n<b>Line two</b>",
+    affiliate_name: "Ana", affiliate_email: "ana@test.invalid", code: "ANA123", affiliate_status: "approved", sponsor: "Bob",
+    recruits: 2, prospects: 9, leads: 1, paid_sales: 3, open_dossiers: 1, related: "Prospect: Rossi · interested",
+    revenue_cents: 1_800_000, available_cents: 45_000, paid_cents: 90_000, pending_cents: 150_000, page: "/fr/dashboard", admin_path: "/admin/network/aff_1",
+  };
+  const fr = renderEmail("staff.help_request", params, { ...opts, locale: "fr" });
+  assert.match(fr.subject, /^\[Urgent\] Demande d’aide HLP-ABC123 — Ana : Closing help$/);
+  assert.match(fr.text, /Sujet : Prospect/);
+  assert.match(fr.text, /En validation \(pas encore acquises\) : 1\s500\s€/);
+  assert.ok(fr.html.includes("Line one<br>&lt;b&gt;Line two"));
+  assert.ok(fr.html.includes("https://studio.test/fr/admin/network/aff_1"));
+  const noRelated = renderEmail("staff.help_request", { ...params, related: "" }, opts);
+  assert.equal(noRelated.text.includes("Prospect: Rossi"), false);
+  assert.match(noRelated.text, /Commissions available \(owed\): €450/);
+});

@@ -17,8 +17,8 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/s/[code]">) {
 
   const to = req.nextUrl.searchParams.get("to");
   const target = isValidCode(code) ? await repo().resolveReferral(code) : null;
-  // A bare affiliate link opens that affiliate's public page. Explicit
-  // same-origin destinations keep taking priority.
+  // A bare affiliate link now opens that affiliate's public page. Explicit
+  // destinations (checkout, campaigns, etc.) keep taking priority.
   const dest = referralDestination(locale, target, to);
   const res = NextResponse.redirect(new URL(dest, req.nextUrl.origin), 307);
   res.headers.set("X-Robots-Tag", "noindex, nofollow");

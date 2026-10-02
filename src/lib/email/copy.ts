@@ -11,7 +11,7 @@ export type TemplateId =
   | "customer.welcome" | "customer.order_confirmation" | "customer.renewal_receipt" | "customer.payment_failed"
   | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation"
   | "dossier.invite" | "dossier.changes_requested" | "dossier.ready_to_accept"
-  | "dossier.otp" | "dossier.payment" | "dossier.active" | "system.test";
+  | "dossier.otp" | "dossier.payment" | "dossier.active" | "staff.help_request" | "system.test";
 
 export interface TemplateCopy {
   subject: string;
@@ -189,6 +189,19 @@ const en: Copy = {
       paragraphs: ["We received the first payment for dossier {reference}.", "Your accepted documents and evidence record remain available from your secure dossier."],
       cta: { label: "Open my dossier", path: "{access_path}" },
     },
+    "staff.help_request": {
+      subject: "[{urgency_label}] Help request {ref} — {affiliate_name}: {subject}",
+      preheader: "{category_label} · {affiliate_name} needs help.",
+      title: "{affiliate_name} needs help: {subject}",
+      paragraphs: [
+        "{message}",
+        "Topic: {category_label} · Urgency: {urgency_label} · Reference: {ref}\nFrom: {affiliate_name} <{affiliate_email}> · code {code} · status {affiliate_status} · sponsor {sponsor}\nSent from: {page}",
+        "{related}",
+        "Account at the time of the request\nRecruits: {recruits} · Prospects: {prospects} · Inbound leads: {leads} · Paid sales: {paid_sales} · Open contract dossiers: {open_dossiers}\nAttributed revenue: {revenue} · Commissions available (owed): {available} · Already paid: {paid} · Pending validation (not earned yet): {pending}",
+      ],
+      cta: { label: "Open this partner in the admin", path: "{admin_path}" },
+      footnote: "Reply from the admin (Help requests) so the partner is notified. Replying to this email does not reach them.",
+    },
     "system.test": {
       subject: "Studio ATS — test email",
       preheader: "Email delivery works.",
@@ -360,6 +373,19 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       title: "Votre projet Studio ATS peut commencer.",
       paragraphs: ["Nous avons reçu le premier paiement du dossier {reference}.", "Vos documents acceptés et le dossier de preuve restent disponibles dans votre espace sécurisé."],
       cta: { label: "Ouvrir mon dossier", path: "{access_path}" },
+    },
+    "staff.help_request": {
+      subject: "[{urgency_label}] Demande d’aide {ref} — {affiliate_name} : {subject}",
+      preheader: "{category_label} · {affiliate_name} a besoin d’aide.",
+      title: "{affiliate_name} a besoin d’aide : {subject}",
+      paragraphs: [
+        "{message}",
+        "Sujet : {category_label} · Urgence : {urgency_label} · Référence : {ref}\nDe : {affiliate_name} <{affiliate_email}> · code {code} · statut {affiliate_status} · parrain {sponsor}\nEnvoyée depuis : {page}",
+        "{related}",
+        "Compte au moment de la demande\nFilleuls : {recruits} · Prospects : {prospects} · Leads entrants : {leads} · Ventes payées : {paid_sales} · Dossiers contrat ouverts : {open_dossiers}\nCA attribué : {revenue} · Commissions disponibles (dues) : {available} · Déjà versées : {paid} · En validation (pas encore acquises) : {pending}",
+      ],
+      cta: { label: "Ouvrir ce partenaire dans l’admin", path: "{admin_path}" },
+      footnote: "Répondez depuis l’admin (Demandes d’aide) pour que le partenaire soit notifié. Répondre à cet email ne lui parvient pas.",
     },
     "system.test": {
       subject: "Studio ATS — email de test",

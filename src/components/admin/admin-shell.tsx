@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined, FileSignature, MessageCircle } from "lucide-react";
+import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined, FileSignature, MessageCircle, Network, LifeBuoy } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -10,8 +10,8 @@ import { signOut } from "@/app/actions/auth";
 import { cn } from "@/lib/cn";
 import { MessagesNotifier } from "@/components/messaging/messages-notifier";
 
-export function AdminShell({ children, hasAffiliate, messages }: {
-  children: React.ReactNode; hasAffiliate: boolean;
+export function AdminShell({ children, hasAffiliate, messages, openHelp }: {
+  children: React.ReactNode; hasAffiliate: boolean; openHelp: number;
   messages: { unread: number; me: string; realtime: boolean };
 }) {
   const { t, locale } = useI18n();
@@ -20,11 +20,13 @@ export function AdminShell({ children, hasAffiliate, messages }: {
   const A = t.admin.nav;
   const items = [
     { href: base, label: A.overview, icon: LayoutGrid },
+    { href: `${base}/network`, label: t.net.nav, icon: Network },
+    { href: `${base}/help`, label: t.net.helpNav, icon: LifeBuoy, badge: openHelp },
     { href: `${base}/messages`, label: t.msg.admin.nav, icon: MessageCircle, badge: messages.unread },
     { href: `${base}/affiliates`, label: A.affiliates, icon: Users },
     { href: `${base}/leads`, label: A.leads, icon: Inbox },
     { href: `${base}/sales`, label: A.sales, icon: ShoppingBag },
-    { href: `${base}/contracts`, label: locale === "fr" ? "Devis & contrats" : "Quotes & contracts", icon: FileSignature },
+    { href: `${base}/contracts`, label: t.ct.nav.admin, icon: FileSignature },
     { href: `${base}/finance`, label: A.finance, icon: Landmark },
     { href: `${base}/commissions`, label: A.commissions, icon: Wallet },
     { href: `${base}/payouts`, label: A.payouts, icon: Banknote },

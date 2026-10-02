@@ -119,7 +119,7 @@
   --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-geist-sans), var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), var(--font-arabic), var(--font-devanagari), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --shadow-soft: var(--shadow-md);
   --shadow-lift: var(--shadow-lg);

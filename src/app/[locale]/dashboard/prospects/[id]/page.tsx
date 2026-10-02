@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, Target, HelpCircle, Images, MessageSquareText, AlertTriangle, BadgeCheck, Pencil, BookOpen, ExternalLink } from "lucide-react";
+import { ArrowLeft, Clock, Target, HelpCircle, Images, MessageSquareText, AlertTriangle, BadgeCheck, Pencil, BookOpen, ExternalLink, LifeBuoy } from "lucide-react";
 import { getDictionary } from "@/i18n";
 import { fmt } from "@/i18n/format";
 import type { Locale } from "@/i18n/config";
@@ -90,6 +90,7 @@ export default async function ProspectGuide({ params }: PageProps<"/[locale]/das
             {mc ? <Link href={`${dash}/sales-center/targets/${sector}`} className="hover:underline">{mc.name}</Link> : null}
           </p>
         </div>
+        <Link href={`${dash}/help?prospect=${p.id}&from=${encodeURIComponent(`${dash}/prospects/${p.id}`)}`} className={buttonClass("ghost", "sm")}><LifeBuoy className="size-4" />{t.net.help.ask}</Link>
         <Link href={`${dash}/prospects?edit=${p.id}`} className={buttonClass("ghost", "sm")}><Pencil className="size-4" />{P.edit}</Link>
       </header>
       {!mc && <p className="rounded-xl bg-warning-soft px-3 py-2 text-[13.5px]">{P.noSector}</p>}

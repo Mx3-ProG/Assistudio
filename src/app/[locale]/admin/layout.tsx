@@ -10,12 +10,13 @@ export const metadata: Metadata = { title: "Studio ATS Admin", robots: { index: 
 export default async function AdminLayout({ children, params }: LayoutProps<"/[locale]/admin">) {
   const { locale } = (await params) as { locale: Locale };
   const s = await requireStaff(locale);
-  const [inbox, own] = await Promise.all([
+  const [inbox, own, help] = await Promise.all([
     repo().listSupportInbox(s).catch(() => []), repo().getUnreadMessageCount(s).catch(() => 0),
+    repo().adminListHelpRequests(s, { status: ["open"] }).catch(() => []),
   ]);
   const unread = inbox.reduce((a, r) => a + r.unread, 0) + own;
   return (
-    <AdminShell hasAffiliate={!!s.affiliate} messages={{ unread, me: s.userId, realtime: !isDemoMode }}>
+    <AdminShell hasAffiliate={!!s.affiliate} openHelp={help.length} messages={{ unread, me: s.userId, realtime: !isDemoMode }}>
       {children}
     </AdminShell>
   );
