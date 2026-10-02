@@ -1,6 +1,7 @@
 /**
- * Creates (idempotently) the three Assistudio products and their prices
- * (Studio One €500 one-time, Studio Pro €3,000/year, Studio Premium €6,000/year)
+ * Creates (idempotently) the three Assistudio products and their five prices
+ * (Studio One €500 one-time, Studio Pro €250/month or €3,000/year,
+ * Studio Premium €500/month or €6,000/year)
  * in the Stripe account of STRIPE_SECRET_KEY, with the lookup keys the database
  * uses (offers.stripe_lookup_key). Test mode by default:
  *
@@ -27,18 +28,25 @@ const stripe = new Stripe(key);
 // See supabase/migrations/20260928000001_offers_v3.sql.
 const OFFERS = [
   { lookupKey: "assistudio_one_eur", tier: "one", name: "Assistudio — Studio One", description: "Your professional digital presence, delivered with no Assistudio subscription.", amount: 50_000, interval: null },
+  { lookupKey: "assistudio_pro_monthly_eur", tier: "pro", name: "Assistudio — Studio Pro", description: "A more complete digital presence, maintained throughout the year by Assistudio.", amount: 25_000, interval: "month" },
   { lookupKey: "assistudio_pro_yearly_eur", tier: "pro", name: "Assistudio — Studio Pro", description: "A more complete digital presence, maintained throughout the year by Assistudio.", amount: 300_000, interval: "year" },
+  { lookupKey: "assistudio_premium_monthly_eur", tier: "premium", name: "Assistudio — Studio Premium", description: "A complete digital commercial ecosystem operated and supported by Assistudio.", amount: 50_000, interval: "month" },
   { lookupKey: "assistudio_premium_yearly_eur", tier: "premium", name: "Assistudio — Studio Premium", description: "A complete digital commercial ecosystem operated and supported by Assistudio.", amount: 600_000, interval: "year" },
 ] as const;
 
 // A distinct Stripe product makes the exact offer name visible from Checkout to
 // invoices and receipts. Old prices/subscriptions are never edited or migrated.
 const anyExisting = (await stripe.prices.list({ lookup_keys: OFFERS.map((o) => o.lookupKey), active: true, expand: ["data.product"] })).data;
+const productByTier = new Map<string, Stripe.Product>();
+for (const price of anyExisting) {
+  const definition = OFFERS.find((o) => o.lookupKey === price.lookup_key);
+  if (definition && typeof price.product !== "string" && !price.product.deleted) productByTier.set(definition.tier, price.product);
+}
 
 for (const o of OFFERS) {
   const existing = anyExisting.find((p) => p.lookup_key === o.lookupKey);
   const interval = existing?.recurring?.interval ?? null;
-  const existingProduct = existing?.product as Stripe.Product | undefined;
+  const existingProduct = existing && typeof existing.product !== "string" && !existing.product.deleted ? existing.product : undefined;
   if (existing && existing.unit_amount === o.amount && interval === o.interval && existingProduct?.name === o.name) {
     await stripe.products.update(existingProduct.id, {
       name: o.name, description: o.description,
@@ -48,10 +56,11 @@ for (const o of OFFERS) {
     console.log(`${o.name}: price already exists: ${existing.id} (${existing.unit_amount} ${existing.currency}/${interval ?? "one-time"}) — nothing to do.`);
     continue;
   }
-  const product = await stripe.products.create(
-    { name: o.name, description: o.description, metadata: { app: "assistudio", catalog: "studio-ats", offer_tier: o.tier, offer_lookup_key: o.lookupKey } },
-    { idempotencyKey: `assistudio-setup-product-${o.lookupKey}-v1` },
+  const product = productByTier.get(o.tier) ?? await stripe.products.create(
+    { name: o.name, description: o.description, metadata: { app: "assistudio", catalog: "studio-ats", offer_tier: o.tier } },
+    { idempotencyKey: `assistudio-setup-product-${o.tier}-v2` },
   );
+  productByTier.set(o.tier, product);
   // Stripe prices are immutable: a price change is a new price that takes over the
   // lookup key. Existing subscriptions keep their old price and product untouched.
   const price = await stripe.prices.create(

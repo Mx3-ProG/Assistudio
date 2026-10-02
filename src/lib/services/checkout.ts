@@ -7,7 +7,7 @@ import { stripe, checkoutLocale, stripeMode } from "@/lib/services/stripe";
 import { resolveCheckoutAttribution } from "@/lib/services/attribution";
 import { CHECKOUT_METADATA_KEY } from "@/lib/stripe/normalize";
 import type { Locale } from "@/i18n/config";
-import { OFFER_LOOKUP_KEYS, type OfferTier } from "@/lib/offers";
+import { offerLookupKey, type BillingCadence, type OfferTier } from "@/lib/offers";
 import { discountCents } from "@/lib/services/promo";
 
 export type CheckoutOrigin = "public" | "affiliate_link" | "private_page" | "dashboard_cta";
@@ -27,11 +27,11 @@ interface OfferRow {
 }
 
 /** The active Studio ATS offer of a tier (One, Pro or Premium), by its stable lookup key. */
-async function activeOffer(productSlug: string, tier: OfferTier): Promise<OfferRow> {
+async function activeOffer(productSlug: string, tier: OfferTier, cadence: BillingCadence): Promise<OfferRow> {
   const { data, error } = await supabaseService()
     .from("offers")
     .select("id, product_id, price_cents, currency, price_type, billing_interval, interval_count, stripe_price_id, stripe_lookup_key, products!inner(slug)")
-    .eq("products.slug", productSlug).eq("is_active", true).eq("stripe_lookup_key", OFFER_LOOKUP_KEYS[tier])
+    .eq("products.slug", productSlug).eq("is_active", true).eq("stripe_lookup_key", offerLookupKey(tier, cadence))
     .maybeSingle();
   if (error || !data) throw new CheckoutUnavailableError(`no active ${tier} offer for ${productSlug}`);
   return data as unknown as OfferRow;
@@ -79,13 +79,15 @@ export async function createCheckoutSession(input: {
   privatePageSlug?: string | null;
   productSlug?: string;
   tier: OfferTier;
+  cadence?: BillingCadence;
   promoCode?: string | null;
 }): Promise<{ url: string }> {
   const sb = supabaseService();
   const { data: enabled } = await sb.from("settings").select("value").eq("key", "checkout.enabled").maybeSingle();
   if (enabled && enabled.value === false) throw new CheckoutUnavailableError("checkout disabled");
 
-  const offer = await activeOffer(input.productSlug ?? "studio", input.tier);
+  const cadence = input.tier === "one" ? "annual" : input.cadence ?? "annual";
+  const offer = await activeOffer(input.productSlug ?? "studio", input.tier, cadence);
   const [priceId, resolved] = await Promise.all([
     stripePriceFor(offer),
     resolveCheckoutAttribution({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug, code: input.promoCode ?? null }),
@@ -118,7 +120,7 @@ export async function createCheckoutSession(input: {
   const recurring = offer.price_type === "recurring";
   const coupon = promo && promoDiscountCents > 0 ? await stripe().coupons.create({
     percent_off: promo.discountRate * 100,
-    duration: "once",
+    duration: recurring ? "forever" : "once",
     name: `${promo.code} — affiliate-funded`,
     metadata: { promo_code_id: promo.id, affiliate_id: promo.affiliateId, checkout_id: row.id },
   }, { idempotencyKey: `checkout-coupon:${row.id}` }) : null;
@@ -135,7 +137,7 @@ export async function createCheckoutSession(input: {
     billing_address_collection: "required",
     locale: checkoutLocale(input.locale),
     success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&cancelled=1${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
+    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&cancelled=1${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
   }, { idempotencyKey: `checkout:${row.id}` });
 
   await sb.from("checkout_sessions").update({
@@ -184,7 +186,8 @@ export async function createDossierCheckoutSession(dossierId: string): Promise<{
   if (error || !row) throw new Error(`dossier checkout row: ${error?.message}`);
   const metadata = { [CHECKOUT_METADATA_KEY]: row.id, dossier_id: dossier.id, offer_id: dossier.offer_id };
   const coupon = snapshot.totalCents < snapshot.priceCents ? await stripe().coupons.create({
-    amount_off: snapshot.priceCents - snapshot.totalCents, currency: snapshot.currency.toLowerCase(), duration: "once",
+    percent_off: (snapshot.discountRate ?? 0) * 100,
+    duration: snapshot.interval === "one_time" ? "once" : "forever",
     name: snapshot.promoCode ?? `Dossier ${dossier.public_ref}`, metadata: { dossier_id: dossier.id, studio_checkout_id: row.id },
   }, { idempotencyKey: `dossier-coupon:${dossier.id}:${snapshot.totalCents}` }) : null;
   const session = await stripe().checkout.sessions.create({

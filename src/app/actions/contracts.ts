@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession, repo } from "@/lib/data";
 import { isLocale, type Locale } from "@/i18n/config";
-import { isOfferTier } from "@/lib/offers";
+import { isBillingCadence, isOfferTier } from "@/lib/offers";
 import {
   DOSSIER_COOKIE, acceptClient, affiliateReview, countersignDossier, createDossier,
   lockDossier, notifyDossierPayment, requestAdminChanges, requestClientOtp, saveClientBrief,
@@ -56,9 +56,10 @@ export async function acceptClientAction(form: FormData) {
 
 export async function lockDossierAction(form: FormData) {
   const values = Object.fromEntries(form); const tier = String(values.tier ?? ""); if (!isOfferTier(tier)) throw new Error("Invalid offer");
+  const cadence = String(values.billing ?? "annual"); if (!isBillingCadence(cadence)) throw new Error("Invalid billing cadence");
   const parsed = z.object({ id: z.string().uuid(), scope: z.string().min(10), promoCode: z.string().max(40).optional(), validDays: z.coerce.number().int().min(1).max(180), legalName: z.string().min(2), address: z.string().min(5), registration: z.string().min(2), representative: z.string().min(2), vatNumber: z.string().optional() }).parse(values);
   const session = await requiredSession();
-  await lockDossier(session, parsed.id, { tier, scope: parsed.scope, promoCode: parsed.promoCode || null, validDays: parsed.validDays, legalIdentity: { legalName: parsed.legalName, address: parsed.address, registration: parsed.registration, representative: parsed.representative, vatNumber: parsed.vatNumber || null } });
+  await lockDossier(session, parsed.id, { tier, cadence, scope: parsed.scope, promoCode: parsed.promoCode || null, validDays: parsed.validDays, legalIdentity: { legalName: parsed.legalName, address: parsed.address, registration: parsed.registration, representative: parsed.representative, vatNumber: parsed.vatNumber || null } });
   revalidatePath(`/${session.locale}/admin/contracts/${parsed.id}`);
 }
 

@@ -33,6 +33,15 @@ function OfferPrice({ offer, t, featured = false, dark = true }: {
       <p className="mt-1 text-[13px] font-semibold text-emerald-400">{P.noSubscription}</p>
     </div>;
   }
+  if (offer.interval === "month") {
+    return <div>
+      <p className="flex flex-wrap items-baseline gap-x-2">
+        <Money cents={offer.priceCents} sourceCurrency={offer.currency} className={cn("tabular font-semibold tracking-[-0.04em]", featured ? "text-[44px] sm:text-[56px]" : "text-[38px] sm:text-[44px]")} />
+        <span className={dark ? "text-white/65" : "text-muted"}>{P.perMonth}</span>
+      </p>
+      <p className={cn("mt-1 text-[13px]", dark ? "text-white/65" : "text-muted")}><MoneyTemplate template={P.billedMonthly} cents={offer.priceCents} currency={offer.currency} /></p>
+    </div>;
+  }
   const monthly = Math.round(offer.priceCents / 12);
   return <div>
     <p className="flex flex-wrap items-baseline gap-x-2">
