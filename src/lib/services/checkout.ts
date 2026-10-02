@@ -137,7 +137,7 @@ export async function createCheckoutSession(input: {
   const session = await stripe().checkout.sessions.create({
     mode: recurring ? "subscription" : "payment",
     ...(uiMode === "embedded" ? {
-      ui_mode: "embedded" as const,
+      ui_mode: "embedded_page" as const,
       redirect_on_completion: "if_required" as const,
       return_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
     } : {
