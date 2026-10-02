@@ -66,9 +66,13 @@ export async function resolveAmbassadorCode(code: string | null): Promise<Ambass
   if (!affiliateId) return null;
   const [{ data: link }, { data: aff }] = await Promise.all([
     sb.from("affiliate_links").select("id").eq("affiliate_id", affiliateId).eq("is_default", true).maybeSingle(),
-    sb.from("affiliates").select("profiles(display_name, full_name)").eq("id", affiliateId).maybeSingle(),
+    // `affiliates` also points to `profiles` through `approved_by`, so the
+    // relationship must be named explicitly or PostgREST rejects the embed.
+    sb.from("affiliates")
+      .select("profile:profiles!affiliates_profile_id_fkey(display_name, full_name)")
+      .eq("id", affiliateId).maybeSingle(),
   ]);
-  const prof = (aff as { profiles?: { display_name: string | null; full_name: string | null } | null } | null)?.profiles;
+  const prof = (aff as { profile?: { display_name: string | null; full_name: string | null } | null } | null)?.profile;
   return {
     affiliateId, linkId: link?.id ?? null, promo,
     displayName: prof?.display_name || (prof?.full_name ?? "").split(" ")[0] || null,

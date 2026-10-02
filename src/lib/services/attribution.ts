@@ -30,6 +30,19 @@ const NONE: ResolvedAttribution = {
   affiliateId: null, referralSessionId: null, linkId: null, campaignId: null, privatePageId: null, source: "none",
 };
 
+async function affiliateDisplayName(affiliateId: string | null) {
+  if (!affiliateId) return null;
+  const { data, error } = await supabaseService().from("affiliates")
+    .select("profile:profiles!affiliates_profile_id_fkey(display_name, full_name)")
+    .eq("id", affiliateId).maybeSingle();
+  if (error) {
+    log.warn("attribution", "affiliate display name unavailable", { affiliateId, error: error.message });
+    return null;
+  }
+  const profile = (data as { profile?: { display_name: string | null; full_name: string | null } | null } | null)?.profile;
+  return profile?.display_name || (profile?.full_name ?? "").split(" ")[0] || null;
+}
+
 export async function resolveForConversion(input: { sessionKey: string | null; privatePageSlug?: string | null }): Promise<ResolvedAttribution> {
   const sb = supabaseService();
 
@@ -79,12 +92,13 @@ export async function resolveCheckoutAttribution(input: { sessionKey: string | n
     resolveForConversion({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug }),
     resolveAmbassadorCode(input.code),
   ]);
-  if (!input.code) return { attribution: tracked, promo: null, code: "none", advisor: null };
-  if (!owner) return { attribution: tracked, promo: null, code: "invalid", advisor: null };
+  const trackedAdvisor = await affiliateDisplayName(tracked.affiliateId);
+  if (!input.code) return { attribution: tracked, promo: null, code: "none", advisor: trackedAdvisor };
+  if (!owner) return { attribution: tracked, promo: null, code: "invalid", advisor: trackedAdvisor };
   const d = withAmbassadorCode(tracked.affiliateId, owner.affiliateId);
-  if (d.conflict) return { attribution: tracked, promo: null, code: owner.promo ? "invalid" : "ignored", advisor: null };
+  if (d.conflict) return { attribution: tracked, promo: null, code: owner.promo ? "invalid" : "ignored", advisor: trackedAdvisor };
   const attribution: ResolvedAttribution = d.byCode
     ? { affiliateId: owner.affiliateId, referralSessionId: null, linkId: owner.linkId, campaignId: null, privatePageId: null, source: "manual" }
     : tracked;
-  return { attribution, promo: owner.promo, code: owner.promo ? "applied" : "attributed", advisor: owner.displayName };
+  return { attribution, promo: owner.promo, code: owner.promo ? "applied" : "attributed", advisor: owner.displayName ?? trackedAdvisor };
 }
