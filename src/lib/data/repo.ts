@@ -6,6 +6,7 @@ import type {
   AdminCommissionRow, AdminSaleRow, AdminLeadRow, FraudFlag, FraudStatus, AuditLog, AdminPayoutCandidate, AffiliateStatus,
   SalesPageInput, PerformanceRow, ProductView, SalesEventInput, SalesContentInput, SalesAnalytics,
   PromoCode, ProspectEvent, ProspectEventType, ProspectStage,
+  AdminNetworkStats, AdminAffiliateDetail, HelpRequest, HelpRequestInput, HelpStatus,
 } from "./types";
 import type { SalesContent, ContentKind, ContentStatus } from "@/lib/sales/content";
 import type { Balances } from "@/lib/commission";
@@ -81,7 +82,12 @@ export interface SignupData {
   locale: Locale;
   country: string | null;
   sponsor_code: string | null;
-  application: { channels: string; terms_accepted_at: string };
+  application: {
+    channels: string;
+    terms_accepted_at: string;
+    terms_version: string;
+    terms_locale: Locale;
+  };
 }
 
 export interface Repo extends MessagingRepo {
@@ -178,6 +184,11 @@ export interface Repo extends MessagingRepo {
   exportMyData(s: Session): Promise<Record<string, unknown>>;
   requestErasure(s: Session): Promise<void>;
 
+  // ------------------------------------------------------------- help requests (affiliate → staff)
+  /** Stores the request with a database-computed account snapshot and emails every staff member. */
+  submitHelpRequest(s: Session, input: HelpRequestInput): Promise<{ id: string; ref: string }>;
+  listMyHelpRequests(s: Session): Promise<HelpRequest[]>;
+
   // ------------------------------------------------------------- admin (staff only)
   adminOverview(s: Session): Promise<AdminOverview>;
   adminListAffiliates(s: Session): Promise<AdminAffiliateRow[]>;
@@ -215,4 +226,11 @@ export interface Repo extends MessagingRepo {
   adminSalesAnalytics(s: Session, sinceDays: number): Promise<SalesAnalytics>;
   adminListSalesPages(s: Session): Promise<(PrivatePage & { affiliateName: string | null })[]>;
   adminSetSalesPageActive(s: Session, id: string, active: boolean, reason: string): Promise<void>;
+  /** One aggregated row per affiliate (sponsor, recruits, prospects, sales, money buckets, open requests). */
+  adminNetwork(s: Session): Promise<AdminNetworkStats[]>;
+  /** Everything about one affiliate for the admin 360 page (prospects with contact details included). */
+  adminAffiliateDetail(s: Session, affiliateId: string): Promise<AdminAffiliateDetail>;
+  adminListHelpRequests(s: Session, filter?: { affiliateId?: string; status?: HelpStatus[] }): Promise<HelpRequest[]>;
+  /** Audited; notifies the affiliate when the status changes. */
+  adminUpdateHelpRequest(s: Session, id: string, status: HelpStatus, note: string | null): Promise<void>;
 }

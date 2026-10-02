@@ -4,12 +4,16 @@ import sc from "./sales-center.fr";
 import msg from "./messaging.fr";
 import cp from "./copilot.fr";
 import gd from "./guided.fr";
+import ct from "./contracts.fr";
+import net from "./network.fr";
 
 const fr: Dictionary = {
   sc,
+  net,
   msg,
   cp,
   gd,
+  ct,
   meta: {
     homeTitle: "Studio ATS Partners — Vendez Studio ATS, gagnez jusqu’à 1 500 € par vente",
     homeDescription:
@@ -62,7 +66,7 @@ const fr: Dictionary = {
   },
   nav: {
     howItWorks: "Fonctionnement",
-    whatYouSell: "Ce que vous vendez",
+    whatYouSell: "Solution Studio",
     markets: "Marchés",
     discover: "Découvrir Studio ATS",
     faq: "FAQ",
@@ -291,6 +295,12 @@ const fr: Dictionary = {
       failedRetry: "Une erreur technique a empêché la connexion. Votre code reste valable : réessayez avec le même code. Si ça persiste, transmettez-nous le détail ci-dessous.",
     },
     logout: "Se déconnecter",
+    emailCode: {
+      subject: "Votre code de connexion Studio ATS : {code}",
+      title: "Votre code de connexion",
+      intro: "Saisissez ce code sur Studio ATS pour vous connecter. Il est valable 5 minutes et ne fonctionne qu’une seule fois.",
+      warning: "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email et ne communiquez jamais ce code.",
+    },
   },
   dash: {
     nav: {
@@ -928,6 +938,7 @@ const fr: Dictionary = {
     commissionReversed: "La commission de {sale_ref} a été annulée ({reason})",
     payoutPaid: "Paiement de {amount} envoyé",
     accountStatus: "Statut de votre compte : {status}",
+    helpUpdated: "Votre demande d’aide {ref} est maintenant : {status}",
     renewalUpcoming: "Un contrat se renouvelle dans {days} jours",
     salePending: "Paiement confirmé pour {sale_ref} — commission de {commission} en attente",
     renewalPending: "Renouvellement confirmé pour {sale_ref} — commission de {commission} en attente",

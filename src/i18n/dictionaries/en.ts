@@ -6,12 +6,16 @@ import sc from "./sales-center.en";
 import msg from "./messaging.en";
 import cp from "./copilot.en";
 import gd from "./guided.en";
+import ct from "./contracts.en";
+import net from "./network.en";
 
 const en = {
   sc,
+  net,
   msg,
   cp,
   gd,
+  ct,
   meta: {
     homeTitle: "Studio ATS Partners — Sell Studio ATS, earn up to €1,500 per sale",
     homeDescription:
@@ -64,7 +68,7 @@ const en = {
   },
   nav: {
     howItWorks: "How it works",
-    whatYouSell: "What you sell",
+    whatYouSell: "Our solution",
     markets: "Markets",
     discover: "Discover Studio ATS",
     faq: "FAQ",
@@ -295,6 +299,12 @@ const en = {
       failedRetry: "A technical error prevented sign-in. Your code is still valid: try again with the same code. If it persists, send us the detail below.",
     },
     logout: "Log out",
+    emailCode: {
+      subject: "Your Studio ATS sign-in code: {code}",
+      title: "Your sign-in code",
+      intro: "Enter this code on Studio ATS to sign in. It is valid for 5 minutes and works only once.",
+      warning: "If you did not request this code, ignore this email and never share the code.",
+    },
   },
   dash: {
     nav: {
@@ -932,6 +942,7 @@ const en = {
     commissionReversed: "Commission for {sale_ref} was cancelled ({reason})",
     payoutPaid: "Payout of {amount} sent",
     accountStatus: "Your account status is now: {status}",
+    helpUpdated: "Your help request {ref} is now: {status}",
     renewalUpcoming: "A contract renews in {days} days",
     salePending: "Payment confirmed for {sale_ref} — {commission} commission pending",
     renewalPending: "Renewal confirmed for {sale_ref} — {commission} commission pending",

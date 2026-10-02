@@ -11,9 +11,9 @@ export const OFFER_TIERS = ["one", "pro", "premium"] as const;
 export type OfferTier = (typeof OFFER_TIERS)[number];
 
 export const OFFER_LOOKUP_KEYS: Record<OfferTier, string> = {
-  one: "studio_one_eur",
-  pro: "studio_pro_yearly_eur",
-  premium: "studio_yearly_eur",
+  one: "assistudio_one_eur",
+  pro: "assistudio_pro_yearly_eur",
+  premium: "assistudio_premium_yearly_eur",
 };
 
 export function isOfferTier(x: unknown): x is OfferTier {

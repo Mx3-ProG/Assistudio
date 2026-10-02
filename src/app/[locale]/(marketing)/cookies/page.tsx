@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import { getDictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { pageMetadata } from "@/lib/seo";
-import { InfoPage } from "@/components/marketing/info-page";
+import { LegalDocument } from "@/components/marketing/legal-document";
+import { legalDocuments } from "@/content/legal";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/cookies">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
-  const t = await getDictionary(locale);
-  return pageMetadata(locale, "/cookies", `${t.pages.cookies.title} — Studio ATS`, t.pages.cookies.title);
+  const document = legalDocuments.cookies;
+  return pageMetadata(locale, "/cookies", `${document.title} — Studio ATS`, document.description);
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/cookies">) {
   const { locale } = (await params) as { locale: Locale };
-  const t = await getDictionary(locale);
-  return <InfoPage title={t.pages.cookies.title} placeholder={t.pages.placeholderBody} placeholderLabel={t.common.legalPlaceholder} />;
+  return <LegalDocument document={legalDocuments.cookies} locale={locale} />;
 }

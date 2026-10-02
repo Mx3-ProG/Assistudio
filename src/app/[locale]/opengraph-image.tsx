@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { isLocale, type Locale } from "@/i18n/config";
 
@@ -14,13 +16,32 @@ const taglines: Record<Locale, string> = {
   pt: "Sua equipe de vendas digital em um só lugar.",
   it: "Il tuo team commerciale digitale, in un unico posto.",
   ar: "فريق مبيعاتك الرقمي في مكان واحد.",
+  hi: "आपकी डिजिटल सेल्स टीम, एक ही जगह पर।",
+};
+
+/**
+ * The default OG font has no Devanagari glyphs, so one is bundled for Hindi.
+ * Arabic cannot be shaped by next/og's OpenType engine (unsupported GSUB
+ * lookups, with bundled and fetched fonts alike): the card falls back to
+ * English rather than failing with a 500.
+ */
+const scriptFonts: Partial<Record<Locale, string>> = {
+  hi: "@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-400-normal.woff",
 };
 
 export default async function OpenGraphImage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = isLocale(rawLocale) ? rawLocale : "fr";
+  const fontFile = scriptFonts[locale];
+  // Custom fonts replace the defaults entirely, so Latin is loaded alongside.
+  const font = (file: string) => readFile(join(process.cwd(), "node_modules", file));
+  const fonts = fontFile ? [
+    { name: "Noto Sans", data: await font("@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff"), weight: 400 as const },
+    { name: "Noto Sans", data: await font("@fontsource/noto-sans/files/noto-sans-latin-700-normal.woff"), weight: 700 as const },
+    { name: "Script", data: await font(fontFile), weight: 400 as const },
+  ] : undefined;
   return new ImageResponse(
-    <div style={{ width: "100%", height: "100%", display: "flex", padding: 72, color: "#101225", background: "linear-gradient(135deg, #fbfbfd 0%, #f2f3ff 58%, #e9eaff 100%)" }}>
+    <div style={{ width: "100%", height: "100%", display: "flex", padding: 72, ...(fonts ? { fontFamily: "Noto Sans" } : {}), color: "#101225", background: "linear-gradient(135deg, #fbfbfd 0%, #f2f3ff 58%, #e9eaff 100%)" }}>
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "100%", borderRadius: 34, padding: 64, background: "linear-gradient(135deg, #fff 0%, #f8f8ff 100%)", border: "1px solid #e4e6f2" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
           <div style={{ width: 54, height: 54, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 16, background: "linear-gradient(135deg, #2f5bff 0%, #7a5cff 100%)" }}>
@@ -30,11 +51,11 @@ export default async function OpenGraphImage({ params }: { params: Promise<{ loc
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 930 }}>
           <div style={{ fontSize: 62, lineHeight: 1.08, fontWeight: 700, letterSpacing: -2 }}>Studio ATS</div>
-          <div style={{ fontSize: 34, lineHeight: 1.3, color: "#555a72" }}>{taglines[locale]}</div>
+          <div style={{ fontSize: 34, lineHeight: 1.3, color: "#555a72", ...(fonts ? { fontFamily: "Script, Noto Sans" } : {}) }}>{taglines[locale === "ar" ? "en" : locale]}</div>
         </div>
         <div style={{ display: "flex", fontSize: 22, fontWeight: 600, color: "#515b88" }}>atonservice.org</div>
       </div>
     </div>,
-    size,
+    { ...size, fonts },
   );
 }

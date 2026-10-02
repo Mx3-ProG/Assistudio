@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getDictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { requireStaff } from "@/lib/auth";
@@ -24,7 +25,7 @@ export default async function Affiliates({ params }: PageProps<"/[locale]/admin/
           {rows.map((a) => (
             <li key={a.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:px-6">
               <div className="min-w-0 flex-1">
-                <p className="flex flex-wrap items-center gap-2 font-medium">{a.name} <Badge tone={tone[a.status]}>{A.affiliateStatuses[a.status]}</Badge></p>
+                <p className="flex flex-wrap items-center gap-2 font-medium"><Link href={`/${locale}/admin/network/${a.id}`} className="hover:text-accent">{a.name}</Link> <Badge tone={tone[a.status]}>{A.affiliateStatuses[a.status]}</Badge></p>
                 <p className="text-[12px] text-muted">{a.email} · {a.code} · {a.country ?? "—"} · {formatDate(a.createdAt, locale, "short")}</p>
                 {a.status === "pending" && Object.keys(a.application).length > 0 && (
                   <p className="mt-1 text-[12px] text-fg-2">{Object.entries(a.application).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")}</p>

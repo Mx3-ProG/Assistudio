@@ -18,7 +18,7 @@ import type {
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
   ClickInput, LeadInput, ReferralTarget, LinkStats, RecurringContract, SubscriptionStatus,
   PerformanceRow, ProductView,
-  PromoCode, ProspectEvent,
+  PromoCode, ProspectEvent, AdminNetworkStats, HelpRequest, HelpRequestInput,
 } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -86,6 +86,7 @@ interface DemoPayout { id: string; ref: string; affiliateId: string; amountCents
 interface DemoActivity extends ActivityEvent { affiliateId: string }
 interface DemoNotification extends Notification { userId: string }
 interface DemoPromoCode extends PromoCode { affiliateId: string }
+type DemoHelpRequest = Omit<HelpRequest, "affiliateName" | "affiliateEmail">;
 
 interface Store {
   markets: (Market & { active: boolean })[];
@@ -111,6 +112,7 @@ interface Store {
   activity: DemoActivity[];
   notifications: DemoNotification[];
   promoCodes: DemoPromoCode[];
+  helpRequests: DemoHelpRequest[];
   fraud: (FraudFlag & { affiliateId: string | null })[];
   audit: AuditLog[];
   goals: Record<string, number>;
@@ -151,7 +153,7 @@ function seed(): Store {
     markets: structuredClone(defaultMarkets).map((m) => ({ ...m, active: true })),
     settings, offer, offers, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
     prospects: [], prospectEvents: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
-    activity: [], notifications: [], promoCodes: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
+    activity: [], notifications: [], promoCodes: [], helpRequests: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
     content: defaultSalesContent.map((c, i) => ({
       id: `cnt_${i}`, kind: c.kind, key: c.key, locale: c.locale, version: 1, status: c.status, productId: "prod_studio",
       targetKey: c.targetKey ?? null, channel: c.channel ?? null, stage: c.stage ?? null, title: c.title, summary: c.summary ?? null,
@@ -375,6 +377,21 @@ function seed(): Store {
     { id: "frd_1", type: "duplicate_lead", severity: 1, affiliateId: alex, affiliateName: "Alex Demo", entity: "lead", entityId: "led_x", signals: { email_seen: 2 }, status: "open", decisionNote: null, createdAt: daysAgo(2) },
     { id: "frd_2", type: "abnormal_clicks", severity: 2, affiliateId: marc, affiliateName: "Marc Demo", entity: "affiliate", entityId: marc, signals: { clicks_per_hour: 88, unique_visitors: 3 }, status: "open", decisionNote: null, createdAt: daysAgo(1) },
   );
+  // Demo help requests (fake, like every demo row).
+  s.helpRequests.push(
+    {
+      id: "hlp_1", ref: "HLP-DEMO1", affiliateId: me, category: "prospect", urgency: "high", subject: "Demo request — prospect wants a technical call",
+      message: "Demo data. Emma Laurent (Laurent Events) wants a call with someone technical before signing the proposal. Can the team join?",
+      prospectId: "prs_4", dossierId: null, pagePath: "/fr/dashboard/prospects", status: "open", staffNote: null, resolvedAt: null, createdAt: daysAgo(0.2),
+      context: { affiliate_status: "approved", code: "MTH4D2", sponsor: null, recruits: 2, prospects: 16, paid_sales: 3, prospect: { name: "Emma Laurent", company: "Laurent Events", stage: "proposal" } },
+    },
+    {
+      id: "hlp_2", ref: "HLP-DEMO2", affiliateId: alex, category: "payout", urgency: "normal", subject: "Demo request — when is my next payout?",
+      message: "Demo data. I see an available balance but no payout scheduled yet. When will it be sent?",
+      prospectId: null, dossierId: null, pagePath: "/en/dashboard/payouts", status: "resolved", staffNote: "Demo: payout scheduled for the 5th.", resolvedAt: daysAgo(3), createdAt: daysAgo(5),
+      context: { affiliate_status: "approved", code: "ALX7K9", sponsor: "Mathieu Demo" },
+    },
+  );
   s.audit.push(
     { id: id("aud"), actor: "Admin Demo", action: "affiliate.status", entity: "affiliate", entityId: sofia, reason: "Application reviewed", before: { status: "pending" }, after: { status: "approved" }, createdAt: daysAgo(250) },
     { id: id("aud"), actor: "Admin Demo", action: "payout.paid", entity: "payout", entityId: "PAY-0001", reason: null, before: { status: "scheduled" }, after: { status: "paid" }, createdAt: daysAgo(80) },
@@ -386,7 +403,7 @@ interface DemoCode { purpose: CodePurpose; code: string; signup: SignupData | nu
 const demoCodes = () => ((g as { __studioDemoCodes?: Map<string, DemoCode> }).__studioDemoCodes ??= new Map());
 
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
-const STORE_VERSION = 5;
+const STORE_VERSION = 6;
 const g = globalThis as unknown as { __studioDemo?: Store & { v?: number } };
 function db(): Store {
   if (g.__studioDemo?.v !== STORE_VERSION) g.__studioDemo = Object.assign(seed(), { v: STORE_VERSION });
@@ -471,6 +488,40 @@ function affiliateName(affId: string | null) {
   if (!affId) return null;
   const a = db().affiliates.find((x) => x.id === affId);
   return db().users.find((u) => u.userId === a?.userId)?.fullName ?? null;
+}
+
+function helpRow(h: DemoHelpRequest): HelpRequest {
+  const a = db().affiliates.find((x) => x.id === h.affiliateId);
+  const u = db().users.find((x) => x.userId === a?.userId);
+  return { ...h, affiliateName: u?.fullName ?? "—", affiliateEmail: u?.email ?? "" };
+}
+function networkStats(a: DemoAffiliate): AdminNetworkStats {
+  const st = db();
+  const u = st.users.find((x) => x.userId === a.userId)!;
+  const prospects = st.prospects.filter((p) => p.affiliateId === a.id && !p.deletedAt);
+  const paid = st.sales.filter((x) => x.affiliateId === a.id && x.status === "paid");
+  const b = balancesOf(a.id);
+  const recruits = st.affiliates.filter((r) => r.sponsorId === a.id);
+  const times = [
+    ...prospects.map((p) => p.stageChangedAt ?? p.createdAt), ...paid.map((x) => x.createdAt),
+    ...st.leads.filter((l) => l.affiliateId === a.id).map((l) => l.createdAt),
+    ...st.clicks.filter((c) => c.affiliateId === a.id && !c.isBot).map((c) => c.at),
+  ].filter(Boolean) as string[];
+  return {
+    id: a.id, profileId: a.userId, name: u.fullName, email: u.email, role: u.role, code: a.code, status: a.status, country: a.country,
+    sponsorId: a.sponsorId, createdAt: a.createdAt, onboardingCompleted: !!a.onboardingCompletedAt,
+    recruits: recruits.length, prospects: prospects.length, prospectsWon: prospects.filter((p) => p.stage === "won").length,
+    leads: st.leads.filter((l) => l.affiliateId === a.id && !prospects.some((p) => p.leadId === l.id)).length,
+    clicks30d: st.clicks.filter((c) => c.affiliateId === a.id && !c.isBot && Date.parse(c.at) >= now() - 30 * DAY).length,
+    paidSales: paid.filter((x) => x.kind === "new").length, renewals: paid.filter((x) => x.kind !== "new").length,
+    revenueCents: paid.reduce((sum, x) => sum + x.amountCents, 0),
+    pendingCents: b.pendingCents, disputedCents: b.disputedCents, availableCents: b.availableCents, paidCents: b.paidCents,
+    // Demo commissions have no sponsor rows, so nothing of the balance comes from recruits.
+    sponsorEarnedCents: 0,
+    openHelp: st.helpRequests.filter((h) => h.affiliateId === a.id && (h.status === "open" || h.status === "in_progress")).length,
+    openFraud: st.fraud.filter((f) => f.affiliateId === a.id && (f.status === "open" || f.status === "reviewing")).length,
+    lastActivityAt: times.length ? times.sort().at(-1)! : null,
+  };
 }
 
 // ---------------------------------------------------------------- repo
@@ -1049,6 +1100,33 @@ export const demoRepo: Repo = {
   },
   async requestErasure(s) { db().privacyRequests.push({ userId: s.userId, kind: "erasure", at: iso(now()) }); },
 
+  async submitHelpRequest(s, i: HelpRequestInput) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    if (st.helpRequests.filter((h) => h.affiliateId === aff && Date.parse(h.createdAt) > now() - 3_600_000).length >= 5) throw new Error("help.rate_limited");
+    const prospect = i.prospectId ? st.prospects.find((p) => p.id === i.prospectId && p.affiliateId === aff && !p.deletedAt) : undefined;
+    const a = networkStats(st.affiliates.find((x) => x.id === aff)!);
+    const h: DemoHelpRequest = {
+      id: id("hlp"), ref: `HLP-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, affiliateId: aff,
+      category: i.category, urgency: i.urgency, subject: i.subject.trim(), message: i.message.trim(),
+      prospectId: prospect?.id ?? null, dossierId: i.dossierId ?? null, pagePath: i.pagePath ?? null,
+      status: "open", staffNote: null, resolvedAt: null, createdAt: iso(now()),
+      context: {
+        affiliate_status: a.status, code: a.code, sponsor: a.sponsorId ? affiliateName(a.sponsorId) : null, recruits: a.recruits,
+        prospects: a.prospects, leads: a.leads, paid_sales: a.paidSales, revenue_cents: a.revenueCents,
+        pending_cents: a.pendingCents + a.disputedCents, available_cents: a.availableCents, paid_cents: a.paidCents, open_requests: a.openHelp,
+        ...(prospect ? { prospect: { name: prospect.name, company: prospect.company, stage: prospect.stage, email: prospect.email, phone: prospect.phone } } : {}),
+      },
+    };
+    st.helpRequests.unshift(h);
+    audit(s, "help_request.created", "help_request", h.id, null, { category: h.category, urgency: h.urgency }, null);
+    return { id: h.id, ref: h.ref };
+  },
+  async listMyHelpRequests(s) {
+    const aff = mustAffiliate(s);
+    return db().helpRequests.filter((h) => h.affiliateId === aff).map(helpRow);
+  },
+
   // ---------------------------------------------------------------- admin
   async adminOverview(s) {
     mustStaff(s);
@@ -1397,6 +1475,43 @@ export const demoRepo: Repo = {
     if (!p) throw new Error("not_found");
     audit(s, "sales_page.active", "private_sales_page", p.id, { active: p.isActive }, { active }, reason);
     p.isActive = active;
+  },
+  async adminNetwork(s) {
+    mustStaff(s);
+    return db().affiliates.map(networkStats).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+  async adminAffiliateDetail(s, affiliateId) {
+    mustStaff(s);
+    const st = db();
+    const [leads, sales, commissions] = await Promise.all([demoRepo.adminListLeads(s), demoRepo.adminListSales(s), demoRepo.adminListCommissions(s)]);
+    return {
+      prospects: st.prospects.filter((p) => p.affiliateId === affiliateId && !p.deletedAt).sort((a, b) => (b.stageChangedAt ?? b.createdAt).localeCompare(a.stageChangedAt ?? a.createdAt)),
+      leads: leads.filter((l) => l.affiliateId === affiliateId),
+      sales: sales.filter((x) => x.affiliateId === affiliateId),
+      commissions: commissions.filter((c) => c.affiliateId === affiliateId),
+      payouts: st.payouts.filter((p) => p.affiliateId === affiliateId).map((p) => ({ id: p.id, ref: p.ref, amountCents: p.amountCents, status: p.status, scheduledFor: p.scheduledFor, paidAt: p.paidAt, documentPath: null }))
+        .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor)),
+      help: await demoRepo.adminListHelpRequests(s, { affiliateId }),
+    };
+  },
+  async adminListHelpRequests(s, filter = {}) {
+    mustStaff(s);
+    return db().helpRequests
+      .filter((h) => (!filter.affiliateId || h.affiliateId === filter.affiliateId) && (!filter.status?.length || filter.status.includes(h.status)))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(helpRow);
+  },
+  async adminUpdateHelpRequest(s, hid, status, note) {
+    mustStaff(s);
+    const st = db();
+    const h = st.helpRequests.find((x) => x.id === hid);
+    if (!h) throw new Error("not_found");
+    audit(s, "help_request.status", "help_request", hid, { status: h.status }, { status }, note);
+    const changed = h.status !== status;
+    h.status = status;
+    if (note?.trim()) h.staffNote = note.trim();
+    h.resolvedAt = status === "resolved" || status === "closed" ? h.resolvedAt ?? iso(now()) : null;
+    const a = st.affiliates.find((x) => x.id === h.affiliateId);
+    if (changed && a) st.notifications.push({ id: id("ntf"), userId: a.userId, type: "admin_message", titleKey: "helpUpdated", params: { ref: h.ref, status }, href: "/dashboard/help", readAt: null, status: "unread", createdAt: iso(now()) });
   },
   async adminUpdateMarket(s, marketId, locale, content: MarketContent, isActive) {
     mustStaff(s);

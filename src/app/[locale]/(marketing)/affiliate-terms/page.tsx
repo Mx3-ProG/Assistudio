@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import { getDictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { pageMetadata } from "@/lib/seo";
-import { InfoPage } from "@/components/marketing/info-page";
+import { LegalDocument } from "@/components/marketing/legal-document";
+import { legalDocuments } from "@/content/legal";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/affiliate-terms">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
-  const t = await getDictionary(locale);
-  return pageMetadata(locale, "/affiliate-terms", `${t.pages.affiliateTerms.title} — Studio ATS`, t.pages.affiliateTerms.title);
+  const document = legalDocuments.affiliateTerms;
+  return pageMetadata(locale, "/affiliate-terms", `${document.title} — Studio ATS`, document.description);
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/affiliate-terms">) {
   const { locale } = (await params) as { locale: Locale };
-  const t = await getDictionary(locale);
-  return <InfoPage title={t.pages.affiliateTerms.title} placeholder={t.pages.placeholderBody} placeholderLabel={t.common.legalPlaceholder} />;
+  return <LegalDocument document={legalDocuments.affiliateTerms} locale={locale} />;
 }

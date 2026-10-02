@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Noto_Sans_Arabic } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_Arabic, Noto_Sans_Devanagari } from "next/font/google";
 import { notFound } from "next/navigation";
 import Script from "next/script";
 import { locales, localeMeta, isLocale } from "@/i18n/config";
@@ -12,6 +12,7 @@ import "../globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 const arabic = Noto_Sans_Arabic({ variable: "--font-arabic", subsets: ["arabic"], preload: false });
+const devanagari = Noto_Sans_Devanagari({ variable: "--font-devanagari", subsets: ["devanagari"], preload: false });
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -40,7 +41,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[lo
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
-  const fonts = `${geistSans.variable} ${geistMono.variable} ${locale === "ar" ? arabic.variable : ""}`;
+  const fonts = `${geistSans.variable} ${geistMono.variable} ${locale === "ar" ? arabic.variable : ""} ${locale === "hi" ? devanagari.variable : ""}`;
 
   return (
     <html lang={locale} dir={localeMeta[locale].dir} className={fonts} data-scroll-behavior="smooth" suppressHydrationWarning>

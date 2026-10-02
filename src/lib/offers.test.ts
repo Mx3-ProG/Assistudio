@@ -28,7 +28,7 @@ test("the headline is the maximum possible commission", () => {
 });
 
 test("lookup keys map to tiers", () => {
-  assert.equal(tierOfLookupKey("studio_yearly_eur"), "premium");
-  assert.equal(tierOfLookupKey("studio_one_eur"), "one");
+  assert.equal(tierOfLookupKey("assistudio_premium_yearly_eur"), "premium");
+  assert.equal(tierOfLookupKey("assistudio_one_eur"), "one");
   assert.equal(tierOfLookupKey("other"), null);
 });

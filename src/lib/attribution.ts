@@ -10,7 +10,8 @@
 export const REF_COOKIE = "studio_ref";
 export const VISITOR_COOKIE = "studio_vid";
 /** Technical lifetime of the cookie. The business window is enforced server-side. */
-export const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
+/** Kept below the CNIL's 13-month ceiling for attribution identifiers. */
+export const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 395;
 
 /** `manual`: no automatic cookie attribution — explicit context (private page) or staff only. */
 export type AttributionModel = "first_click" | "last_click" | "manual";

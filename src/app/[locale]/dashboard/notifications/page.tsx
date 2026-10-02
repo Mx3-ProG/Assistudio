@@ -37,6 +37,11 @@ export default async function Notifications({ params, searchParams }: PageProps<
   const items = await repo().listNotifications(s, tab as NotificationStatus | "inbox");
   const text = t.notificationsText as Record<string, string>;
   const base = `/${locale}/dashboard/notifications`;
+  const helpStatuses = t.net.statuses as Record<string, string>;
+  const labelled = (n: Notification) => {
+    const p = paramsFor(n, locale);
+    return n.titleKey === "helpUpdated" && typeof p.status === "string" ? { ...p, status: helpStatuses[p.status] ?? p.status } : p;
+  };
 
   const action = (n: Notification, status: NotificationStatus, label: string, Icon: typeof Check) => (
     <form action={setNotificationStatus}>
@@ -72,7 +77,7 @@ export default async function Notifications({ params, searchParams }: PageProps<
               <li key={n.id} className={cn("flex items-center gap-2 pe-3 sm:pe-4", n.status === "unread" && "bg-accent-soft/40")}>
                 <Link href={n.href ? `/${locale}${n.href}` : "#"} className="flex min-w-0 flex-1 items-start gap-3 px-5 py-4 hover:bg-surface-2/50 sm:px-6">
                   <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", n.status === "unread" ? "bg-accent" : "bg-transparent")} />
-                  <span className="min-w-0 flex-1 text-[14px]">{fmt(text[n.titleKey] ?? n.titleKey, paramsFor(n, locale))}</span>
+                  <span className="min-w-0 flex-1 text-[14px]">{fmt(text[n.titleKey] ?? n.titleKey, labelled(n))}</span>
                   <time className="shrink-0 text-[12px] text-muted" dateTime={n.createdAt}>{formatRelative(n.createdAt, locale)}</time>
                 </Link>
                 {n.status === "unread" && action(n, "read", N.markRead, Check)}

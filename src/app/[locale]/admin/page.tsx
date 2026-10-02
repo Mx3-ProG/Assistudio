@@ -11,11 +11,14 @@ export default async function AdminHome({ params }: PageProps<"/[locale]/admin">
   const s = await requireStaff(locale);
   const t = await getDictionary(locale);
   const r = repo();
-  const [o, affiliates, flags] = await Promise.all([r.adminOverview(s), r.adminListAffiliates(s), r.adminListFraudFlags(s)]);
+  const [o, affiliates, flags, help] = await Promise.all([
+    r.adminOverview(s), r.adminListAffiliates(s), r.adminListFraudFlags(s), r.adminListHelpRequests(s, { status: ["open", "in_progress"] }),
+  ]);
   const K = t.admin.kpi;
   const base = `/${locale}/admin`;
   const kpis: [string, string, string][] = [
-    [K.affiliates, formatNumber(o.affiliates, locale), `${base}/affiliates`],
+    [K.affiliates, formatNumber(o.affiliates, locale), `${base}/network`],
+    [t.net.kpi.openHelp, formatNumber(help.length, locale), `${base}/help`],
     [K.applications, formatNumber(o.applications, locale), `${base}/affiliates`],
     [K.traffic, formatNumber(o.clicks30d, locale), base],
     [K.leads, formatNumber(o.leads, locale), base],
@@ -32,7 +35,7 @@ export default async function AdminHome({ params }: PageProps<"/[locale]/admin">
   return (
     <>
       <PageHeader title={t.admin.title} />
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {kpis.map(([label, value, href]) => (
           <Link key={label} href={href} className="card p-4 transition hover:shadow-md">
             <div className="tabular text-[22px] font-semibold tracking-[-0.03em]">{value}</div>
