@@ -10,6 +10,8 @@ import { formatRelative } from "@/lib/money";
 import { PageHeader, Card, CardHeader, Badge, EmptyState } from "@/components/ui/primitives";
 import { HelpForm } from "@/components/help/help-form";
 import { helpTone } from "@/components/help/tone";
+import { MarkHelpSeen } from "@/components/help/mark-seen";
+import { HELP_NOTIFICATION_KEYS } from "@/lib/badges";
 
 /**
  * "Help": the partner asks the Studio ATS team. The request is stored with a
@@ -23,16 +25,19 @@ export default async function HelpPage({ params, searchParams }: PageProps<"/[lo
   const t = await getDictionary(locale);
   const H = t.net.help;
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
-  const [requests, prospects, dossiers] = await Promise.all([
+  const [requests, prospects, dossiers, unread] = await Promise.all([
     repo().listMyHelpRequests(s),
     repo().listProspects(s),
     listAffiliateDossiers(s).catch(() => []),
+    repo().listNotifications(s, "unread").catch(() => []),
   ]);
+  const unseenReplies = unread.some((n) => (HELP_NOTIFICATION_KEYS.partner as readonly string[]).includes(n.titleKey));
   const topic = one(sp.topic);
   const from = one(sp.from);
 
   return (
     <>
+      <MarkHelpSeen scope="dashboard" pending={unseenReplies} />
       <PageHeader title={H.title} subtitle={H.subtitle} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <Card className="p-5 sm:p-6">

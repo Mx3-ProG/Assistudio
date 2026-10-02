@@ -13,11 +13,14 @@ import { LocaleSwitcher } from "@/components/ui/locale-switcher";
 import { signOut } from "@/app/actions/auth";
 import { cn } from "@/lib/cn";
 import { MessagesNotifier } from "@/components/messaging/messages-notifier";
+import { BadgeIcon, RedCount } from "@/components/ui/badge-icon";
 
 type Item = { href: string; label: string; icon: typeof LayoutGrid; badge?: number };
 
-export function DashboardShell({ children, userName, unread, isStaff, leaderboard, messages }: {
+export function DashboardShell({ children, userName, unread, isStaff, leaderboard, messages, help, staffHelp }: {
   children: React.ReactNode; userName: string; unread: number; isStaff: boolean; leaderboard: boolean;
+  /** Unread replies to the partner's help requests; staff: open requests (dot on Admin). */
+  help: number; staffHelp: number;
   /** Unread messages + who is signed in (for the live notifier). */
   messages: { unread: number; me: string; realtime: boolean };
 }) {
@@ -31,7 +34,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
     { items: [
       { href: base, label: n.overview, icon: LayoutGrid },
       { href: `${base}/messages`, label: t.msg.nav, icon: MessageCircle, badge: messages.unread },
-      { href: `${base}/help`, label: t.net.help.nav, icon: LifeBuoy },
+      { href: `${base}/help`, label: t.net.help.nav, icon: LifeBuoy, badge: help },
     ] },
     {
       // V0.4: the copilot is the entry point; the V0 pages it replaces (sales kit,
@@ -62,7 +65,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
       items: [
         { href: `${base}/notifications`, label: n.notifications, icon: Bell, badge: unread },
         { href: `${base}/settings`, label: n.settings, icon: Settings },
-        ...(isStaff ? [{ href: `/${locale}/admin`, label: n.admin, icon: Shield }] : []),
+        ...(isStaff ? [{ href: `/${locale}/admin`, label: n.admin, icon: Shield, badge: staffHelp }] : []),
       ],
     },
   ];
@@ -93,7 +96,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
                 >
                   <Icon className={cn("size-4", isActive(href) ? "text-accent" : "text-muted")} />
                   <span className="flex-1 truncate">{label}</span>
-                  {!!badge && <span className="tabular grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg">{badge}</span>}
+                  <RedCount n={badge ?? 0} />
                 </Link>
               </li>
             ))}
@@ -129,25 +132,14 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
             <div className="flex items-center gap-2">
               <div className="hidden sm:flex sm:items-center sm:gap-2"><LocaleSwitcher /><ThemeToggle /></div>
               {/* Help carries the current page so the team knows where the partner was. */}
-              <Link href={`${base}/help?from=${encodeURIComponent(pathname)}`} className="hidden h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg sm:flex" title={t.net.help.ask}>
-                <LifeBuoy className="size-[17px]" />{t.net.help.nav}
-              </Link>
-              <Link href={`${base}/help?from=${encodeURIComponent(pathname)}`} className="grid size-9 place-items-center rounded-full hover:bg-surface-2 sm:hidden" aria-label={t.net.help.ask}>
-                <LifeBuoy className="size-[18px]" />
-              </Link>
-              <Link href={`${base}/messages`} className="relative grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label={t.msg.nav}>
-                <MessageCircle className="size-[18px]" />
-                {messages.unread > 0 && <span className="absolute -end-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-fg ring-2 ring-bg">{messages.unread > 99 ? "99+" : messages.unread}</span>}
-              </Link>
-              <Link href={`${base}/notifications`} className="relative grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label={n.notifications}>
-                <Bell className="size-[18px]" />
-                {unread > 0 && <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-accent ring-2 ring-bg" />}
-              </Link>
+              <BadgeIcon href={`${base}/help?from=${encodeURIComponent(pathname)}`} icon={LifeBuoy} count={help} label={t.net.help.nav} />
+              <BadgeIcon href={`${base}/messages`} icon={MessageCircle} count={messages.unread} label={t.msg.nav} />
+              <BadgeIcon href={`${base}/notifications`} icon={Bell} count={unread} label={n.notifications} />
             </div>
           </div>
         </header>
 
-        <MessagesNotifier me={messages.me} base={`${base}/messages`} realtime={messages.realtime} />
+        <MessagesNotifier me={messages.me} base={`${base}/messages`} realtime={messages.realtime} scope="dashboard" />
         <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-16">{children}</main>
       </div>
 

@@ -928,6 +928,7 @@ const nl: Dictionary = {
     payoutPaid: "Uitbetaling van {amount} verstuurd",
     accountStatus: "Je accountstatus is nu: {status}",
     helpUpdated: "Je hulpvraag {ref} is nu: {status}",
+    helpNew: "{urgency}Nieuwe hulpvraag {ref} van {name}: {subject}",
     renewalUpcoming: "Een contract wordt over {days} dagen verlengd",
     salePending: "Betaling bevestigd voor {sale_ref} — {commission} commissie in afwachting",
     renewalPending: "Verlenging bevestigd voor {sale_ref} — {commission} commissie in afwachting",

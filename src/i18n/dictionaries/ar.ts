@@ -928,6 +928,7 @@ const ar: Dictionary = {
     payoutPaid: "أُرسلت دفعة بقيمة {amount}",
     accountStatus: "حالة حسابك الآن: {status}",
     helpUpdated: "طلب المساعدة {ref} أصبح الآن: {status}",
+    helpNew: "{urgency}طلب مساعدة جديد {ref} من {name}: {subject}",
     renewalUpcoming: "يتجدد عقد خلال {days} أيام",
     salePending: "تم تأكيد الدفع لـ {sale_ref} — عمولة {commission} قيد الانتظار",
     renewalPending: "تم تأكيد التجديد لـ {sale_ref} — عمولة {commission} قيد الانتظار",

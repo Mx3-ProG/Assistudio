@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined, FileSignature, MessageCircle, Network, LifeBuoy } from "lucide-react";
+import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined, FileSignature, MessageCircle, Network, LifeBuoy, Bell } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -9,9 +9,10 @@ import { LocaleSwitcher } from "@/components/ui/locale-switcher";
 import { signOut } from "@/app/actions/auth";
 import { cn } from "@/lib/cn";
 import { MessagesNotifier } from "@/components/messaging/messages-notifier";
+import { BadgeIcon, RedCount } from "@/components/ui/badge-icon";
 
-export function AdminShell({ children, hasAffiliate, messages, openHelp }: {
-  children: React.ReactNode; hasAffiliate: boolean; openHelp: number;
+export function AdminShell({ children, hasAffiliate, messages, openHelp, notifications }: {
+  children: React.ReactNode; hasAffiliate: boolean; openHelp: number; notifications: number;
   messages: { unread: number; me: string; realtime: boolean };
 }) {
   const { t, locale } = useI18n();
@@ -51,6 +52,9 @@ export function AdminShell({ children, hasAffiliate, messages, openHelp }: {
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 sm:flex"><LocaleSwitcher /><ThemeToggle /></div>
+            <BadgeIcon href={`${base}/help`} icon={LifeBuoy} count={openHelp} label={t.net.helpNav} />
+            <BadgeIcon href={`${base}/messages`} icon={MessageCircle} count={messages.unread} label={t.msg.admin.nav} />
+            <BadgeIcon href={`${base}/notifications`} icon={Bell} count={notifications} label={t.dash.nav.notifications} />
             {hasAffiliate && <Link href={`/${locale}/dashboard`} className="grid size-9 place-items-center rounded-full hover:bg-surface-2" title={t.nav.dashboard}><ArrowLeft className="flip-rtl size-4" /></Link>}
             <form action={signOut}><input type="hidden" name="locale" value={locale} />
               <button className="grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label={t.auth.logout}><LogOut className="flip-rtl size-4" /></button>
@@ -62,12 +66,12 @@ export function AdminShell({ children, hasAffiliate, messages, openHelp }: {
             <Link key={href} href={href} aria-current={active(href) ? "page" : undefined}
               className={cn("flex h-8 shrink-0 items-center gap-2 rounded-full px-3 text-[13px] transition", active(href) ? "bg-fg text-bg" : "text-fg-2 hover:bg-surface-2")}>
               <Icon className="size-3.5" />{label}
-              {!!badge && <span className="grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-fg">{badge > 99 ? "99+" : badge}</span>}
+              <RedCount n={badge ?? 0} />
             </Link>
           ))}
         </nav>
       </header>
-      <MessagesNotifier me={messages.me} base={`${base}/messages`} realtime={messages.realtime} />
+      <MessagesNotifier me={messages.me} base={`${base}/messages`} realtime={messages.realtime} scope="admin" />
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );

@@ -167,6 +167,7 @@ export async function markNotificationsRead() {
   if (!s) throw new Error("Unauthorized");
   await repo().markNotificationsRead(s);
   refresh();
+  revalidatePath("/[locale]/admin", "layout"); // staff read their notifications in the admin too
 }
 
 /** Unread / read / archived. The row is always scoped to the session user (and RLS). */
@@ -177,6 +178,7 @@ export async function setNotificationStatus(form: FormData) {
   const status = z.enum(["unread", "read", "archived"]).parse(form.get("status"));
   await repo().setNotificationStatus(s, id, status);
   refresh();
+  revalidatePath("/[locale]/admin", "layout");
 }
 
 export async function updateProfile(_: FormState, form: FormData): Promise<FormState> {

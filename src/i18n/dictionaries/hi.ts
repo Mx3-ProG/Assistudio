@@ -928,6 +928,7 @@ const hi: Dictionary = {
     payoutPaid: "{amount} का भुगतान भेजा गया",
     accountStatus: "आपके खाते की स्थिति अब है: {status}",
     helpUpdated: "आपका सहायता अनुरोध {ref} अब है: {status}",
+    helpNew: "{urgency}{name} से नया सहायता अनुरोध {ref}: {subject}",
     renewalUpcoming: "एक अनुबंध {days} दिनों में नवीनीकृत होगा",
     salePending: "{sale_ref} के लिए भुगतान पुष्ट — {commission} कमीशन लंबित",
     renewalPending: "{sale_ref} के लिए नवीनीकरण पुष्ट — {commission} कमीशन लंबित",

@@ -6,13 +6,15 @@ import { MessageCircle, X } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { unreadCount } from "@/app/actions/messaging";
+import { badgeTotal } from "@/app/actions/badges";
 
 /**
- * App-wide "new message" signal: refreshes the unread badge and shows a toast
- * when a message arrives in a conversation that isn't on screen. Realtime
- * (RLS-filtered) in production; light polling in demo mode.
+ * App-wide "something new" signal: refreshes the red dots (messages, help,
+ * notifications) and shows a toast when a message arrives in a conversation
+ * that isn't on screen. Realtime (RLS-filtered) in production; light polling
+ * in demo mode.
  */
-export function MessagesNotifier({ me, base, realtime }: { me: string; base: string; realtime: boolean }) {
+export function MessagesNotifier({ me, base, realtime, scope }: { me: string; base: string; realtime: boolean; scope: "admin" | "dashboard" }) {
   const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
@@ -28,11 +30,13 @@ export function MessagesNotifier({ me, base, realtime }: { me: string; base: str
     };
     if (!realtime) {
       let last: number | null = null;
+      let lastTotal: number | null = null;
       const tick = async () => {
-        const n = await unreadCount().catch(() => null);
-        if (n === null) return;
-        if (last !== null && n > last && !path.current.startsWith(base)) { setToast(base); router.refresh(); }
-        last = n;
+        const [n, total] = await Promise.all([unreadCount().catch(() => null), badgeTotal(scope).catch(() => null)]);
+        if (n !== null && last !== null && n > last && !path.current.startsWith(base)) setToast(base);
+        if (total !== null && lastTotal !== null && total !== lastTotal) router.refresh();
+        if (n !== null) last = n;
+        if (total !== null) lastTotal = total;
       };
       void tick();
       const id = setInterval(tick, 10_000);
@@ -47,9 +51,11 @@ export function MessagesNotifier({ me, base, realtime }: { me: string; base: str
         later();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, later)
+      // Notifications (help requests and replies, sales, payouts…) light the bell and help dots.
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `profile_id=eq.${me}` }, later)
       .subscribe();
     return () => { void sb.removeChannel(ch); };
-  }, [me, base, realtime, router]);
+  }, [me, base, realtime, scope, router]);
 
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 6000); return () => clearTimeout(id); }, [toast]);
   if (!toast) return null;

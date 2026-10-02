@@ -33,7 +33,7 @@ insert into public.sales (customer_id, offer_id, affiliate_id, kind, status, gro
                           net_amount_cents, currency, paid_at, provider_payment_id)
 select c.id, o.id, a.id, 'new', 'paid', 600000, 600000, 'EUR', now(), 'pi_network_test'
   from public.customers c, public.offers o, public.affiliates a
- where c.email = 'net-buyer@test.invalid' and o.stripe_lookup_key = 'studio_yearly_eur'
+ where c.email = 'net-buyer@test.invalid' and o.stripe_lookup_key = 'assistudio_premium_yearly_eur'
    and a.profile_id = '00000000-0000-0000-0000-0000000a0003';
 
 -- ---------------------------------------------------------------- help request
@@ -54,6 +54,10 @@ select pg_temp.assert((select count(*) from public.email_events
                         where template = 'staff.help_request' and recipient_type = 'staff'
                           and recipient_profile_id = '00000000-0000-0000-0000-0000000a0001') = 1,
   'every staff member gets one email in the outbox');
+select pg_temp.assert((select count(*) from public.notifications
+                        where profile_id = '00000000-0000-0000-0000-0000000a0001'
+                          and title_key = 'notifications.helpNew' and href = '/admin/help') = 1,
+  'every staff member also gets an in-app notification');
 select pg_temp.assert((select params->>'related' like 'Prospect: Clinic Rossi%' from public.email_events
                         where template = 'staff.help_request' limit 1),
   'the email carries the related prospect');

@@ -943,6 +943,7 @@ const en = {
     payoutPaid: "Payout of {amount} sent",
     accountStatus: "Your account status is now: {status}",
     helpUpdated: "Your help request {ref} is now: {status}",
+    helpNew: "{urgency}New help request {ref} from {name}: {subject}",
     renewalUpcoming: "A contract renews in {days} days",
     salePending: "Payment confirmed for {sale_ref} — {commission} commission pending",
     renewalPending: "Renewal confirmed for {sale_ref} — {commission} commission pending",
