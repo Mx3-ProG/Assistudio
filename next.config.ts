@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    globalNotFound: true,
+  },
   outputFileTracingIncludes: {
     "/*": [
       "./node_modules/@fontsource/noto-sans/files/*.woff2",
