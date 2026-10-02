@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { recordTouch, resolveAttribution, encodeRefCookie, decodeRefCookie, isValidCode } from "./attribution.ts";
+import { recordTouch, resolveAttribution, encodeRefCookie, decodeRefCookie, isValidCode, sponsorCodeForSignup } from "./attribution.ts";
 
 const now = new Date("2026-03-01T00:00:00Z");
 
@@ -30,6 +30,15 @@ test("manual model: no automatic attribution, whatever the cookie says", () => {
   const c = recordTouch(null, { ref: "ALICE1", at: new Date().toISOString() });
   assert.equal(resolveAttribution(c, "manual", 90), null);
   assert.equal(resolveAttribution(c, "last_click", 90)?.ref, "ALICE1");
+});
+
+test("sign-up keeps the sponsor after a tracked link redirects to a clean page", () => {
+  const now = new Date("2026-10-02T12:00:00Z");
+  const cookie = encodeRefCookie(recordTouch(null, { ref: "SPONSOR1", at: "2026-10-02T11:55:00Z" }));
+  assert.equal(sponsorCodeForSignup(null, cookie, "last_click", 90, now), "SPONSOR1");
+  assert.equal(sponsorCodeForSignup("DIRECT2", cookie, "last_click", 90, now), "DIRECT2");
+  assert.equal(sponsorCodeForSignup(null, cookie, "manual", 90, now), null);
+  assert.equal(sponsorCodeForSignup(null, cookie, "last_click", 0, now), null);
 });
 
 test("expired attribution: the configured window decides (scenario 9)", () => {

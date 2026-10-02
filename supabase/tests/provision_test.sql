@@ -22,7 +22,8 @@ alter table auth.users disable trigger on_auth_user_created;
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000e002', 'New.Partner@Test.invalid',
    '{"full_name":"New Partner","locale":"fr","country":"FR","sponsor_code":"sponsp","application":{"channels":"LinkedIn"}}'),
-  ('00000000-0000-0000-0000-00000000e003', 'oauth@test.invalid', '{}');
+  ('00000000-0000-0000-0000-00000000e003', 'oauth@test.invalid', '{}'),
+  ('00000000-0000-0000-0000-00000000e004', 'late-sponsor@test.invalid', '{}');
 alter table auth.users enable trigger on_auth_user_created;
 select pg_temp.assert(not exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-00000000e002'),
   'without the trigger, no profile exists yet');
@@ -47,6 +48,20 @@ select pg_temp.assert((select count(*) = 1 from public.affiliates where profile_
         where a.profile_id = '00000000-0000-0000-0000-00000000e002' and l.is_default),
   'provision_account is idempotent (no duplicate account, link or overwrite)');
 
+-- A person may first create a sponsorless account after entering through a
+-- tracked /s/ link. A repeated sign-up can recover the relationship, but can
+-- never overwrite it afterwards.
+select public.provision_account('00000000-0000-0000-0000-00000000e004', 'late-sponsor@test.invalid', '{"full_name":"Late Sponsor"}');
+select pg_temp.assert(public.attach_missing_sponsor('00000000-0000-0000-0000-00000000e004', 'sponsp'),
+  'a sponsorless existing account can recover its sponsor from the sign-up code');
+select pg_temp.assert(not public.attach_missing_sponsor('00000000-0000-0000-0000-00000000e004', 'missing'),
+  'an existing sponsor is immutable and cannot be replaced');
+select pg_temp.assert((select a.sponsor_id = s.id
+                         from public.affiliates a
+                         join public.affiliates s on s.profile_id = '00000000-0000-0000-0000-00000000e001'
+                        where a.profile_id = '00000000-0000-0000-0000-00000000e004'),
+  'the recovered sponsor is stored on the affiliate');
+
 -- ensure_profile (before a login code, on sign-in, in getSession)
 select pg_temp.assert((select count(*) = 1 and bool_and(role = 'affiliate' and not deleted)
                          from public.ensure_profile('OAUTH@test.invalid')),
@@ -63,7 +78,8 @@ select pg_temp.assert((select deleted from public.ensure_profile('oauth@test.inv
   'ensure_profile reports a deleted account');
 
 select pg_temp.assert(not has_function_privilege('anon', 'public.ensure_profile(text)', 'execute')
-  and not has_function_privilege('authenticated', 'public.provision_account(uuid, text, jsonb)', 'execute'),
+  and not has_function_privilege('authenticated', 'public.provision_account(uuid, text, jsonb)', 'execute')
+  and not has_function_privilege('authenticated', 'public.attach_missing_sponsor(uuid, text)', 'execute'),
   'provisioning is reachable by the service role only');
 
 rollback;

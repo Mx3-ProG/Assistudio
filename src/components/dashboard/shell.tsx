@@ -90,6 +90,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
     {
       label: n.groupAccount,
       items: [
+        { href: `${base}/help`, label: t.net.help.nav, icon: LifeBuoy, badge: help },
         { href: `${base}/notifications`, label: n.notifications, icon: Bell, badge: unread },
         { href: `${base}/settings`, label: n.settings, icon: Settings },
         ...(isStaff ? [{ href: `/${locale}/admin`, label: n.admin, icon: Shield, badge: staffHelp }] : []),

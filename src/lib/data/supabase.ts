@@ -136,6 +136,30 @@ async function provisionIfMissing(svc: Svc, id: string, email: string, meta: Rec
   return account;
 }
 
+/** Attach a sponsor only when the affiliate is still sponsorless. */
+async function attachSponsorIfMissing(svc: Svc, profileId: string, code: unknown): Promise<boolean> {
+  if (typeof code !== "string" || !isValidCode(code)) return false;
+  const { data, error } = await svc.rpc("attach_missing_sponsor", { p_profile_id: profileId, p_code: code });
+  if (!error) return data === true;
+  if (!isMissingDbObject(error)) throw new StepError("attach_sponsor", error);
+
+  // Compatibility during a rolling deploy where the application reaches
+  // production just before its migration.
+  log.warn("auth", "attach_missing_sponsor missing: direct attachment fallback");
+  const [{ data: me, error: meError }, { data: sponsor, error: sponsorError }] = await Promise.all([
+    svc.from("affiliates").select("id, sponsor_id").eq("profile_id", profileId).maybeSingle(),
+    svc.from("affiliates").select("id").is("deleted_at", null).eq("status", "approved")
+      .or(`code.ilike.${code},slug.ilike.${code}`).limit(1).maybeSingle(),
+  ]);
+  if (meError) throw new StepError("attach_sponsor_affiliate", meError);
+  if (sponsorError) throw new StepError("attach_sponsor_lookup", sponsorError);
+  if (!me || me.sponsor_id || !sponsor || me.id === sponsor.id) return false;
+  const { data: updated, error: updateError } = await svc.from("affiliates").update({ sponsor_id: sponsor.id })
+    .eq("id", me.id).is("sponsor_id", null).select("id").maybeSingle();
+  if (updateError) throw new StepError("attach_sponsor", updateError);
+  return !!updated;
+}
+
 /** Same rules as provision_account() in SQL, for a database without it. */
 async function provisionDirect(svc: Svc, id: string, email: string, meta: Record<string, any>) {
   const { error: pe } = await svc.from("profiles").upsert(
@@ -469,6 +493,9 @@ export const supabaseRepo: Repo = {
       if (link.error || !props?.hashed_token || !link.data.user) throw new StepError("session_token", link.error ?? "no token");
       account ??= await provisionIfMissing(svc, link.data.user.id, email, consumed.payload ?? link.data.user.user_metadata ?? {});
       if (account.deleted) return { status: "invalid" };
+      if (consumed.purpose === "signup") {
+        await attachSponsorIfMissing(svc, account.id, consumed.payload?.sponsor_code);
+      }
       const { error: verifyError } = await (await supabaseServer()).auth.verifyOtp({
         type: (props.verification_type ?? "magiclink") as EmailOtpType, token_hash: props.hashed_token,
       });
