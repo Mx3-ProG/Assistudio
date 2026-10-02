@@ -85,6 +85,22 @@ export function resolveAttribution(
   return touch;
 }
 
+/**
+ * Sponsor used when somebody creates an affiliate account. An explicit
+ * recruitment link wins; otherwise reuse the affiliate touch already captured
+ * by /s/[code] or ?ref= so the sponsor is not lost after browsing the site.
+ */
+export function sponsorCodeForSignup(
+  explicit: string | null | undefined,
+  rawCookie: string | null | undefined,
+  model: AttributionModel,
+  windowDays: number,
+  now: Date = new Date(),
+): string | null {
+  if (isValidCode(explicit)) return explicit;
+  return resolveAttribution(decodeRefCookie(rawCookie), model, windowDays, now)?.ref ?? null;
+}
+
 /** Very light bot heuristic. Probabilistic signal only — never blocks a user. */
 export function looksLikeBot(userAgent: string | null): boolean {
   if (!userAgent) return true;
