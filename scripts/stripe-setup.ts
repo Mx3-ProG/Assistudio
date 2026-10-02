@@ -1,7 +1,8 @@
 /**
  * Creates (idempotently) the three Assistudio products and their five prices
  * (Studio One €500 one-time, Studio Pro €250/month or €3,000/year,
- * Studio Premium €500/month or €6,000/year)
+ * Studio Premium €500/month or €6,000/year), with fixed EUR, USD, GBP,
+ * CHF and CAD catalog amounts on every Stripe Price.
  * in the Stripe account of STRIPE_SECRET_KEY, with the lookup keys the database
  * uses (offers.stripe_lookup_key). Test mode by default:
  *
@@ -11,6 +12,7 @@
  * to copy into the database. Refuses live keys unless --live is passed.
  */
 import Stripe from "stripe";
+import { convertCurrency, currencies } from "../src/i18n/currency.ts";
 
 const key = process.env.STRIPE_SECRET_KEY ?? "";
 if (!/^(sk|rk)_(test|live)_/.test(key)) {
@@ -34,6 +36,12 @@ const OFFERS = [
   { lookupKey: "assistudio_premium_yearly_eur", tier: "premium", name: "Assistudio — Studio Premium", description: "A complete digital commercial ecosystem operated and supported by Assistudio.", amount: 600_000, interval: "year" },
 ] as const;
 
+function currencyOptions(amount: number) {
+  return Object.fromEntries(currencies
+    .filter((currency) => currency !== "EUR")
+    .map((currency) => [currency.toLowerCase(), { unit_amount: convertCurrency(amount, "EUR", currency) }]));
+}
+
 // A distinct Stripe product makes the exact offer name visible from Checkout to
 // invoices and receipts. Old prices/subscriptions are never edited or migrated.
 const anyExisting = (await stripe.prices.list({ lookup_keys: OFFERS.map((o) => o.lookupKey), active: true, expand: ["data.product"] })).data;
@@ -52,8 +60,12 @@ for (const o of OFFERS) {
       name: o.name, description: o.description,
       metadata: { app: "assistudio", catalog: "studio-ats", offer_tier: o.tier, offer_lookup_key: o.lookupKey },
     });
-    await stripe.prices.update(existing.id, { nickname: o.name, metadata: { app: "assistudio", offer_tier: o.tier, offer_lookup_key: o.lookupKey } });
-    console.log(`${o.name}: price already exists: ${existing.id} (${existing.unit_amount} ${existing.currency}/${interval ?? "one-time"}) — nothing to do.`);
+    await stripe.prices.update(existing.id, {
+      nickname: o.name,
+      currency_options: currencyOptions(o.amount),
+      metadata: { app: "assistudio", offer_tier: o.tier, offer_lookup_key: o.lookupKey },
+    });
+    console.log(`${o.name}: price ready: ${existing.id} (${currencies.join(", ")}/${interval ?? "one-time"}).`);
     continue;
   }
   const product = productByTier.get(o.tier) ?? await stripe.products.create(
@@ -66,6 +78,7 @@ for (const o of OFFERS) {
   const price = await stripe.prices.create(
     {
       product: product.id, currency: "eur", unit_amount: o.amount,
+      currency_options: currencyOptions(o.amount),
       ...(o.interval ? { recurring: { interval: o.interval, interval_count: 1 } } : {}),
       nickname: o.name, lookup_key: o.lookupKey, transfer_lookup_key: true, tax_behavior: "unspecified",
       metadata: { app: "assistudio", offer_tier: o.tier, offer_lookup_key: o.lookupKey },

@@ -55,7 +55,7 @@ const en = {
     legalPlaceholder: "Placeholder — pending legal validation",
     language: "Language",
     currency: "Display currency",
-    currencyNote: "Indicative conversion only. Stripe will confirm the currency and final amount at checkout.",
+    currencyNote: "Stripe will charge the amount shown in this currency, before any discount.",
     theme: "Theme",
     themeLight: "Light",
     themeDark: "Dark",

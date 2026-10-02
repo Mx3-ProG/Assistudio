@@ -7,6 +7,7 @@ import { stripe, checkoutLocale, stripeMode } from "@/lib/services/stripe";
 import { resolveCheckoutAttribution } from "@/lib/services/attribution";
 import { CHECKOUT_METADATA_KEY } from "@/lib/stripe/normalize";
 import type { Locale } from "@/i18n/config";
+import { convertCurrency, type Currency } from "@/i18n/currency";
 import { offerLookupKey, type BillingCadence, type OfferTier } from "@/lib/offers";
 import { discountCents } from "@/lib/services/promo";
 
@@ -49,11 +50,13 @@ async function activeOffer(productSlug: string, tier: OfferTier, cadence: Billin
  * sells (amount, currency, interval). A mismatch blocks checkout: selling at a
  * price the business did not configure is worse than not selling.
  */
-async function stripePriceFor(offer: OfferRow): Promise<string> {
+async function stripePriceFor(offer: OfferRow, currency: Currency): Promise<{ id: string; amountCents: number }> {
   const s = stripe();
-  let price: Stripe.Price | null = offer.stripe_price_id ? await s.prices.retrieve(offer.stripe_price_id).catch(() => null) : null;
+  let price: Stripe.Price | null = offer.stripe_price_id
+    ? await s.prices.retrieve(offer.stripe_price_id, { expand: ["currency_options"] }).catch(() => null)
+    : null;
   if (!price && offer.stripe_lookup_key) {
-    price = (await s.prices.list({ lookup_keys: [offer.stripe_lookup_key], active: true, limit: 1 })).data[0] ?? null;
+    price = (await s.prices.list({ lookup_keys: [offer.stripe_lookup_key], active: true, limit: 1, expand: ["data.currency_options"] })).data[0] ?? null;
     if (price) await supabaseService().from("offers").update({ stripe_price_id: price.id }).eq("id", offer.id);
   }
   if (!price || !price.active) {
@@ -70,7 +73,17 @@ async function stripePriceFor(offer: OfferRow): Promise<string> {
     });
     throw new CheckoutUnavailableError("price mismatch");
   }
-  return price.id;
+  const amountCents = convertCurrency(offer.price_cents, offer.currency, currency);
+  if (currency !== offer.currency.toUpperCase()) {
+    const configured = price.currency_options?.[currency.toLowerCase()]?.unit_amount;
+    if (configured !== amountCents) {
+      log.error("payments", "Stripe price is missing the selected catalog currency — checkout blocked", {
+        offer_id: offer.id, stripe_price: price.id, currency, stripe_amount: configured, offer_amount: amountCents,
+      });
+      throw new CheckoutUnavailableError(`currency ${currency} is not configured; run npm run stripe:setup`);
+    }
+  }
+  return { id: price.id, amountCents };
 }
 
 /**
@@ -88,6 +101,7 @@ export async function createCheckoutSession(input: {
   productSlug?: string;
   tier: OfferTier;
   cadence?: BillingCadence;
+  currency?: Currency;
   promoCode?: string | null;
   uiMode?: CheckoutUiMode;
 }): Promise<CheckoutSessionResult> {
@@ -96,14 +110,15 @@ export async function createCheckoutSession(input: {
   if (enabled && enabled.value === false) throw new CheckoutUnavailableError("checkout disabled");
 
   const cadence = input.tier === "one" ? "annual" : input.cadence ?? "annual";
+  const currency = input.currency ?? "EUR";
   const offer = await activeOffer(input.productSlug ?? "studio", input.tier, cadence);
-  const [priceId, resolved] = await Promise.all([
-    stripePriceFor(offer),
+  const [selectedPrice, resolved] = await Promise.all([
+    stripePriceFor(offer, currency),
     resolveCheckoutAttribution({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug, referralCode: input.referralCode, code: input.promoCode ?? null }),
   ]);
   const { attribution, promo } = resolved;
   if (resolved.code === "invalid") throw new CheckoutUnavailableError("code does not match attribution");
-  const promoDiscountCents = promo ? discountCents(offer.price_cents, promo.discountRate) : 0;
+  const promoDiscountCents = promo ? discountCents(selectedPrice.amountCents, promo.discountRate) : 0;
   const uiMode = input.uiMode ?? "hosted";
 
   // Reloading an embedded checkout must not create a new Stripe session and
@@ -121,7 +136,9 @@ export async function createCheckoutSession(input: {
       && candidate.locale === input.locale);
     if (reusable?.stripe_checkout_session_id) {
       const existing = await stripe().checkout.sessions.retrieve(reusable.stripe_checkout_session_id).catch(() => null);
-      const usable = existing?.status === "open" && (uiMode === "embedded" ? !!existing.client_secret : !!existing.url);
+      const usable = existing?.status === "open"
+        && existing.currency?.toUpperCase() === currency
+        && (uiMode === "embedded" ? !!existing.client_secret : !!existing.url);
       if (existing && usable) {
         return { sessionId: existing.id, url: existing.url, clientSecret: existing.client_secret };
       }
@@ -138,7 +155,7 @@ export async function createCheckoutSession(input: {
     affiliate_id: attribution.affiliateId, referral_session_id: attribution.referralSessionId,
     attribution_source: attribution.source, link_id: attribution.linkId, campaign_id: attribution.campaignId,
     private_page_id: attribution.privatePageId, session_key: input.sessionKey, locale: input.locale,
-    promo_code_id: promo?.id ?? null, catalog_amount_cents: offer.price_cents,
+    promo_code_id: promo?.id ?? null, catalog_amount_cents: selectedPrice.amountCents,
     discount_amount_cents: promoDiscountCents, discount_rate: promo?.discountRate ?? 0,
     livemode: stripeMode() === "live",
   }).select("id").single();
@@ -148,6 +165,7 @@ export async function createCheckoutSession(input: {
     [CHECKOUT_METADATA_KEY]: row.id,
     product_id: offer.product_id,
     offer_id: offer.id,
+    currency,
     ...(attribution.affiliateId ? { affiliate_id: attribution.affiliateId } : {}),
     ...(attribution.referralSessionId ? { referral_id: attribution.referralSessionId } : {}),
     ...(attribution.campaignId ? { campaign_id: attribution.campaignId } : {}),
@@ -170,9 +188,10 @@ export async function createCheckoutSession(input: {
         return_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
       } : {
         success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&cancelled=1${input.referralCode ? `&referral=${encodeURIComponent(input.referralCode)}` : ""}${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
+        cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&currency=${currency}&cancelled=1${input.referralCode ? `&referral=${encodeURIComponent(input.referralCode)}` : ""}${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
       }),
-      line_items: [{ price: priceId, quantity: 1 }],
+      currency: currency.toLowerCase(),
+      line_items: [{ price: selectedPrice.id, quantity: 1 }],
       ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
       client_reference_id: row.id,
       metadata,

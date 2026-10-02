@@ -1,0 +1,106 @@
+.loader {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.mark {
+  position: relative;
+  width: 11.5rem;
+  aspect-ratio: 1;
+  perspective: 700px;
+  filter: drop-shadow(0 18px 34px rgb(47 91 255 / 0.2));
+}
+
+.sLetter,
+.cubePiece {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.sLetter {
+  z-index: 1;
+  animation: s-turn 3.8s cubic-bezier(0.48, 0.08, 0.25, 1) infinite;
+}
+
+.cubePiece {
+  z-index: 2;
+  animation-duration: 3.8s;
+  animation-timing-function: cubic-bezier(0.48, 0.08, 0.25, 1);
+  animation-iteration-count: infinite;
+}
+
+.sLetter img,
+.cubePiece img {
+  object-fit: contain;
+}
+
+.cubeTopLeft {
+  clip-path: inset(0 50% 50% 0);
+  animation-name: cube-top-left;
+}
+
+.cubeTopRight {
+  clip-path: inset(0 0 50% 50%);
+  animation-name: cube-top-right;
+}
+
+.cubeBottomLeft {
+  clip-path: inset(50% 50% 0 0);
+  animation-name: cube-bottom-left;
+}
+
+.cubeBottomRight {
+  clip-path: inset(50% 0 0 50%);
+  animation-name: cube-bottom-right;
+}
+
+.label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@keyframes s-turn {
+  0%, 17% { transform: translateZ(0) rotateY(0deg) scale(0.78); }
+  38% { transform: translateZ(18px) rotateY(-180deg) scale(0.84); }
+  62% { transform: translateZ(18px) rotateY(-540deg) scale(0.84); }
+  83%, 100% { transform: translateZ(0) rotateY(-720deg) scale(0.78); }
+}
+
+@keyframes cube-top-left {
+  0%, 17%, 83%, 100% { transform: translate(0) rotate(0); }
+  38%, 62% { transform: translate(-0.9rem, -0.9rem) rotate(-3deg); }
+}
+
+@keyframes cube-top-right {
+  0%, 17%, 83%, 100% { transform: translate(0) rotate(0); }
+  38%, 62% { transform: translate(0.9rem, -0.9rem) rotate(3deg); }
+}
+
+@keyframes cube-bottom-left {
+  0%, 17%, 83%, 100% { transform: translate(0) rotate(0); }
+  38%, 62% { transform: translate(-0.9rem, 0.9rem) rotate(3deg); }
+}
+
+@keyframes cube-bottom-right {
+  0%, 17%, 83%, 100% { transform: translate(0) rotate(0); }
+  38%, 62% { transform: translate(0.9rem, 0.9rem) rotate(-3deg); }
+}
+
+@media (max-width: 640px) {
+  .mark { width: 9rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sLetter,
+  .cubePiece {
+    animation: none;
+  }
+
+  .sLetter { transform: scale(0.78); }
+}

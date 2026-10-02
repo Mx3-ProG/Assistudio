@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { REF_COOKIE_MAX_AGE, VISITOR_COOKIE, isValidCode } from "@/lib/attribution";
 import { isLocale } from "@/i18n/config";
+import { currencies, isCurrency } from "@/i18n/currency";
 import { isDemoMode, isEmbeddedCheckoutConfigured, isStripeConfigured } from "@/lib/env";
 import { log } from "@/lib/log";
 import { createCheckoutSession, type CheckoutOrigin } from "@/lib/services/checkout";
@@ -17,6 +18,7 @@ const embeddedInput = z.object({
   referral: z.string().nullable(),
   offer: z.enum(["one", "pro", "premium"]),
   billing: z.enum(["annual", "monthly"]),
+  currency: z.enum(currencies),
   promo: z.string().nullable(),
 });
 
@@ -49,6 +51,7 @@ export async function createEmbeddedCheckout(input: unknown) {
     referralCode: parsed.referral && isValidCode(parsed.referral) ? parsed.referral : null,
     tier: parsed.offer,
     cadence: parsed.offer === "one" ? "annual" : parsed.billing,
+    currency: parsed.currency,
     promoCode: normalizePromoCode(parsed.promo),
     uiMode: "embedded",
   });
@@ -71,8 +74,10 @@ export async function startCheckout(form: FormData) {
   const tier = isOfferTier(rawTier) ? rawTier : "premium";
   const rawCadence = form.get("billing");
   const cadence = isBillingCadence(rawCadence) ? rawCadence : "annual";
+  const rawCurrency = String(form.get("currency") ?? "EUR").toUpperCase();
+  const currency = isCurrency(rawCurrency) ? rawCurrency : "EUR";
   const promoCode = normalizePromoCode(form.get("promo"));
-  const back = `/${locale}/buy?offer=${tier}&billing=${cadence}&unavailable=1${isValidCode(page) ? `&page=${page}` : ""}${isValidCode(referral) ? `&referral=${encodeURIComponent(referral)}` : ""}${promoCode ? `&promo=${encodeURIComponent(promoCode)}` : ""}`;
+  const back = `/${locale}/buy?offer=${tier}&billing=${cadence}&currency=${currency}&unavailable=1${isValidCode(page) ? `&page=${page}` : ""}${isValidCode(referral) ? `&referral=${encodeURIComponent(referral)}` : ""}${promoCode ? `&promo=${encodeURIComponent(promoCode)}` : ""}`;
 
   if (isDemoMode || !isStripeConfigured) redirect(back);
 
@@ -83,6 +88,7 @@ export async function startCheckout(form: FormData) {
       locale, origin: origin as CheckoutOrigin, sessionKey,
       privatePageSlug: isValidCode(page) ? page : null,
       referralCode: isValidCode(referral) ? referral : null, tier, cadence,
+      currency,
       promoCode,
     }));
   } catch (e) {

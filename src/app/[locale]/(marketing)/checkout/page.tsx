@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { ArrowLeft, Check, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
 import { getDictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
+import { convertCurrency, isCurrency } from "@/i18n/currency";
 import { fmt } from "@/i18n/format";
 import { repo } from "@/lib/data";
 import { env, isDemoMode, isEmbeddedCheckoutConfigured } from "@/lib/env";
@@ -29,6 +30,10 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
   const sp = await searchParams;
   const t = await getDictionary(locale);
   const C = t.checkout;
+  const jar = await cookies();
+  const queryCurrency = typeof sp.currency === "string" ? sp.currency.toUpperCase() : null;
+  const cookieCurrency = jar.get("STUDIO_CURRENCY")?.value?.toUpperCase();
+  const currency = isCurrency(queryCurrency) ? queryCurrency : isCurrency(cookieCurrency) ? cookieCurrency : "EUR";
   const tier = isOfferTier(sp.offer) ? sp.offer : "premium";
   const billing = tier !== "one" && isBillingCadence(sp.billing) ? sp.billing : "annual";
   const page = typeof sp.page === "string" && isValidCode(sp.page) ? sp.page : null;
@@ -43,10 +48,14 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
   ]);
   const catalogOffer = offers.find((offer) => offer.tier === tier) ?? offers[offers.length - 1];
   if (!catalogOffer) return null;
-  const offer = billing === "monthly" && catalogOffer.interval !== "one_time"
+  const baseOffer = billing === "monthly" && catalogOffer.interval !== "one_time"
     ? { ...catalogOffer, priceCents: Math.round(catalogOffer.priceCents / 12), interval: "month" as const }
     : catalogOffer;
-  const jar = await cookies();
+  const offer = {
+    ...baseOffer,
+    priceCents: convertCurrency(baseOffer.priceCents, baseOffer.currency, currency),
+    currency,
+  };
   const resolved = !isDemoMode ? await resolveCheckoutAttribution({
     sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null,
     privatePageSlug: page,
@@ -61,7 +70,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
   const referrer = privatePage?.referral.active
     ? privatePage.displayName ?? privatePage.referral.displayName
     : resolved?.advisor ?? null;
-  const backQuery = new URLSearchParams({ offer: tier, billing });
+  const backQuery = new URLSearchParams({ offer: tier, billing, currency });
   if (page) backQuery.set("page", page);
   if (referral) backQuery.set("referral", referral);
   if (promoCode) backQuery.set("promo", promoCode);
@@ -94,12 +103,12 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
               <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent">{offer.tier === "one" ? C.oneTime : billing === "monthly" ? C.monthly : C.annual}</span>
             </div>
             <div className="mt-5 border-y border-line py-5 [&_.text-white\/65]:text-muted [&_.text-emerald-400]:text-success">
-              <OfferPrice offer={offer} locale={locale} t={t} dark={false} featured />
+              <OfferPrice offer={offer} locale={locale} t={t} dark={false} featured displayCurrency={currency} />
             </div>
             {promo && <dl className="mt-5 grid gap-3 text-[13px]">
-              <div className="flex justify-between gap-4 text-muted"><dt>{C.catalogPrice}</dt><dd className="tabular"><Money cents={offer.priceCents} sourceCurrency={offer.currency} /></dd></div>
-              <div className="flex justify-between gap-4 text-success"><dt>{fmt(C.discountLine, { rate: formatPercent(promo.discountRate, locale, 0) })}</dt><dd className="tabular">−<Money cents={discount} sourceCurrency={offer.currency} /></dd></div>
-              <div className="flex justify-between gap-4 border-t border-line pt-3 text-[15px] font-semibold"><dt>{offer.recurring ? C.totalPerPayment : C.totalToday}</dt><dd className="tabular"><Money cents={total} sourceCurrency={offer.currency} /></dd></div>
+              <div className="flex justify-between gap-4 text-muted"><dt>{C.catalogPrice}</dt><dd className="tabular"><Money cents={offer.priceCents} sourceCurrency={offer.currency} displayCurrency={currency} /></dd></div>
+              <div className="flex justify-between gap-4 text-success"><dt>{fmt(C.discountLine, { rate: formatPercent(promo.discountRate, locale, 0) })}</dt><dd className="tabular">−<Money cents={discount} sourceCurrency={offer.currency} displayCurrency={currency} /></dd></div>
+              <div className="flex justify-between gap-4 border-t border-line pt-3 text-[15px] font-semibold"><dt>{offer.recurring ? C.totalPerPayment : C.totalToday}</dt><dd className="tabular"><Money cents={total} sourceCurrency={offer.currency} displayCurrency={currency} /></dd></div>
             </dl>}
             <ul className="mt-6 grid gap-2.5">
               {plan.features.slice(0, 4).map((feature) => <li key={feature} className="flex items-start gap-2.5 text-[13px] leading-relaxed text-fg-2"><Check className="mt-0.5 size-4 shrink-0 text-success" />{feature}</li>)}
@@ -114,7 +123,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
             <Link href={backHref} className="mt-5 flex h-11 items-center justify-center rounded-full bg-fg px-5 text-[13px] font-medium text-bg">{C.backToOffer}</Link>
           </div> : <EmbeddedCheckoutPanel
             publishableKey={env.stripePublishableKey}
-            input={{ locale, origin, page, referral, offer: tier, billing, promo: promo?.code ?? (resolved?.code === "attributed" ? promoCode : null) }}
+            input={{ locale, origin, page, referral, offer: tier, billing, currency, promo: promo?.code ?? (resolved?.code === "attributed" ? promoCode : null) }}
             loadingLabel={C.loadingPayment}
             retryLabel={C.retryPayment}
             errorLabel={C.paymentError}

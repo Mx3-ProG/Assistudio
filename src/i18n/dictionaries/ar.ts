@@ -6,7 +6,7 @@ import type { PartialDictionary } from "../types";
  */
 const dict: PartialDictionary = {
   meta: { homeTitle: "شركاء Studio ATS — بِع Studio ATS واربح حتى 1500 يورو عن كل عملية بيع", homeDescription: "كن شريكًا في Studio ATS. نحن نبنيه ونسلّمه — وأنت تجلب الفرصة وتحصل على عمولة متكررة بنسبة 25٪." },
-  common: { perYear: "/ سنة", copy: "نسخ", copied: "تم النسخ", save: "حفظ", cancel: "إلغاء", language: "اللغة", currency: "عملة العرض", currencyNote: "التحويل تقريبي فقط. ستؤكد Stripe العملة والمبلغ النهائي عند الدفع.", theme: "المظهر", themeLight: "فاتح", themeDark: "داكن", themeSystem: "النظام", menu: "القائمة",
+  common: { perYear: "/ سنة", copy: "نسخ", copied: "تم النسخ", save: "حفظ", cancel: "إلغاء", language: "اللغة", currency: "عملة الدفع", currencyNote: "ستخصم Stripe المبلغ المعروض بهذه العملة قبل أي خصم.", theme: "المظهر", themeLight: "فاتح", themeDark: "داكن", themeSystem: "النظام", menu: "القائمة",
     illustrationOnly: "أمثلة حسابية بحتة مبنية على السعر العام لـ Studio Premium ونسبة العمولة القياسية، وليست وعدًا بالدخل. تُستحق العمولات فقط على المبيعات المؤهلة التي تم تحصيل دفعها فعليًا." },
   nav: { howItWorks: "كيف يعمل", whatYouSell: "ماذا تبيع", markets: "الأسواق", discover: "اكتشف Studio ATS", faq: "الأسئلة", login: "تسجيل الدخول", becomePartner: "كن شريكًا", pricing: "الأسعار", dashboard: "لوحة التحكم" },
   home: { eyebrow: "برنامج شركاء Studio ATS", heroTitle1: "بِع Studio ATS.", heroTitle2: "اربح حتى 1500 يورو عن كل بيع.", heroSubtitle: "نحن نبنيه. نحن نسلّمه. وأنت تجلب الفرصة.", ctaPrimary: "كن شريكًا", ctaSecondary: "اكتشف Studio ATS",

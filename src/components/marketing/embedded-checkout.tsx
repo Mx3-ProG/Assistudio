@@ -6,6 +6,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 import { createEmbeddedCheckout } from "@/app/actions/checkout";
+import type { Currency } from "@/i18n/currency";
 
 interface EmbeddedCheckoutInput {
   locale: string;
@@ -14,6 +15,7 @@ interface EmbeddedCheckoutInput {
   referral: string | null;
   offer: "one" | "pro" | "premium";
   billing: "annual" | "monthly";
+  currency: Currency;
   promo: string | null;
 }
 
