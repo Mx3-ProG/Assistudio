@@ -392,6 +392,7 @@ function seed(): Store {
       context: { affiliate_status: "approved", code: "ALX7K9", sponsor: "Mathieu Demo" },
     },
   );
+  s.notifications.push({ id: id("ntf"), userId: "usr_admin", type: "admin_message", titleKey: "helpNew", params: { ref: "HLP-DEMO1", name: "Mathieu Demo", subject: "Demo request — prospect wants a technical call", urgency: "high" }, href: "/admin/help", readAt: null, status: "unread", createdAt: daysAgo(0.2) });
   s.audit.push(
     { id: id("aud"), actor: "Admin Demo", action: "affiliate.status", entity: "affiliate", entityId: sofia, reason: "Application reviewed", before: { status: "pending" }, after: { status: "approved" }, createdAt: daysAgo(250) },
     { id: id("aud"), actor: "Admin Demo", action: "payout.paid", entity: "payout", entityId: "PAY-0001", reason: null, before: { status: "scheduled" }, after: { status: "paid" }, createdAt: daysAgo(80) },
@@ -403,7 +404,7 @@ interface DemoCode { purpose: CodePurpose; code: string; signup: SignupData | nu
 const demoCodes = () => ((g as { __studioDemoCodes?: Map<string, DemoCode> }).__studioDemoCodes ??= new Map());
 
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
-const STORE_VERSION = 6;
+const STORE_VERSION = 7;
 const g = globalThis as unknown as { __studioDemo?: Store & { v?: number } };
 function db(): Store {
   if (g.__studioDemo?.v !== STORE_VERSION) g.__studioDemo = Object.assign(seed(), { v: STORE_VERSION });
@@ -896,8 +897,11 @@ export const demoRepo: Repo = {
       .filter((n) => n.userId === s.userId && (status === "inbox" ? n.status !== "archived" : n.status === status))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
-  async markNotificationsRead(s) {
-    for (const n of db().notifications) if (n.userId === s.userId && !n.readAt) { n.readAt = iso(now()); if (n.status === "unread") n.status = "read"; }
+  async markNotificationsRead(s, titleKeys) {
+    for (const n of db().notifications) {
+      if (n.userId !== s.userId || n.readAt || (titleKeys?.length && !titleKeys.includes(n.titleKey))) continue;
+      n.readAt = iso(now()); if (n.status === "unread") n.status = "read";
+    }
   },
   async setNotificationStatus(s, nid, status) {
     const n = db().notifications.find((x) => x.id === nid && x.userId === s.userId);
@@ -1119,6 +1123,9 @@ export const demoRepo: Repo = {
       },
     };
     st.helpRequests.unshift(h);
+    for (const u of st.users.filter((x) => x.role === "admin" || x.role === "super_admin")) {
+      st.notifications.push({ id: id("ntf"), userId: u.userId, type: "admin_message", titleKey: "helpNew", params: { ref: h.ref, name: affiliateName(aff) ?? "—", subject: h.subject, urgency: h.urgency }, href: "/admin/help", readAt: null, status: "unread", createdAt: iso(now()) });
+    }
     audit(s, "help_request.created", "help_request", h.id, null, { category: h.category, urgency: h.urgency }, null);
     return { id: h.id, ref: h.ref };
   },

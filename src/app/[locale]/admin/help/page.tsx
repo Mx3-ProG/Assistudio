@@ -7,6 +7,8 @@ import { repo } from "@/lib/data";
 import { PageHeader, Card, EmptyState } from "@/components/ui/primitives";
 import { HelpRequestCard } from "@/components/admin/help-request-card";
 import { cn } from "@/lib/cn";
+import { MarkHelpSeen } from "@/components/help/mark-seen";
+import { HELP_NOTIFICATION_KEYS } from "@/lib/badges";
 
 /** Help requests sent by partners from their dashboard (also emailed to every staff member). */
 export default async function AdminHelp({ params, searchParams }: PageProps<"/[locale]/admin/help">) {
@@ -15,10 +17,12 @@ export default async function AdminHelp({ params, searchParams }: PageProps<"/[l
   const s = await requireStaff(locale);
   const t = await getDictionary(locale);
   const A = t.net.admin;
-  const [requests, network] = await Promise.all([
+  const [requests, network, unread] = await Promise.all([
     repo().adminListHelpRequests(s, tab === "open" ? { status: ["open", "in_progress"] } : {}),
     repo().adminNetwork(s),
+    repo().listNotifications(s, "unread").catch(() => []),
   ]);
+  const unseen = unread.some((n) => (HELP_NOTIFICATION_KEYS.staff as readonly string[]).includes(n.titleKey));
   const profileOf = new Map(network.map((m) => [m.id, m.profileId]));
   // Urgent first, then oldest open first so nothing waits forever.
   const sorted = tab === "open"
@@ -28,6 +32,7 @@ export default async function AdminHelp({ params, searchParams }: PageProps<"/[l
 
   return (
     <>
+      <MarkHelpSeen scope="admin" pending={unseen} />
       <PageHeader title={A.title} subtitle={A.subtitle} />
       <nav className="mb-4 flex gap-1">
         {(["open", "all"] as const).map((k) => (

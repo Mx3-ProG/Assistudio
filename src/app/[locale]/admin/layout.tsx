@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { Locale } from "@/i18n/config";
 import { requireStaff } from "@/lib/auth";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { repo } from "@/lib/data";
+import { getBadges } from "@/lib/badges";
 import { isDemoMode } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Studio ATS Admin", robots: { index: false, follow: false, nocache: true } };
@@ -10,13 +10,9 @@ export const metadata: Metadata = { title: "Studio ATS Admin", robots: { index: 
 export default async function AdminLayout({ children, params }: LayoutProps<"/[locale]/admin">) {
   const { locale } = (await params) as { locale: Locale };
   const s = await requireStaff(locale);
-  const [inbox, own, help] = await Promise.all([
-    repo().listSupportInbox(s).catch(() => []), repo().getUnreadMessageCount(s).catch(() => 0),
-    repo().adminListHelpRequests(s, { status: ["open"] }).catch(() => []),
-  ]);
-  const unread = inbox.reduce((a, r) => a + r.unread, 0) + own;
+  const b = await getBadges(s, "admin");
   return (
-    <AdminShell hasAffiliate={!!s.affiliate} openHelp={help.length} messages={{ unread, me: s.userId, realtime: !isDemoMode }}>
+    <AdminShell hasAffiliate={!!s.affiliate} openHelp={b.help} notifications={b.notifications} messages={{ unread: b.messages, me: s.userId, realtime: !isDemoMode }}>
       {children}
     </AdminShell>
   );

@@ -155,7 +155,8 @@ export interface Repo extends MessagingRepo {
   getRecurringBook(s: Session): Promise<RecurringBook>;
   listPayouts(s: Session): Promise<Payout[]>;
   listNotifications(s: Session, status?: NotificationStatus | "inbox"): Promise<Notification[]>;
-  markNotificationsRead(s: Session): Promise<void>;
+  /** All unread notifications, or only those with these title keys (without the `notifications.` prefix). */
+  markNotificationsRead(s: Session, titleKeys?: readonly string[]): Promise<void>;
   setNotificationStatus(s: Session, id: string, status: NotificationStatus): Promise<void>;
   getConnectStatus(s: Session): Promise<ConnectStatus>;
   getLeaderboard(s: Session): Promise<LeaderboardRow[]>;

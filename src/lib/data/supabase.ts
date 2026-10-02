@@ -719,9 +719,11 @@ export const supabaseRepo: Repo = {
     return (check(await q.order("created_at", { ascending: false }).limit(100)) as any[])
       .map((r) => ({ id: r.id, type: r.type, titleKey: String(r.title_key).replace(/^notifications\./, ""), params: r.params, href: r.href, readAt: r.read_at, status: r.status, createdAt: r.created_at }));
   },
-  async markNotificationsRead(s) {
+  async markNotificationsRead(s, titleKeys) {
     const sb = await supabaseServer();
-    check(await sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("profile_id", s.userId).is("read_at", null));
+    let q = sb.from("notifications").update({ read_at: new Date().toISOString() }).eq("profile_id", s.userId).is("read_at", null);
+    if (titleKeys?.length) q = q.in("title_key", titleKeys.map((k) => `notifications.${k}`));
+    check(await q);
   },
   async setNotificationStatus(s, id, status) {
     const sb = await supabaseServer();

@@ -928,6 +928,7 @@ const pt: Dictionary = {
     payoutPaid: "Pagamento de {amount} enviado",
     accountStatus: "O estado da sua conta é agora: {status}",
     helpUpdated: "O seu pedido de ajuda {ref} está agora: {status}",
+    helpNew: "{urgency}Novo pedido de ajuda {ref} de {name}: {subject}",
     renewalUpcoming: "Um contrato é renovado dentro de {days} dias",
     salePending: "Pagamento confirmado para {sale_ref} — comissão de {commission} pendente",
     renewalPending: "Renovação confirmada para {sale_ref} — comissão de {commission} pendente",
