@@ -9,15 +9,20 @@ begin
 end $$;
 
 select pg_temp.assert((select count(*) from public.offers o join public.products p on p.id = o.product_id
-  where p.slug = 'studio' and o.is_active) = 3, 'STUDIO has exactly three active offers');
+  where p.slug = 'studio' and o.is_active) = 5, 'Assistudio has five active prices across three plans');
 select pg_temp.assert((select price_cents = 50000 and billing_interval = 'one_time' and price_type = 'one_time' and not commission_recurring
-  from public.offers where stripe_lookup_key = 'studio_one_eur'), 'Studio One: €500 one-time');
+  from public.offers where stripe_lookup_key = 'assistudio_one_eur'), 'Studio One: €500 one-time');
 select pg_temp.assert((select price_cents = 300000 and billing_interval = 'year' from public.offers
-  where stripe_lookup_key = 'studio_pro_yearly_eur'), 'Studio Pro: €3,000 / year');
+  where stripe_lookup_key = 'assistudio_pro_yearly_eur'), 'Studio Pro: €3,000 / year');
+select pg_temp.assert((select price_cents = 25000 and billing_interval = 'month' from public.offers
+  where stripe_lookup_key = 'assistudio_pro_monthly_eur'), 'Studio Pro: €250 / month');
 select pg_temp.assert((select price_cents = 600000 and billing_interval = 'year' from public.offers
-  where stripe_lookup_key = 'studio_yearly_eur'), 'Studio Premium: €6,000 / year (unchanged)');
+  where stripe_lookup_key = 'assistudio_premium_yearly_eur'), 'Studio Premium: €6,000 / year');
+select pg_temp.assert((select price_cents = 50000 and billing_interval = 'month' from public.offers
+  where stripe_lookup_key = 'assistudio_premium_monthly_eur'), 'Studio Premium: €500 / month');
 select pg_temp.assert((select count(distinct commission_rate) = 1 and min(commission_rate) = 0.25 from public.offers
-  where stripe_lookup_key in ('studio_one_eur', 'studio_pro_yearly_eur', 'studio_yearly_eur')), 'no new commission rate');
+  where stripe_lookup_key in ('assistudio_one_eur', 'assistudio_pro_yearly_eur', 'assistudio_pro_monthly_eur',
+                              'assistudio_premium_yearly_eur', 'assistudio_premium_monthly_eur')), 'no new commission rate');
 select pg_temp.assert((select count(*) from public.commission_rules where is_active) = 1, 'still one active commission rule');
 
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -32,8 +37,8 @@ insert into public.customers (email) values ('offers-one@test.invalid'), ('offer
 insert into public.sales (customer_id, offer_id, affiliate_id, kind, status, gross_amount_cents,
                           net_amount_cents, currency, paid_at, provider_payment_id)
 select c.id, o.id, a.id, 'new', 'paid', o.price_cents, o.price_cents, 'EUR', now(), v.pi
-  from (values ('offers-one@test.invalid', 'studio_one_eur', 'pi_offer_one'),
-               ('offers-pro@test.invalid', 'studio_pro_yearly_eur', 'pi_offer_pro')) v(email, lookup, pi)
+  from (values ('offers-one@test.invalid', 'assistudio_one_eur', 'pi_offer_one'),
+               ('offers-pro@test.invalid', 'assistudio_pro_yearly_eur', 'pi_offer_pro')) v(email, lookup, pi)
   join public.customers c on c.email = v.email
   join public.offers o on o.stripe_lookup_key = v.lookup
   join public.affiliates a on a.profile_id = '00000000-0000-0000-0000-00000000e002';
@@ -48,8 +53,8 @@ select pg_temp.assert(pg_temp.amount('pi_offer_pro', 'direct') = 75000, 'Studio 
 select pg_temp.assert(pg_temp.amount('pi_offer_pro', 'sponsor') = 15000, 'Studio Pro: sponsor earns €150 (5%)');
 
 select pg_temp.assert(not exists (select 1 from public.subscriptions s join public.offers o on o.id = s.offer_id
-  where o.stripe_lookup_key = 'studio_one_eur'), 'Studio One creates no subscription, hence no renewal commission');
+  where o.stripe_lookup_key = 'assistudio_one_eur'), 'Studio One creates no subscription, hence no renewal commission');
 select pg_temp.assert(exists (select 1 from public.subscriptions s join public.offers o on o.id = s.offer_id
-  where o.stripe_lookup_key = 'studio_pro_yearly_eur' and s.status = 'active'), 'Studio Pro renews yearly');
+  where o.stripe_lookup_key = 'assistudio_pro_yearly_eur' and s.status = 'active'), 'Studio Pro renews yearly');
 
 rollback;

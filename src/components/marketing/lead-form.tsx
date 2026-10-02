@@ -8,7 +8,7 @@ import { Field, inputClass, textareaClass } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
-export function LeadForm({ page, cta, requestType, advisorName }: { page?: string; cta?: string; requestType?: "info" | "call" | "question" | "quote"; advisorName?: string | null }) {
+export function LeadForm({ page, referral, cta, requestType, advisorName }: { page?: string; referral?: string; cta?: string; requestType?: "info" | "call" | "question" | "quote"; advisorName?: string | null }) {
   const { t, locale } = useI18n();
   const [state, action, pending] = useActionState<LeadState, FormData>(submitLead, { status: "idle" });
   const f = t.studio.form;
@@ -27,6 +27,7 @@ export function LeadForm({ page, cta, requestType, advisorName }: { page?: strin
     <form action={action} className="grid gap-4 sm:grid-cols-2">
       <input type="hidden" name="locale" value={locale} />
       {page && <input type="hidden" name="page" value={page} />}
+      {referral && <input type="hidden" name="referral" value={referral} />}
       {requestType && <input type="hidden" name="requestType" value={requestType} />}
       <div aria-hidden className="absolute -start-[9999px] h-0 overflow-hidden">
         <label>Website URL<input name="company_url" tabIndex={-1} autoComplete="off" /></label>

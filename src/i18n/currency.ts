@@ -10,8 +10,9 @@ export const currencyMeta: Record<Currency, { label: string; symbol: string }> =
 };
 
 /**
- * Indicative display rates, expressed as the value of one EUR. Stripe remains
- * the source of truth for the amount and currency actually charged.
+ * Fixed catalog rates, expressed as the value of one EUR. The same amounts are
+ * provisioned as Stripe Price currency options, so the amount displayed in the
+ * selected currency is also the amount charged (before any promo discount).
  */
 const EUR_RATES: Record<Currency, number> = {
   EUR: 1,

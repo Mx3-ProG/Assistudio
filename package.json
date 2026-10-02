@@ -24,6 +24,8 @@
     "@fontsource/noto-sans": "5.3.0",
     "@fontsource/noto-sans-devanagari": "5.3.0",
     "@sparticuz/chromium": "153.0.0",
+    "@stripe/react-stripe-js": "^7.0.0",
+    "@stripe/stripe-js": "^10.0.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.1",
     "client-only": "^0.0.1",

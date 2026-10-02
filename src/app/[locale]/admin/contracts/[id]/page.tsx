@@ -15,6 +15,7 @@ export default async function AdminContractPage({ params }: PageProps<"/[locale]
     {d.status === "admin_review" && <section className="card p-5 sm:p-6"><h2 className="font-semibold">{C.admin.lockTitle}</h2><Notice tone="warning">{C.admin.lockWarning}</Notice>
       <form action={lockDossierAction} className="mt-5 grid gap-4 sm:grid-cols-2"><input type="hidden" name="id" value={d.id} />
         <Field label={C.admin.offer}><select name="tier" defaultValue={d.recommendedTier ?? "pro"} className={inputClass}><option value="one">Studio One</option><option value="pro">Studio Pro</option><option value="premium">Studio Premium</option></select></Field>
+        <Field label={locale === "fr" ? "Facturation" : "Billing"}><select name="billing" defaultValue="annual" className={inputClass}><option value="annual">{locale === "fr" ? "Annuelle" : "Annual"}</option><option value="monthly">{locale === "fr" ? "Mensuelle (Pro et Premium)" : "Monthly (Pro and Premium)"}</option></select></Field>
         <Field label={C.admin.validity}><input name="validDays" type="number" defaultValue="30" min="1" max="180" className={inputClass} /></Field>
         <Field label={C.admin.promo}><input name="promoCode" className={inputClass} /></Field><div />
         <Field className="sm:col-span-2" label={C.admin.scope}><textarea name="scope" required minLength={10} className={textareaClass} /></Field>

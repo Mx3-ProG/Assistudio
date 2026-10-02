@@ -9,14 +9,18 @@ export function PageBeacon({ slug, referral }: { slug?: string; referral?: strin
     const key = `studio-pv-${slug ? "page" : "ref"}-${value}`;
     try {
       if (sessionStorage.getItem(key)) return;
-      sessionStorage.setItem(key, "1");
     } catch {}
-    void fetch("/api/track", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(slug ? { page: slug } : { referral: value }),
-      keepalive: true,
-    });
+    void (async () => {
+      try {
+        const response = await fetch("/api/track", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(slug ? { page: slug } : { referral: value }),
+          keepalive: true,
+        });
+        if (response.ok) sessionStorage.setItem(key, "1");
+      } catch {}
+    })();
   }, [slug, referral]);
   return null;
 }

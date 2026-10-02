@@ -9,6 +9,8 @@ import { computeCommissionCents } from "./commission.ts";
 
 export const OFFER_TIERS = ["one", "pro", "premium"] as const;
 export type OfferTier = (typeof OFFER_TIERS)[number];
+export const BILLING_CADENCES = ["annual", "monthly"] as const;
+export type BillingCadence = (typeof BILLING_CADENCES)[number];
 
 export const OFFER_LOOKUP_KEYS: Record<OfferTier, string> = {
   one: "assistudio_one_eur",
@@ -16,12 +18,26 @@ export const OFFER_LOOKUP_KEYS: Record<OfferTier, string> = {
   premium: "assistudio_premium_yearly_eur",
 };
 
+export const MONTHLY_OFFER_LOOKUP_KEYS: Partial<Record<OfferTier, string>> = {
+  pro: "assistudio_pro_monthly_eur",
+  premium: "assistudio_premium_monthly_eur",
+};
+
+export function isBillingCadence(x: unknown): x is BillingCadence {
+  return typeof x === "string" && (BILLING_CADENCES as readonly string[]).includes(x);
+}
+
+/** Studio One is always one-time; Pro and Premium may be billed monthly or annually. */
+export function offerLookupKey(tier: OfferTier, cadence: BillingCadence = "annual"): string {
+  return cadence === "monthly" ? MONTHLY_OFFER_LOOKUP_KEYS[tier] ?? OFFER_LOOKUP_KEYS[tier] : OFFER_LOOKUP_KEYS[tier];
+}
+
 export function isOfferTier(x: unknown): x is OfferTier {
   return typeof x === "string" && (OFFER_TIERS as readonly string[]).includes(x);
 }
 
 export function tierOfLookupKey(lookupKey: string | null | undefined): OfferTier | null {
-  return OFFER_TIERS.find((t) => OFFER_LOOKUP_KEYS[t] === lookupKey) ?? null;
+  return OFFER_TIERS.find((t) => OFFER_LOOKUP_KEYS[t] === lookupKey || MONTHLY_OFFER_LOOKUP_KEYS[t] === lookupKey) ?? null;
 }
 
 export interface PricedOffer {

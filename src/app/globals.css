@@ -4,7 +4,8 @@
    STUDIO design tokens
    Light: white / very light grey / translucent surfaces
    Dark:  deep black / graphite / glass surfaces
-   Theme = [data-theme] on <html> when chosen by the user, else prefers-color-scheme.
+   Theme = [data-theme] on <html>. Light is the product default; users can
+   explicitly select dark or system from the theme control.
    ============================================================================= */
 
 :root {
@@ -38,7 +39,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root[data-theme="system"] {
     --bg: #000000;
     --bg-elevated: #0b0b0d;
     --surface: #0f0f12;

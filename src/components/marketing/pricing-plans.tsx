@@ -5,6 +5,7 @@ import type { Offer } from "@/lib/data/types";
 import { fmt } from "@/i18n/format";
 import { formatPercent } from "@/lib/money";
 import { Money } from "@/components/ui/money";
+import type { Currency } from "@/i18n/currency";
 import { firstSaleCommissionCents, maxEarningOffer, renews } from "@/lib/offers";
 import { cn } from "@/lib/cn";
 import { HoloCard } from "./holo-card";
@@ -15,31 +16,40 @@ const HOLO: Record<Offer["tier"], { glow: string; gradient: string }> = {
   premium: { glow: "rgb(168 132 255 / 0.5)", gradient: "linear-gradient(145deg, rgb(88 60 130 / 0.5) 0%, rgb(113 196 255 / 0.18) 100%)" },
 };
 
-function MoneyTemplate({ template, cents, currency }: { template: string; cents: number; currency: string }) {
+function MoneyTemplate({ template, cents, currency, displayCurrency }: { template: string; cents: number; currency: string; displayCurrency?: Currency }) {
   const [before, after = ""] = template.split("{price}");
-  return <>{before}<Money cents={cents} sourceCurrency={currency} />{after}</>;
+  return <>{before}<Money cents={cents} sourceCurrency={currency} displayCurrency={displayCurrency} />{after}</>;
 }
 
-function OfferPrice({ offer, t, featured = false, dark = true }: {
-  offer: Offer; locale: Locale; t: Dictionary; featured?: boolean; dark?: boolean;
+function OfferPrice({ offer, t, featured = false, dark = true, displayCurrency }: {
+  offer: Offer; locale: Locale; t: Dictionary; featured?: boolean; dark?: boolean; displayCurrency?: Currency;
 }) {
   const P = t.pricing;
   if (!renews(offer)) {
     return <div>
       <p className="flex flex-wrap items-baseline gap-x-2">
-        <Money cents={offer.priceCents} sourceCurrency={offer.currency} className={cn("tabular font-semibold tracking-[-0.04em]", featured ? "text-[44px] sm:text-[56px]" : "text-[38px] sm:text-[44px]")} />
+        <Money cents={offer.priceCents} sourceCurrency={offer.currency} displayCurrency={displayCurrency} className={cn("tabular font-semibold tracking-[-0.04em]", featured ? "text-[44px] sm:text-[56px]" : "text-[38px] sm:text-[44px]")} />
         <span className={dark ? "text-white/65" : "text-muted"}>{P.oneTime}</span>
       </p>
       <p className="mt-1 text-[13px] font-semibold text-emerald-400">{P.noSubscription}</p>
     </div>;
   }
+  if (offer.interval === "month") {
+    return <div>
+      <p className="flex flex-wrap items-baseline gap-x-2">
+        <Money cents={offer.priceCents} sourceCurrency={offer.currency} displayCurrency={displayCurrency} className={cn("tabular font-semibold tracking-[-0.04em]", featured ? "text-[44px] sm:text-[56px]" : "text-[38px] sm:text-[44px]")} />
+        <span className={dark ? "text-white/65" : "text-muted"}>{P.perMonth}</span>
+      </p>
+      <p className={cn("mt-1 text-[13px]", dark ? "text-white/65" : "text-muted")}><MoneyTemplate template={P.billedMonthly} cents={offer.priceCents} currency={offer.currency} displayCurrency={displayCurrency} /></p>
+    </div>;
+  }
   const monthly = Math.round(offer.priceCents / 12);
   return <div>
     <p className="flex flex-wrap items-baseline gap-x-2">
-      <Money cents={monthly} sourceCurrency={offer.currency} className={cn("tabular font-semibold tracking-[-0.04em]", featured ? "text-[44px] sm:text-[56px]" : "text-[38px] sm:text-[44px]")} />
+      <Money cents={monthly} sourceCurrency={offer.currency} displayCurrency={displayCurrency} className={cn("tabular font-semibold tracking-[-0.04em]", featured ? "text-[44px] sm:text-[56px]" : "text-[38px] sm:text-[44px]")} />
       <span className={dark ? "text-white/65" : "text-muted"}>{P.perMonthEquivalent}</span>
     </p>
-    <p className={cn("mt-1 text-[13px]", dark ? "text-white/65" : "text-muted")}><MoneyTemplate template={P.billedAnnually} cents={offer.priceCents} currency={offer.currency} /></p>
+    <p className={cn("mt-1 text-[13px]", dark ? "text-white/65" : "text-muted")}><MoneyTemplate template={P.billedAnnually} cents={offer.priceCents} currency={offer.currency} displayCurrency={displayCurrency} /></p>
   </div>;
 }
 
@@ -48,8 +58,8 @@ function DisclosureIcon() {
 }
 
 /** Outcome first, included capabilities next, exact technical characteristics last. */
-export function PricingPlans({ t, locale, offers, page, promo, requestHref, requestLabel, detailed = true }: {
-  t: Dictionary; locale: Locale; offers: Offer[]; page?: string; promo?: string; requestHref: string; requestLabel: string; detailed?: boolean;
+export function PricingPlans({ t, locale, offers, page, promo, referral, requestHref, requestLabel, detailed = true }: {
+  t: Dictionary; locale: Locale; offers: Offer[]; page?: string; promo?: string; referral?: string; requestHref: string; requestLabel: string; detailed?: boolean;
 }) {
   const P = t.pricing;
   return <div>
@@ -57,7 +67,7 @@ export function PricingPlans({ t, locale, offers, page, promo, requestHref, requ
       {offers.map((o) => {
         const plan = P.plans[o.tier];
         const featured = o.tier === "premium";
-        const buy = `/${locale}/buy?offer=${o.tier}${page ? `&page=${page}` : ""}${promo ? `&promo=${encodeURIComponent(promo)}` : ""}`;
+        const buy = `/${locale}/buy?offer=${o.tier}${page ? `&page=${page}` : ""}${promo ? `&promo=${encodeURIComponent(promo)}` : ""}${referral ? `&referral=${encodeURIComponent(referral)}` : ""}`;
         return <HoloCard key={o.id} glow={HOLO[o.tier].glow} gradient={HOLO[o.tier].gradient} className={cn(featured ? "lg:z-10" : "lg:my-6")}>
           <article className={cn("flex h-full flex-col", featured ? "p-7 sm:p-9" : "p-7 sm:p-8")}>
             <div className="flex flex-wrap items-center gap-2">

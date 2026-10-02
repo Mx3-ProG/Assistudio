@@ -47,8 +47,8 @@ export default async function AffiliateSalesPage({ params }: PageProps<"/[locale
   const content = pickLocale(all, locale);
   const template = content.find((x) => isKind(x, "page_template") && x.key === page.templateKey);
   const market = markets.find((m) => m.id === page.marketId) ?? null;
-  // A stale or not-yet-seeded template must never turn an otherwise valid
-  // affiliate link into a 404. Keep the page useful while content is repaired.
+  // Stale or not-yet-seeded content must not turn a valid affiliate URL into a
+  // 404. The automatic Studio page remains available while content is fixed.
   if (!template || !isKind(template, "page_template")) {
     return <FallbackAffiliatePage t={t} locale={locale} offers={offers} referrerName={page.referral.displayName}
       market={market ? marketContent(market, locale) : null} slug={page.slug}/>;
@@ -86,7 +86,7 @@ export default async function AffiliateSalesPage({ params }: PageProps<"/[locale
         if(section.type==="benefits")return <Section key={index} title={section.title}><div className="grid gap-3 sm:grid-cols-2">{section.items.map(x=><article key={x.title} className="rounded-2xl border border-line p-5"><h3 className="font-semibold">{x.title}</h3><p className="mt-2 text-[14px] text-fg-2">{x.body}</p></article>)}</div></Section>;
         if(section.type==="who")return <Section key={index} title={section.title}><p>{section.audience??section.body}</p></Section>;
         if(section.type==="faq")return <Section key={index} title={section.title}><div className="grid gap-2">{section.items.map(x=><details key={x.q} className="rounded-2xl border border-line p-4"><summary className="cursor-pointer font-medium">{x.q}</summary><p className="mt-3 text-[14px] text-fg-2">{x.a}</p></details>)}</div></Section>;
-        if(section.type==="offer")return <Section key={index} title={section.title}><div id="buy" className="card p-6 text-center sm:p-8">{section.offer?<><p className="text-[34px] font-semibold">{formatMoney(section.offer.priceCents,locale,section.offer.currency)}</p><p className="text-[13px] text-muted">{t.sc.landing.perInterval[section.offer.interval]}</p></>:<p>{t.sc.landing.onRequest}</p>}<p className="mx-auto mt-3 max-w-xl text-[14px] text-fg-2">{section.note}</p>{model.cta==="buy"&&product?.offer?.checkoutReady&&<CheckoutButton locale={locale} page={page.slug} origin={origin} offer="premium" label={t.sc.landing.buy} pendingLabel={t.sc.landing.buyPending}/>}</div></Section>;
+        if(section.type==="offer")return <Section key={index} title={section.title}><div id="buy" className="card p-6 text-center sm:p-8">{section.offer?<><p className="text-[34px] font-semibold">{formatMoney(section.offer.priceCents,locale,section.offer.currency)}</p><p className="text-[13px] text-muted">{t.sc.landing.perInterval[section.offer.interval]}</p></>:<p>{t.sc.landing.onRequest}</p>}<p className="mx-auto mt-3 max-w-xl text-[14px] text-fg-2">{section.note}</p>{model.cta==="buy"&&product?.offer?.checkoutReady&&<CheckoutButton locale={locale} page={page.slug} origin={origin} offer="premium" billingChoices={{ label: t.checkout.billingCadence, monthly: t.checkout.monthly, annual: t.checkout.annual }} label={t.sc.landing.buy} pendingLabel={t.sc.landing.buyPending}/>}</div></Section>;
         if(section.type==="cta")return <Section key={index} title={section.title}><p>{section.body}</p></Section>;
         return null;
       })}
@@ -106,7 +106,7 @@ function FallbackAffiliatePage({ t, locale, offers, referrerName, market, slug, 
 }) {
   return <I18nProvider locale={locale} dict={t}><div lang={locale} dir={locale === "ar" ? "rtl" : "ltr"}>
     <PageBeacon slug={slug} referral={referral} /><Navbar variant="studio" />
-    <StudioContent t={t} locale={locale} offers={offers} page={slug} referrerName={referrerName}
+    <StudioContent t={t} locale={locale} offers={offers} page={slug} referral={referral} referrerName={referrerName}
       market={market} pitch="default" ctaVariant="request" />
     <Footer t={t} locale={locale}/>
   </div></I18nProvider>;

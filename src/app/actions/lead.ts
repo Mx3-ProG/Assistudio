@@ -20,6 +20,7 @@ const schema = z.object({
   consent: z.literal("on"),
   locale: z.string(),
   page: z.string().optional().default(""),
+  referral: z.string().trim().max(64).optional().default(""),
   requestType: z.enum(["info", "call", "question", "quote"]).optional(),
   advisorConsent: z.string().optional().transform((v) => v === "on"),
   // Honeypot: real users never fill it.
@@ -65,6 +66,13 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
   } else if (!target && touch) {
     const t = await r.resolveReferral(touch.link ?? touch.ref);
     if (t?.active) target = t;
+  }
+
+  // 3. The affiliate page carries its verified code as a deterministic fallback.
+  //    It never overrides a private page or a tracked touch selected above.
+  if (!target && d.referral && isValidCode(d.referral)) {
+    const referral = await r.resolveReferral(d.referral);
+    if (referral?.active) target = referral;
   }
 
   // TODO(security): add rate limiting / bot scoring (e.g. Vercel BotID) before launch.

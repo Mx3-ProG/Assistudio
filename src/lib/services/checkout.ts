@@ -7,12 +7,20 @@ import { stripe, checkoutLocale, stripeMode } from "@/lib/services/stripe";
 import { resolveCheckoutAttribution } from "@/lib/services/attribution";
 import { CHECKOUT_METADATA_KEY } from "@/lib/stripe/normalize";
 import type { Locale } from "@/i18n/config";
-import { OFFER_LOOKUP_KEYS, type OfferTier } from "@/lib/offers";
+import { convertCurrency, type Currency } from "@/i18n/currency";
+import { offerLookupKey, type BillingCadence, type OfferTier } from "@/lib/offers";
 import { discountCents } from "@/lib/services/promo";
 
 export type CheckoutOrigin = "public" | "affiliate_link" | "private_page" | "dashboard_cta";
 
 export class CheckoutUnavailableError extends Error {}
+
+export type CheckoutUiMode = "hosted" | "embedded";
+export interface CheckoutSessionResult {
+  sessionId: string;
+  url: string | null;
+  clientSecret: string | null;
+}
 
 interface OfferRow {
   id: string;
@@ -27,11 +35,11 @@ interface OfferRow {
 }
 
 /** The active Studio ATS offer of a tier (One, Pro or Premium), by its stable lookup key. */
-async function activeOffer(productSlug: string, tier: OfferTier): Promise<OfferRow> {
+async function activeOffer(productSlug: string, tier: OfferTier, cadence: BillingCadence): Promise<OfferRow> {
   const { data, error } = await supabaseService()
     .from("offers")
     .select("id, product_id, price_cents, currency, price_type, billing_interval, interval_count, stripe_price_id, stripe_lookup_key, products!inner(slug)")
-    .eq("products.slug", productSlug).eq("is_active", true).eq("stripe_lookup_key", OFFER_LOOKUP_KEYS[tier])
+    .eq("products.slug", productSlug).eq("is_active", true).eq("stripe_lookup_key", offerLookupKey(tier, cadence))
     .maybeSingle();
   if (error || !data) throw new CheckoutUnavailableError(`no active ${tier} offer for ${productSlug}`);
   return data as unknown as OfferRow;
@@ -42,11 +50,15 @@ async function activeOffer(productSlug: string, tier: OfferTier): Promise<OfferR
  * sells (amount, currency, interval). A mismatch blocks checkout: selling at a
  * price the business did not configure is worse than not selling.
  */
-async function stripePriceFor(offer: OfferRow): Promise<string> {
+type CheckoutLineItem = NonNullable<Stripe.Checkout.SessionCreateParams["line_items"]>[number];
+
+async function stripePriceFor(offer: OfferRow, currency: Currency): Promise<{ lineItem: CheckoutLineItem; amountCents: number }> {
   const s = stripe();
-  let price: Stripe.Price | null = offer.stripe_price_id ? await s.prices.retrieve(offer.stripe_price_id).catch(() => null) : null;
+  let price: Stripe.Price | null = offer.stripe_price_id
+    ? await s.prices.retrieve(offer.stripe_price_id, { expand: ["currency_options"] }).catch(() => null)
+    : null;
   if (!price && offer.stripe_lookup_key) {
-    price = (await s.prices.list({ lookup_keys: [offer.stripe_lookup_key], active: true, limit: 1 })).data[0] ?? null;
+    price = (await s.prices.list({ lookup_keys: [offer.stripe_lookup_key], active: true, limit: 1, expand: ["data.currency_options"] })).data[0] ?? null;
     if (price) await supabaseService().from("offers").update({ stripe_price_id: price.id }).eq("id", offer.id);
   }
   if (!price || !price.active) {
@@ -63,7 +75,37 @@ async function stripePriceFor(offer: OfferRow): Promise<string> {
     });
     throw new CheckoutUnavailableError("price mismatch");
   }
-  return price.id;
+  const amountCents = convertCurrency(offer.price_cents, offer.currency, currency);
+  if (currency !== offer.currency.toUpperCase()) {
+    const configured = price.currency_options?.[currency.toLowerCase()]?.unit_amount;
+    if (configured !== amountCents) {
+      // Stripe freezes currency options once a Price has been used. Keep the
+      // canonical Product and billing cadence, but create the selected-currency
+      // Price inline for this Checkout Session. Stripe therefore records the
+      // exact currency and monthly/yearly variant instead of merely displaying
+      // a converted amount on our site.
+      const product = typeof price.product === "string" ? price.product : price.product.id;
+      log.warn("payments", "Stripe price is missing the selected catalog currency — using an inline catalog price", {
+        offer_id: offer.id, stripe_price: price.id, currency, stripe_amount: configured, offer_amount: amountCents,
+      });
+      return {
+        amountCents,
+        lineItem: {
+          quantity: 1,
+          price_data: {
+            product,
+            currency: currency.toLowerCase(),
+            unit_amount: amountCents,
+            tax_behavior: price.tax_behavior ?? "unspecified",
+            ...(offer.price_type === "recurring" ? {
+              recurring: { interval: offer.billing_interval as "month" | "year", interval_count: offer.interval_count },
+            } : {}),
+          },
+        },
+      };
+    }
+  }
+  return { lineItem: { price: price.id, quantity: 1 }, amountCents };
 }
 
 /**
@@ -77,22 +119,57 @@ export async function createCheckoutSession(input: {
   origin: CheckoutOrigin;
   sessionKey: string | null;
   privatePageSlug?: string | null;
+  referralCode?: string | null;
   productSlug?: string;
   tier: OfferTier;
+  cadence?: BillingCadence;
+  currency?: Currency;
   promoCode?: string | null;
-}): Promise<{ url: string }> {
+  uiMode?: CheckoutUiMode;
+}): Promise<CheckoutSessionResult> {
   const sb = supabaseService();
   const { data: enabled } = await sb.from("settings").select("value").eq("key", "checkout.enabled").maybeSingle();
   if (enabled && enabled.value === false) throw new CheckoutUnavailableError("checkout disabled");
 
-  const offer = await activeOffer(input.productSlug ?? "studio", input.tier);
-  const [priceId, resolved] = await Promise.all([
-    stripePriceFor(offer),
-    resolveCheckoutAttribution({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug, code: input.promoCode ?? null }),
+  const cadence = input.tier === "one" ? "annual" : input.cadence ?? "annual";
+  const currency = input.currency ?? "EUR";
+  const offer = await activeOffer(input.productSlug ?? "studio", input.tier, cadence);
+  const [selectedPrice, resolved] = await Promise.all([
+    stripePriceFor(offer, currency),
+    resolveCheckoutAttribution({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug, referralCode: input.referralCode, code: input.promoCode ?? null }),
   ]);
   const { attribution, promo } = resolved;
   if (resolved.code === "invalid") throw new CheckoutUnavailableError("code does not match attribution");
-  const promoDiscountCents = promo ? discountCents(offer.price_cents, promo.discountRate) : 0;
+  const promoDiscountCents = promo ? discountCents(selectedPrice.amountCents, promo.discountRate) : 0;
+  const uiMode = input.uiMode ?? "hosted";
+
+  // Reloading an embedded checkout must not create a new Stripe session and
+  // coupon each time. Reuse a recent open session for the same visitor and
+  // commercial context, then cap rapid context changes from that visitor.
+  if (input.sessionKey && /^[0-9a-f-]{36}$/.test(input.sessionKey)) {
+    const since = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data: recent } = await sb.from("checkout_sessions")
+      .select("id,stripe_checkout_session_id,affiliate_id,promo_code_id,locale")
+      .eq("session_key", input.sessionKey).eq("offer_id", offer.id).eq("status", "open")
+      .gte("created_at", since).order("created_at", { ascending: false }).limit(6);
+    const reusable = recent?.find((candidate) => candidate.stripe_checkout_session_id
+      && candidate.affiliate_id === attribution.affiliateId
+      && candidate.promo_code_id === (promo?.id ?? null)
+      && candidate.locale === input.locale);
+    if (reusable?.stripe_checkout_session_id) {
+      const existing = await stripe().checkout.sessions.retrieve(reusable.stripe_checkout_session_id).catch(() => null);
+      const usable = existing?.status === "open"
+        && existing.currency?.toUpperCase() === currency
+        && (uiMode === "embedded" ? !!existing.client_secret : !!existing.url);
+      if (existing && usable) {
+        return { sessionId: existing.id, url: existing.url, clientSecret: existing.client_secret };
+      }
+      await sb.from("checkout_sessions").update({ status: "expired" }).eq("id", reusable.id);
+    }
+    const { count } = await sb.from("checkout_sessions").select("id", { count: "exact", head: true })
+      .eq("session_key", input.sessionKey).gte("created_at", new Date(Date.now() - 10 * 60_000).toISOString());
+    if ((count ?? 0) >= 6) throw new CheckoutUnavailableError("too many checkout attempts");
+  }
 
   const { data: row, error } = await sb.from("checkout_sessions").insert({
     origin: input.privatePageSlug && attribution.source === "private_page" ? "private_page" : input.origin,
@@ -100,7 +177,7 @@ export async function createCheckoutSession(input: {
     affiliate_id: attribution.affiliateId, referral_session_id: attribution.referralSessionId,
     attribution_source: attribution.source, link_id: attribution.linkId, campaign_id: attribution.campaignId,
     private_page_id: attribution.privatePageId, session_key: input.sessionKey, locale: input.locale,
-    promo_code_id: promo?.id ?? null, catalog_amount_cents: offer.price_cents,
+    promo_code_id: promo?.id ?? null, catalog_amount_cents: selectedPrice.amountCents,
     discount_amount_cents: promoDiscountCents, discount_rate: promo?.discountRate ?? 0,
     livemode: stripeMode() === "live",
   }).select("id").single();
@@ -110,48 +187,62 @@ export async function createCheckoutSession(input: {
     [CHECKOUT_METADATA_KEY]: row.id,
     product_id: offer.product_id,
     offer_id: offer.id,
+    currency,
     ...(attribution.affiliateId ? { affiliate_id: attribution.affiliateId } : {}),
     ...(attribution.referralSessionId ? { referral_id: attribution.referralSessionId } : {}),
     ...(attribution.campaignId ? { campaign_id: attribution.campaignId } : {}),
     ...(promo ? { promo_code_id: promo.id, promo_code: promo.code } : {}),
   };
   const recurring = offer.price_type === "recurring";
-  const coupon = promo && promoDiscountCents > 0 ? await stripe().coupons.create({
-    percent_off: promo.discountRate * 100,
-    duration: "once",
-    name: `${promo.code} — affiliate-funded`,
-    metadata: { promo_code_id: promo.id, affiliate_id: promo.affiliateId, checkout_id: row.id },
-  }, { idempotencyKey: `checkout-coupon:${row.id}` }) : null;
+  try {
+    const coupon = promo && promoDiscountCents > 0 ? await stripe().coupons.create({
+      percent_off: promo.discountRate * 100,
+      duration: recurring ? "forever" : "once",
+      name: `${promo.code} — affiliate-funded`,
+      metadata: { promo_code_id: promo.id, affiliate_id: promo.affiliateId, checkout_id: row.id },
+    }, { idempotencyKey: `checkout-coupon:${row.id}` }) : null;
 
-  const session = await stripe().checkout.sessions.create({
-    mode: recurring ? "subscription" : "payment",
-    line_items: [{ price: priceId, quantity: 1 }],
-    ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
-    client_reference_id: row.id,
-    metadata,
-    ...(recurring
-      ? { subscription_data: { metadata } }
-      : { invoice_creation: { enabled: true, invoice_data: { metadata } }, customer_creation: "always" as const }),
-    billing_address_collection: "required",
-    locale: checkoutLocale(input.locale),
-    success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&cancelled=1${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
-  }, { idempotencyKey: `checkout:${row.id}` });
+    const session = await stripe().checkout.sessions.create({
+      mode: recurring ? "subscription" : "payment",
+      ...(uiMode === "embedded" ? {
+        ui_mode: "embedded_page" as const,
+        redirect_on_completion: "if_required" as const,
+        return_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
+      } : {
+        success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&currency=${currency}&cancelled=1${input.referralCode ? `&referral=${encodeURIComponent(input.referralCode)}` : ""}${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
+      }),
+      currency: currency.toLowerCase(),
+      line_items: [selectedPrice.lineItem],
+      ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
+      client_reference_id: row.id,
+      metadata,
+      ...(recurring
+        ? { subscription_data: { metadata } }
+        : { invoice_creation: { enabled: true, invoice_data: { metadata } }, customer_creation: "always" as const }),
+      billing_address_collection: "required",
+      locale: checkoutLocale(input.locale),
+    }, { idempotencyKey: `checkout:${row.id}` });
 
-  await sb.from("checkout_sessions").update({
-    stripe_checkout_session_id: session.id, status: "open",
-    stripe_coupon_id: coupon?.id ?? null,
-    expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
-  }).eq("id", row.id);
+    await sb.from("checkout_sessions").update({
+      stripe_checkout_session_id: session.id, status: "open",
+      stripe_coupon_id: coupon?.id ?? null,
+      expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
+    }).eq("id", row.id);
 
-  if (attribution.affiliateId) {
-    await sb.from("activity_events").insert({ affiliate_id: attribution.affiliateId, type: "checkout_started", payload: {} });
+    if (attribution.affiliateId) {
+      await sb.from("activity_events").insert({ affiliate_id: attribution.affiliateId, type: "checkout_started", payload: {} });
+    }
+    log.info("payments", "checkout session created", {
+      checkout_id: row.id, attribution: attribution.source, attributed: !!attribution.affiliateId,
+    });
+    if (uiMode === "hosted" && !session.url) throw new Error("Stripe returned no checkout URL");
+    if (uiMode === "embedded" && !session.client_secret) throw new Error("Stripe returned no embedded checkout client secret");
+    return { sessionId: session.id, url: session.url, clientSecret: session.client_secret };
+  } catch (cause) {
+    await sb.from("checkout_sessions").update({ status: "failed" }).eq("id", row.id);
+    throw cause;
   }
-  log.info("payments", "checkout session created", {
-    checkout_id: row.id, attribution: attribution.source, attributed: !!attribution.affiliateId,
-  });
-  if (!session.url) throw new Error("Stripe returned no checkout URL");
-  return { url: session.url };
 }
 
 /** Checkout for a doubly accepted dossier. The immutable offer snapshot is the
@@ -184,7 +275,8 @@ export async function createDossierCheckoutSession(dossierId: string): Promise<{
   if (error || !row) throw new Error(`dossier checkout row: ${error?.message}`);
   const metadata = { [CHECKOUT_METADATA_KEY]: row.id, dossier_id: dossier.id, offer_id: dossier.offer_id };
   const coupon = snapshot.totalCents < snapshot.priceCents ? await stripe().coupons.create({
-    amount_off: snapshot.priceCents - snapshot.totalCents, currency: snapshot.currency.toLowerCase(), duration: "once",
+    percent_off: (snapshot.discountRate ?? 0) * 100,
+    duration: snapshot.interval === "one_time" ? "once" : "forever",
     name: snapshot.promoCode ?? `Dossier ${dossier.public_ref}`, metadata: { dossier_id: dossier.id, studio_checkout_id: row.id },
   }, { idempotencyKey: `dossier-coupon:${dossier.id}:${snapshot.totalCents}` }) : null;
   const session = await stripe().checkout.sessions.create({

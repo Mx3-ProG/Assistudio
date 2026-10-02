@@ -8,7 +8,7 @@ import { fmt } from "@/i18n/format";
 import { repo } from "@/lib/data";
 import { isValidCode } from "@/lib/attribution";
 import { isDemoMode, isStripeConfigured } from "@/lib/env";
-import { isOfferTier } from "@/lib/offers";
+import { isBillingCadence, isOfferTier } from "@/lib/offers";
 import { cn } from "@/lib/cn";
 import { Navbar } from "@/components/marketing/navbar";
 import { Notice } from "@/components/ui/primitives";
@@ -38,18 +38,23 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
   const t = await getDictionary(locale);
   const C = t.checkout;
   const page = typeof sp.page === "string" && isValidCode(sp.page) ? sp.page : null;
+  const referral = typeof sp.referral === "string" && isValidCode(sp.referral) ? sp.referral : null;
   const [offers, settings, privatePage] = await Promise.all([
     repo().listOffers(), repo().getSettings(), page ? repo().getPrivatePage(page) : Promise.resolve(null),
   ]);
   // ?offer=one|pro|premium — Premium when absent, as before the three offers existed.
   const tier = isOfferTier(sp.offer) ? sp.offer : "premium";
-  const offer = offers.find((o) => o.tier === tier) ?? offers[offers.length - 1];
+  const cadence = tier !== "one" && isBillingCadence(sp.billing) ? sp.billing : "annual";
+  const catalogOffer = offers.find((o) => o.tier === tier) ?? offers[offers.length - 1];
+  const offer = cadence === "monthly" && catalogOffer.interval !== "one_time"
+    ? { ...catalogOffer, priceCents: Math.round(catalogOffer.priceCents / 12), interval: "month" as const }
+    : catalogOffer;
   const requestedPromo = normalizePromoCode(sp.promo);
   const jar = await cookies();
   // Same resolution as the checkout: a typed code (promo or ambassador code) only
   // attributes when no tracked click / private page does.
   const resolved = !isDemoMode ? await resolveCheckoutAttribution({
-    sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null, privatePageSlug: page, code: requestedPromo,
+    sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null, privatePageSlug: page, referralCode: referral, code: requestedPromo,
   }) : null;
   const promo = resolved?.promo ?? null;
   const promoInvalid = !!requestedPromo && (isDemoMode || resolved?.code === "invalid");
@@ -57,12 +62,14 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
   const discount = promo ? discountCents(offer.priceCents, promo.discountRate) : 0;
   const finalPrice = offer.priceCents - discount;
   const plan = t.pricing.plans[offer.tier];
+  const origin = privatePage ? "private_page" : referral ? "affiliate_link" : typeof sp.via === "string" && sp.via === "dashboard" ? "dashboard_cta" : "public";
   const promoQuery = requestedPromo ? `&promo=${encodeURIComponent(requestedPromo)}` : "";
-  const hrefFor = (x: string) => `/${locale}/buy?offer=${x}${page ? `&page=${page}` : ""}${origin === "dashboard_cta" ? "&via=dashboard" : ""}${promoQuery}`;
+  const preservedQuery = `${page ? `&page=${page}` : ""}${referral ? `&referral=${encodeURIComponent(referral)}` : ""}${origin === "dashboard_cta" ? "&via=dashboard" : ""}${promoQuery}`;
+  const hrefFor = (x: string) => `/${locale}/buy?offer=${x}${x !== "one" ? `&billing=${cadence}` : ""}${preservedQuery}`;
+  const hrefForCadence = (next: "annual" | "monthly") => `/${locale}/buy?offer=${tier}&billing=${next}${preservedQuery}`;
   const referrer = privatePage?.referral.active ? privatePage.displayName ?? privatePage.referral.displayName : null;
   // Same conditions as startCheckout: never offer a payment button that can only fail.
   const unavailable = !!sp.unavailable || !settings.checkoutEnabled || isDemoMode || !isStripeConfigured;
-  const origin = privatePage ? "private_page" : typeof sp.via === "string" && sp.via === "dashboard" ? "dashboard_cta" : "public";
 
   return (
     <>
@@ -92,10 +99,18 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
           <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-accent">{plan.name}</p>
           <p className="mt-2 text-[20px] font-semibold leading-snug">{plan.tagline}</p>
           <p className="mt-2 text-[14px] leading-relaxed text-muted">{plan.subline}</p>
+          {offer.tier !== "one" && <nav aria-label={C.billingCadence} className="mt-5 grid grid-cols-2 gap-1 rounded-full border border-line bg-surface-2 p-1">
+            {(["monthly", "annual"] as const).map((value) => <Link key={value} href={hrefForCadence(value)} aria-current={cadence === value ? "page" : undefined}
+              className={cn("rounded-full px-3 py-2 text-center text-[13px] font-medium transition", cadence === value ? "bg-surface text-fg shadow-soft" : "text-muted hover:text-fg")}>
+              {value === "monthly" ? C.monthly : C.annual}
+            </Link>)}
+          </nav>}
           <div className="mt-5 [&_.text-white\/65]:text-muted [&_.text-emerald-400]:text-success"><OfferPrice offer={offer} locale={locale} t={t} dark={false} featured /></div>
           <form method="get" className="mt-6 rounded-2xl border border-line bg-surface-2/60 p-4">
             <input type="hidden" name="offer" value={offer.tier} />
+            <input type="hidden" name="billing" value={cadence} />
             {page && <input type="hidden" name="page" value={page} />}
+            {referral && <input type="hidden" name="referral" value={referral} />}
             {origin === "dashboard_cta" && <input type="hidden" name="via" value="dashboard" />}
             <label htmlFor="promo" className="text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{C.promoLabel}</label>
             <div className="mt-2 flex gap-2">
@@ -117,7 +132,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
             <dl className="grid gap-2">
               <div className="flex justify-between gap-4 text-muted"><dt>{C.catalogPrice}</dt><dd className="tabular"><Money cents={offer.priceCents} sourceCurrency={offer.currency} /></dd></div>
               <div className="flex justify-between gap-4 text-success"><dt>{fmt(C.discountLine, { rate: formatPercent(promo.discountRate, locale, 0) })}</dt><dd className="tabular">−<Money cents={discount} sourceCurrency={offer.currency} /></dd></div>
-              <div className="flex justify-between gap-4 border-t border-success/20 pt-2 text-[15px] font-semibold"><dt>{C.totalToday}</dt><dd className="tabular"><Money cents={finalPrice} sourceCurrency={offer.currency} /></dd></div>
+              <div className="flex justify-between gap-4 border-t border-success/20 pt-2 text-[15px] font-semibold"><dt>{offer.recurring ? C.totalPerPayment : C.totalToday}</dt><dd className="tabular"><Money cents={finalPrice} sourceCurrency={offer.currency} /></dd></div>
             </dl>
             {offer.recurring && <p className="mt-2 text-[11px] text-muted">{C.renewalNotice}</p>}
           </div>}
@@ -150,7 +165,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
               </Link>
             </div>
           ) : (
-            <CheckoutButton locale={locale} page={page} promo={promo?.code ?? (resolved?.code === "attributed" ? requestedPromo : null)} origin={origin} offer={offer.tier} label={C.pay} pendingLabel={C.paying} />
+            <CheckoutButton locale={locale} page={page} referral={referral} promo={promo?.code ?? (resolved?.code === "attributed" ? requestedPromo : null)} origin={origin} offer={offer.tier} billing={cadence} label={C.pay} pendingLabel={C.paying} />
           )}
           <p className="mt-4 flex items-center justify-center gap-2 text-center text-[12px] text-muted"><Lock className="size-3.5" />{C.secure}</p>
         </section>

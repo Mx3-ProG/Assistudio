@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Locale } from "@/i18n/config";
 import type { CommercialDossier, DossierAcceptance, DossierDocument, DossierOfferSnapshot, DossierStatus, Session } from "@/lib/data/types";
-import { OFFER_LOOKUP_KEYS, type OfferTier } from "@/lib/offers";
+import { OFFER_LOOKUP_KEYS, offerLookupKey, type BillingCadence, type OfferTier } from "@/lib/offers";
 import { isDemoMode } from "@/lib/env";
 import { queueDirectEmail } from "@/lib/email/service";
 import { supabaseService } from "@/lib/supabase/server";
@@ -235,7 +235,7 @@ async function insertPdf(dossier: CommercialDossier, kind: DossierDocument["kind
   return data as unknown as Json;
 }
 
-export async function lockDossier(session: Session, id: string, input: { tier: OfferTier; scope: string; promoCode?: string | null; validDays?: number; legalIdentity: LegalIdentity }) {
+export async function lockDossier(session: Session, id: string, input: { tier: OfferTier; cadence: BillingCadence; scope: string; promoCode?: string | null; validDays?: number; legalIdentity: LegalIdentity }) {
   ensureStaff(session);
   if (isDemoMode) throw new DossierError("requires_supabase");
   const dossier = await getDossierForUser(session, id); if (!dossier || dossier.status !== "admin_review") throw new DossierError("stale_dossier_state");
@@ -243,7 +243,7 @@ export async function lockDossier(session: Session, id: string, input: { tier: O
   const sb = supabaseService();
   await sb.from("settings").upsert({ key: "studio.legal_identity", value: input.legalIdentity, is_public: false, description: "Required legal identity printed on contract documents", updated_by: session.userId });
   const [{ data: offer }, template, { data: briefTemplate }] = await Promise.all([
-    sb.from("offers").select("id,name,product_id,price_cents,currency,price_type,billing_interval,interval_count,stripe_price_id,stripe_lookup_key").eq("is_active", true).eq("stripe_lookup_key", OFFER_LOOKUP_KEYS[input.tier]).maybeSingle(),
+    sb.from("offers").select("id,name,product_id,price_cents,currency,price_type,billing_interval,interval_count,stripe_price_id,stripe_lookup_key").eq("is_active", true).eq("stripe_lookup_key", offerLookupKey(input.tier, input.cadence)).maybeSingle(),
     publishedTemplate(dossier.locale),
     sb.from("contract_templates").select("id,version").eq("kind", "brief").eq("locale", dossier.locale).eq("status", "published").maybeSingle(),
   ]);

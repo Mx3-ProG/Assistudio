@@ -34,7 +34,7 @@ insert into public.checkout_sessions (
 )
 select o.id, o.product_id, a.id, pc.id, 600000, 60000, 0.10, 'affiliate_link'
   from public.offers o, public.affiliates a, public.affiliate_promo_codes pc
- where o.stripe_lookup_key = 'studio_yearly_eur'
+ where o.stripe_lookup_key = 'assistudio_premium_yearly_eur'
    and a.profile_id = '00000000-0000-0000-0000-00000000d002'
    and pc.affiliate_id = a.id and pc.code = 'CLIENT10';
 
@@ -46,13 +46,13 @@ insert into public.sales (
 select c.id, o.id, a.id, 'new', 'paid', 540000, 540000, 'EUR', now(), 'pi_promo_test', ch.id
   from public.customers c, public.offers o, public.affiliates a, public.checkout_sessions ch
  where c.email = 'promo-buyer@test.invalid'
-   and o.stripe_lookup_key = 'studio_yearly_eur'
+   and o.stripe_lookup_key = 'assistudio_premium_yearly_eur'
    and a.profile_id = '00000000-0000-0000-0000-00000000d002'
    and ch.affiliate_id = a.id and ch.promo_code_id is not null;
 
 select pg_temp.assert((select catalog_amount_cents = 600000 and discount_amount_cents = 60000 and discount_rate = 0.10
   from public.sales where provider_payment_id = 'pi_promo_test'),
-  'the sale preserves catalog price and first-payment discount');
+  'the sale preserves catalog price and the recurring discount snapshot');
 select pg_temp.assert((select amount_cents from public.commissions where commission_role = 'direct'
   and sale_id = (select id from public.sales where provider_payment_id = 'pi_promo_test')) = 90000,
   '10% customer discount reduces the 25% direct commission to 15%');
@@ -62,5 +62,28 @@ select pg_temp.assert((select amount_cents from public.commissions where commiss
 select pg_temp.assert((select count(*) from public.sales where promo_code_id =
   (select id from public.affiliate_promo_codes where code = 'CLIENT10')) = 1,
   'promo usage is auditable from paid sales');
+
+insert into public.sales (
+  customer_id, offer_id, affiliate_id, subscription_id, kind, status, gross_amount_cents,
+  net_amount_cents, currency, paid_at, provider_payment_id, checkout_session_id
+)
+select c.id, o.id, a.id, s.id, 'renewal', 'paid', 540000, 540000, 'EUR', now(), 'pi_promo_renewal', ch.id
+  from public.customers c, public.offers o, public.affiliates a, public.checkout_sessions ch,
+       public.subscriptions s
+ where c.email = 'promo-buyer@test.invalid'
+   and o.stripe_lookup_key = 'assistudio_premium_yearly_eur'
+   and a.profile_id = '00000000-0000-0000-0000-00000000d002'
+   and ch.affiliate_id = a.id and ch.promo_code_id is not null
+   and s.affiliate_id = a.id and s.offer_id = o.id;
+
+select pg_temp.assert((select discount_amount_cents = 60000 and discount_rate = 0.10
+  from public.sales where provider_payment_id = 'pi_promo_renewal'),
+  'the recurring payment keeps the promotion snapshot');
+select pg_temp.assert((select amount_cents from public.commissions where commission_role = 'direct'
+  and sale_id = (select id from public.sales where provider_payment_id = 'pi_promo_renewal')) = 90000,
+  'the recurring discount reduces the renewal commission to 15% of catalog price');
+select pg_temp.assert((select amount_cents from public.project_next_commission(
+  (select subscription_id from public.sales where provider_payment_id = 'pi_promo_renewal'))) = 90000,
+  'the recurring dashboard projects the same discounted commission');
 
 rollback;
