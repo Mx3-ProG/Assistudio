@@ -62,6 +62,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
       { href: base, label: n.overview, icon: LayoutGrid },
       { href: `${base}/messages`, label: t.msg.nav, icon: MessageCircle, badge: messages.unread },
       { href: `${base}/help`, label: t.net.help.nav, icon: LifeBuoy, badge: help },
+      ...(isStaff ? [{ href: `/${locale}/admin`, label: n.admin, icon: Shield, badge: staffHelp }] : []),
     ] },
     {
       // V0.4: the copilot is the entry point; the V0 pages it replaces (sales kit,
@@ -90,10 +91,8 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
     {
       label: n.groupAccount,
       items: [
-        { href: `${base}/help`, label: t.net.help.nav, icon: LifeBuoy, badge: help },
         { href: `${base}/notifications`, label: n.notifications, icon: Bell, badge: unread },
         { href: `${base}/settings`, label: n.settings, icon: Settings },
-        ...(isStaff ? [{ href: `/${locale}/admin`, label: n.admin, icon: Shield, badge: staffHelp }] : []),
       ],
     },
   ];
@@ -159,6 +158,14 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
             <div className="hidden lg:block" />
             <div className="flex items-center gap-2">
               <div className="hidden sm:flex sm:items-center sm:gap-2"><LocaleSwitcher /><ThemeToggle /></div>
+              {/* Staff: one click to the back office, with open help requests. */}
+              {isStaff && (
+                <Link href={`/${locale}/admin`} aria-label={staffHelp > 0 ? `${n.admin} (${staffHelp})` : n.admin}
+                  title={n.admin} className="relative inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-2.5 text-[13px] font-semibold text-bg transition hover:opacity-90 sm:px-3">
+                  <Shield className="size-4" /><span className="hidden sm:inline">{n.admin}</span>
+                  <RedCount n={staffHelp} className="absolute -end-1 -top-1 ring-2 ring-bg" />
+                </Link>
+              )}
               {/* Help carries the current page so the team knows where the partner was. */}
               <BadgeIcon href={`${base}/help?from=${encodeURIComponent(pathname)}`} icon={LifeBuoy} count={help} label={t.net.help.nav} />
               <BadgeIcon href={`${base}/messages`} icon={MessageCircle} count={messages.unread} label={t.msg.nav} />

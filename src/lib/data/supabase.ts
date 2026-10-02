@@ -192,7 +192,7 @@ async function provisionDirect(svc: Svc, id: string, email: string, meta: Record
   }
 }
 
-const ADMIN_SALE_COLS = "*, customers(public_ref, company_name), commissions(amount_cents, status), campaigns(name, source), affiliates(id, profiles(full_name)), subscriptions(current_period_end, status)";
+const ADMIN_SALE_COLS = "*, customers(public_ref, company_name), commissions(amount_cents, status), campaigns(name, source), affiliates(id, profiles!affiliates_profile_id_fkey(full_name)), subscriptions(current_period_end, status)";
 const toAdminSale = (r: any): AdminSaleRow => ({
   id: r.id, ref: r.public_ref, customerRef: r.customers?.public_ref ?? "—", customerName: r.customers?.company_name ?? null,
   product: "Studio ATS", date: r.created_at, status: r.status, kind: r.kind, amountCents: r.gross_amount_cents,
@@ -201,7 +201,7 @@ const toAdminSale = (r: any): AdminSaleRow => ({
   source: r.campaigns?.source ?? null, campaign: r.campaigns?.name ?? null,
   affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, isDemo: r.is_demo,
 });
-const ADMIN_COMMISSION_COLS = "*, sales(public_ref, customers(public_ref)), affiliates(profiles(full_name))";
+const ADMIN_COMMISSION_COLS = "*, sales(public_ref, customers(public_ref)), affiliates!commissions_affiliate_id_fkey(profiles!affiliates_profile_id_fkey(full_name))";
 const toAdminCommission = (r: any): AdminCommissionRow => ({
   ...toCommission({ ...r, sales: { public_ref: r.sales?.public_ref, customer_ref: r.sales?.customers?.public_ref } }),
   affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—", kind: r.kind ?? null,
@@ -214,7 +214,7 @@ const toAdminLead = (r: any): AdminLeadRow => ({
 const toPayout = (r: any): Payout => ({
   id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path,
 });
-const HELP_COLS = "*, affiliates(profiles(full_name, email))";
+const HELP_COLS = "*, affiliates(profiles!affiliates_profile_id_fkey(full_name, email))";
 const toHelp = (r: any): HelpRequest => ({
   id: r.id, ref: r.public_ref, affiliateId: r.affiliate_id,
   affiliateName: r.affiliates?.profiles?.full_name || r.affiliates?.profiles?.email || "—", affiliateEmail: r.affiliates?.profiles?.email ?? "",
@@ -976,7 +976,7 @@ export const supabaseRepo: Repo = {
 
   async adminListAffiliates() {
     const sb = await supabaseServer();
-    const rows = check(await sb.from("affiliates").select("*, profiles(full_name, email), commissions(status, amount_cents), sales(status)").is("deleted_at", null).order("created_at", { ascending: false })) as any[];
+    const rows = check(await sb.from("affiliates").select("*, profiles!affiliates_profile_id_fkey(full_name, email), commissions!commissions_affiliate_id_fkey(status, amount_cents), sales(status)").is("deleted_at", null).order("created_at", { ascending: false })) as any[];
     return rows.map((r): AdminAffiliateRow => ({
       id: r.id, profileId: r.profile_id, name: r.profiles?.full_name ?? "—", email: r.profiles?.email ?? "—", code: r.code, status: r.status, country: r.country,
       sales: (r.sales ?? []).filter((x: any) => x.status === "paid").length,
@@ -1003,7 +1003,7 @@ export const supabaseRepo: Repo = {
 
   async adminListLeads() {
     const sb = await supabaseServer();
-    return (check(await sb.from("leads").select("*, affiliates(profiles(full_name))").is("deleted_at", null).order("created_at", { ascending: false }).limit(300)) as any[]).map(toAdminLead);
+    return (check(await sb.from("leads").select("*, affiliates(profiles!affiliates_profile_id_fkey(full_name))").is("deleted_at", null).order("created_at", { ascending: false }).limit(300)) as any[]).map(toAdminLead);
   },
 
   async adminCreateSaleFromLead(_s, leadId, reason) {
@@ -1061,7 +1061,7 @@ export const supabaseRepo: Repo = {
   async adminFinanceOptions() {
     const sb = await supabaseServer();
     const [affs, products, campaigns, countries] = await Promise.all([
-      sb.from("affiliates").select("id, profiles(full_name)").is("deleted_at", null),
+      sb.from("affiliates").select("id, profiles!affiliates_profile_id_fkey(full_name)").is("deleted_at", null),
       sb.from("products").select("id, name").is("deleted_at", null).order("sort"),
       sb.from("campaigns").select("id, name").is("archived_at", null).order("name").limit(500),
       sb.from("customers").select("country").not("country", "is", null).limit(5000),
@@ -1077,7 +1077,7 @@ export const supabaseRepo: Repo = {
   async adminPayoutCandidates() {
     const sb = await supabaseServer();
     const [rows, settings] = await Promise.all([
-      sb.from("commissions").select("affiliate_id, amount_cents, affiliates(profiles(full_name))").eq("status", "available").is("payout_id", null),
+      sb.from("commissions").select("affiliate_id, amount_cents, affiliates!commissions_affiliate_id_fkey(profiles!affiliates_profile_id_fkey(full_name))").eq("status", "available").is("payout_id", null),
       supabaseRepo.getSettings(),
     ]);
     const m = new Map<string, { affiliateId: string; affiliateName: string; availableCents: number }>();
@@ -1090,7 +1090,7 @@ export const supabaseRepo: Repo = {
   },
   async adminListPayouts() {
     const sb = await supabaseServer();
-    return (check(await sb.from("payouts").select("*, affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
+    return (check(await sb.from("payouts").select("*, affiliates(profiles!affiliates_profile_id_fkey(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
       .map((r) => ({ ...toPayout(r), affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
   },
   async adminCreatePayout(_s, affiliateId) {
@@ -1104,7 +1104,7 @@ export const supabaseRepo: Repo = {
 
   async adminListFraudFlags() {
     const sb = await supabaseServer();
-    return (check(await sb.from("fraud_flags").select("*, affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
+    return (check(await sb.from("fraud_flags").select("*, affiliates(profiles!affiliates_profile_id_fkey(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
       .map((r) => ({ id: r.id, type: r.type, severity: r.severity, affiliateName: r.affiliates?.profiles?.full_name ?? null, entity: r.entity, entityId: r.entity_id, signals: r.signals, status: r.status, decisionNote: r.decision_note, createdAt: r.created_at }));
   },
   async adminReviewFraudFlag(_s, id, status, note) {
@@ -1190,7 +1190,7 @@ export const supabaseRepo: Repo = {
   },
   async adminListSalesPages() {
     const sb = await supabaseServer();
-    return (check(await sb.from("private_sales_pages").select("*, affiliates(profiles(full_name))").order("created_at", { ascending: false }).limit(500)) as any[])
+    return (check(await sb.from("private_sales_pages").select("*, affiliates(profiles!affiliates_profile_id_fkey(full_name))").order("created_at", { ascending: false }).limit(500)) as any[])
       .map((r) => ({ ...toPage(r), affiliateName: r.affiliates?.profiles?.full_name ?? null }));
   },
   async adminSetSalesPageActive(s, id, active, reason) {
@@ -1206,7 +1206,7 @@ export const supabaseRepo: Repo = {
     const sb = await supabaseServer();
     const [prospects, leads, sales, commissions, payouts, help] = await Promise.all([
       sb.from("prospects").select("*").eq("affiliate_id", affiliateId).is("deleted_at", null).order("updated_at", { ascending: false }).limit(500),
-      sb.from("leads").select("*, affiliates(profiles(full_name))").eq("affiliate_id", affiliateId).is("deleted_at", null).order("created_at", { ascending: false }).limit(300),
+      sb.from("leads").select("*, affiliates(profiles!affiliates_profile_id_fkey(full_name))").eq("affiliate_id", affiliateId).is("deleted_at", null).order("created_at", { ascending: false }).limit(300),
       sb.from("sales").select(ADMIN_SALE_COLS).eq("affiliate_id", affiliateId).order("created_at", { ascending: false }).limit(300),
       sb.from("commissions").select(ADMIN_COMMISSION_COLS).eq("affiliate_id", affiliateId).order("created_at", { ascending: false }).limit(500),
       sb.from("payouts").select("*").eq("affiliate_id", affiliateId).order("created_at", { ascending: false }).limit(100),
