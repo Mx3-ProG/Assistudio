@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { Check, Mail, Phone } from "lucide-react";
 import { getDictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/types";
 import { repo } from "@/lib/data";
+import type { Offer } from "@/lib/data/types";
 import { isValidCode } from "@/lib/attribution";
-import { marketContent } from "@/content/markets";
+import { marketContent, type MarketContent } from "@/content/markets";
 import { pickLocale, forTarget, isKind } from "@/lib/sales/content";
 import { composeLanding, cleanAdvisor } from "@/lib/sales/landing";
 import { formatMoney } from "@/lib/money";
@@ -16,26 +18,41 @@ import { LeadForm } from "@/components/marketing/lead-form";
 import { CheckoutButton } from "@/components/marketing/checkout-button";
 import { I18nProvider } from "@/components/providers";
 import { PublicCta } from "@/components/sales-center/public-cta";
+import { StudioContent } from "@/components/marketing/studio-content";
 
 export const metadata: Metadata = { robots: { index: false, follow: false, nocache: true } };
 
 export default async function AffiliateSalesPage({ params }: PageProps<"/[locale]/a/[affiliate]/[[...target]]">) {
-  const { affiliate, target } = await params;
+  const { locale: requestedLocale, affiliate, target } = await params;
   if (!isValidCode(affiliate) || (target?.length ?? 0) > 1) notFound();
   const pathKey = target?.[0] ?? null;
   const r = repo();
   const page = await r.getSalesPage(affiliate, pathKey);
-  if (!page) notFound();
+  if (!page) {
+    const referral = await r.resolveReferral(affiliate);
+    if (!referral?.active) notFound();
+    const locale = requestedLocale as Locale;
+    const [t, offers, markets] = await Promise.all([getDictionary(locale), r.listOffers(), r.listMarkets()]);
+    const market = pathKey ? markets.find((m) => m.slug === pathKey) : null;
+    if (pathKey && !market) notFound();
+    return <FallbackAffiliatePage t={t} locale={locale} offers={offers} referrerName={referral.displayName}
+      market={market ? marketContent(market, locale) : null} referral={affiliate}/>;
+  }
   const locale = page.locale as Locale;
-  const [t, all, markets, products] = await Promise.all([
+  const [t, all, markets, products, offers] = await Promise.all([
     getDictionary(locale),
     r.listPublishedContent(["page_template", "page_variant", "sales_angle", "knowledge", "objection"]),
-    r.listMarkets(), r.listProducts(),
+    r.listMarkets(), r.listProducts(), r.listOffers(),
   ]);
   const content = pickLocale(all, locale);
   const template = content.find((x) => isKind(x, "page_template") && x.key === page.templateKey);
-  if (!template || !isKind(template, "page_template")) notFound();
   const market = markets.find((m) => m.id === page.marketId) ?? null;
+  // Stale or not-yet-seeded content must not turn a valid affiliate URL into a
+  // 404. The automatic Studio page remains available while content is fixed.
+  if (!template || !isKind(template, "page_template")) {
+    return <FallbackAffiliatePage t={t} locale={locale} offers={offers} referrerName={page.referral.displayName}
+      market={market ? marketContent(market, locale) : null} slug={page.slug}/>;
+  }
   const targetKey = market?.slug ?? null;
   const variant = forTarget(content.filter((x) => isKind(x, "page_variant")), targetKey)
     .find((x) => x.body.template === template.key) ?? null;
@@ -82,3 +99,15 @@ export default async function AffiliateSalesPage({ params }: PageProps<"/[locale
 
 function Section({title,children}:{title:string;children:React.ReactNode}){return <section className="mb-16"><h2 className="mb-5 text-[28px] font-semibold tracking-tight sm:text-[34px]">{title}</h2><div className="text-[16px] leading-relaxed text-fg-2">{children}</div></section>}
 function Points({items}:{items:string[]}){return items.length?<ul className="mt-5 grid gap-3 sm:grid-cols-2">{items.map(x=><li key={x} className="flex gap-3 rounded-2xl bg-surface-2 p-4"><Check className="mt-0.5 size-4 shrink-0 text-success"/><span>{x}</span></li>)}</ul>:null}
+
+function FallbackAffiliatePage({ t, locale, offers, referrerName, market, slug, referral }: {
+  t: Dictionary; locale: Locale; offers: Offer[]; referrerName: string | null; market: MarketContent | null;
+  slug?: string; referral?: string;
+}) {
+  return <I18nProvider locale={locale} dict={t}><div lang={locale} dir={locale === "ar" ? "rtl" : "ltr"}>
+    <PageBeacon slug={slug} referral={referral} /><Navbar variant="studio" />
+    <StudioContent t={t} locale={locale} offers={offers} page={slug} referrerName={referrerName}
+      market={market} pitch="default" ctaVariant="request" />
+    <Footer t={t} locale={locale}/>
+  </div></I18nProvider>;
+}

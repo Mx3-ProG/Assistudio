@@ -4,6 +4,7 @@ import { repo } from "@/lib/data";
 import { isValidCode } from "@/lib/attribution";
 import { defaultLocale, resolveLocale, LOCALE_COOKIE } from "@/i18n/config";
 import { trackReferral } from "@/lib/tracking";
+import { referralDestination } from "@/lib/referral-destination";
 
 /**
  * Affiliate entry point: /s/{slug|code|linkCode}[?to=/fr/studio&utm_…]
@@ -14,15 +15,15 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/s/[code]">) {
   const locale = resolveLocale(req.cookies.get(LOCALE_COOKIE)?.value)
     ?? resolveLocale(req.headers.get("accept-language")?.split(",")[0]) ?? defaultLocale;
 
-  // Only same-origin relative destinations (no open redirect).
   const to = req.nextUrl.searchParams.get("to");
-  const dest = to && to.startsWith("/") && !to.startsWith("//") && !to.includes("\\") ? to : `/${locale}/studio`;
+  const target = isValidCode(code) ? await repo().resolveReferral(code) : null;
+  // A bare affiliate link opens that affiliate's public page. Explicit
+  // same-origin destinations keep taking priority.
+  const dest = referralDestination(locale, target, to);
   const res = NextResponse.redirect(new URL(dest, req.nextUrl.origin), 307);
   res.headers.set("X-Robots-Tag", "noindex, nofollow");
   res.headers.set("Cache-Control", "no-store");
 
-  if (!isValidCode(code)) return res;
-  const target = await repo().resolveReferral(code);
   if (!target) return res;
 
   // Cookies must be set before responding; the DB write can finish after.

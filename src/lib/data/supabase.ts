@@ -154,6 +154,17 @@ async function provisionDirect(svc: Svc, id: string, email: string, meta: Record
     country: meta.country ?? null, application: meta.application ?? {}, sponsor_id: sponsorId,
   }, { onConflict: "profile_id", ignoreDuplicates: true });
   if (ae) throw new StepError("provision_affiliate", ae);
+  const { data: affiliate, error: affiliateError } = await svc.from("affiliates").select("id").eq("profile_id", id).single();
+  if (affiliateError) throw new StepError("provision_affiliate_lookup", affiliateError);
+  const { data: defaultLink, error: linkLookupError } = await svc.from("affiliate_links").select("id")
+    .eq("affiliate_id", affiliate.id).eq("is_default", true).maybeSingle();
+  if (linkLookupError) throw new StepError("provision_link_lookup", linkLookupError);
+  if (!defaultLink) {
+    const { error: linkError } = await svc.from("affiliate_links").insert({
+      affiliate_id: affiliate.id, name: "Default", is_default: true,
+    });
+    if (linkError && !isDuplicate(linkError)) throw new StepError("provision_link", linkError);
+  }
 }
 
 export const supabaseRepo: Repo = {
@@ -256,12 +267,16 @@ export const supabaseRepo: Repo = {
     const sb = supabaseService();
     const key = codeOrSlug.trim();
     if (!isValidCode(key)) return null;
+    // `affiliates` also references `profiles` through `approved_by`, so the
+    // Data API cannot infer which relationship to embed. Name the profile FK
+    // explicitly and alias the result to keep the mapping unambiguous.
+    const affiliateWithProfile = "id, code, status, profile_id, profile:profiles!affiliates_profile_id_fkey(display_name, full_name)";
     const link = check(await sb.from("affiliate_links").select("id, code, campaign_id, affiliate_id").ilike("code", key).is("archived_at", null).maybeSingle()) as any;
     let aff: any;
     if (link) {
-      aff = check(await sb.from("affiliates").select("id, code, status, profile_id, profiles(display_name, full_name)").eq("id", link.affiliate_id).single());
+      aff = check(await sb.from("affiliates").select(affiliateWithProfile).eq("id", link.affiliate_id).single());
     } else {
-      aff = check(await sb.from("affiliates").select("id, code, status, profile_id, profiles(display_name, full_name)")
+      aff = check(await sb.from("affiliates").select(affiliateWithProfile)
         .or(`code.eq.${key.toUpperCase()},slug.eq.${key.toLowerCase()}`).is("deleted_at", null).maybeSingle());
     }
     if (!aff) return null;
@@ -269,7 +284,7 @@ export const supabaseRepo: Repo = {
     const target: ReferralTarget = {
       affiliateId: aff.id, affiliateCode: aff.code, linkId: def?.id ?? null, linkCode: def?.code ?? null,
       campaignId: link?.campaign_id ?? null,
-      displayName: aff.profiles?.display_name || (aff.profiles?.full_name ?? "").split(" ")[0] || null,
+      displayName: aff.profile?.display_name || (aff.profile?.full_name ?? "").split(" ")[0] || null,
       active: aff.status === "approved",
     };
     return target;

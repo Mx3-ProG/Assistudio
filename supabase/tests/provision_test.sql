@@ -13,6 +13,9 @@ update public.affiliates set status = 'approved', code = 'SPONSP'
  where profile_id = '00000000-0000-0000-0000-00000000e001';
 select pg_temp.assert(exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-00000000e001'),
   'the trigger (when present) provisions the profile');
+select pg_temp.assert((select count(*) = 1 from public.affiliate_links l join public.affiliates a on a.id = l.affiliate_id
+                        where a.profile_id = '00000000-0000-0000-0000-00000000e001' and l.is_default),
+  'affiliate creation immediately creates one default tracking link');
 
 -- Accounts created while the trigger is missing (auth.users not owned by the migration role).
 alter table auth.users disable trigger on_auth_user_created;
@@ -34,10 +37,15 @@ select pg_temp.assert((select a.status = 'approved' and a.country = 'FR' and a.a
                          from public.affiliates a join public.affiliates s on s.profile_id = '00000000-0000-0000-0000-00000000e001'
                         where a.profile_id = '00000000-0000-0000-0000-00000000e002'),
   'provision_account creates an active affiliate account with its sponsor');
+select pg_temp.assert((select count(*) = 1 from public.affiliate_links l join public.affiliates a on a.id = l.affiliate_id
+                        where a.profile_id = '00000000-0000-0000-0000-00000000e002' and l.is_default),
+  'provision_account creates the default tracking link in the same flow');
 select public.provision_account('00000000-0000-0000-0000-00000000e002', 'new.partner@test.invalid', '{"full_name":"Changed"}');
 select pg_temp.assert((select count(*) = 1 from public.affiliates where profile_id = '00000000-0000-0000-0000-00000000e002')
-  and (select full_name = 'New Partner' from public.profiles where id = '00000000-0000-0000-0000-00000000e002'),
-  'provision_account is idempotent (no duplicate, no overwrite)');
+  and (select full_name = 'New Partner' from public.profiles where id = '00000000-0000-0000-0000-00000000e002')
+  and (select count(*) = 1 from public.affiliate_links l join public.affiliates a on a.id = l.affiliate_id
+        where a.profile_id = '00000000-0000-0000-0000-00000000e002' and l.is_default),
+  'provision_account is idempotent (no duplicate account, link or overwrite)');
 
 -- ensure_profile (before a login code, on sign-in, in getSession)
 select pg_temp.assert((select count(*) = 1 and bool_and(role = 'affiliate' and not deleted)
@@ -45,6 +53,9 @@ select pg_temp.assert((select count(*) = 1 and bool_and(role = 'affiliate' and n
   'ensure_profile repairs an account created without profile (email case-insensitive)');
 select pg_temp.assert(exists (select 1 from public.affiliates where profile_id = '00000000-0000-0000-0000-00000000e003'),
   'ensure_profile also creates the affiliate application');
+select pg_temp.assert((select count(*) = 1 from public.affiliate_links l join public.affiliates a on a.id = l.affiliate_id
+                        where a.profile_id = '00000000-0000-0000-0000-00000000e003' and l.is_default),
+  'ensure_profile also creates the default tracking link');
 select pg_temp.assert((select count(*) from public.ensure_profile('nobody@test.invalid')) = 0,
   'ensure_profile returns nothing for an unknown address');
 update public.profiles set deleted_at = now() where id = '00000000-0000-0000-0000-00000000e003';
