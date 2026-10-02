@@ -38,6 +38,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
   const t = await getDictionary(locale);
   const C = t.checkout;
   const page = typeof sp.page === "string" && isValidCode(sp.page) ? sp.page : null;
+  const referral = typeof sp.referral === "string" && isValidCode(sp.referral) ? sp.referral : null;
   const [offers, settings, privatePage] = await Promise.all([
     repo().listOffers(), repo().getSettings(), page ? repo().getPrivatePage(page) : Promise.resolve(null),
   ]);
@@ -53,7 +54,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
   // Same resolution as the checkout: a typed code (promo or ambassador code) only
   // attributes when no tracked click / private page does.
   const resolved = !isDemoMode ? await resolveCheckoutAttribution({
-    sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null, privatePageSlug: page, code: requestedPromo,
+    sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null, privatePageSlug: page, referralCode: referral, code: requestedPromo,
   }) : null;
   const promo = resolved?.promo ?? null;
   const promoInvalid = !!requestedPromo && (isDemoMode || resolved?.code === "invalid");
@@ -61,9 +62,9 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
   const discount = promo ? discountCents(offer.priceCents, promo.discountRate) : 0;
   const finalPrice = offer.priceCents - discount;
   const plan = t.pricing.plans[offer.tier];
-  const origin = privatePage ? "private_page" : typeof sp.via === "string" && sp.via === "dashboard" ? "dashboard_cta" : "public";
+  const origin = privatePage ? "private_page" : referral ? "affiliate_link" : typeof sp.via === "string" && sp.via === "dashboard" ? "dashboard_cta" : "public";
   const promoQuery = requestedPromo ? `&promo=${encodeURIComponent(requestedPromo)}` : "";
-  const preservedQuery = `${page ? `&page=${page}` : ""}${origin === "dashboard_cta" ? "&via=dashboard" : ""}${promoQuery}`;
+  const preservedQuery = `${page ? `&page=${page}` : ""}${referral ? `&referral=${encodeURIComponent(referral)}` : ""}${origin === "dashboard_cta" ? "&via=dashboard" : ""}${promoQuery}`;
   const hrefFor = (x: string) => `/${locale}/buy?offer=${x}${x !== "one" ? `&billing=${cadence}` : ""}${preservedQuery}`;
   const hrefForCadence = (next: "annual" | "monthly") => `/${locale}/buy?offer=${tier}&billing=${next}${preservedQuery}`;
   const referrer = privatePage?.referral.active ? privatePage.displayName ?? privatePage.referral.displayName : null;
@@ -109,6 +110,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
             <input type="hidden" name="offer" value={offer.tier} />
             <input type="hidden" name="billing" value={cadence} />
             {page && <input type="hidden" name="page" value={page} />}
+            {referral && <input type="hidden" name="referral" value={referral} />}
             {origin === "dashboard_cta" && <input type="hidden" name="via" value="dashboard" />}
             <label htmlFor="promo" className="text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{C.promoLabel}</label>
             <div className="mt-2 flex gap-2">
@@ -163,7 +165,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
               </Link>
             </div>
           ) : (
-            <CheckoutButton locale={locale} page={page} promo={promo?.code ?? (resolved?.code === "attributed" ? requestedPromo : null)} origin={origin} offer={offer.tier} billing={cadence} label={C.pay} pendingLabel={C.paying} />
+            <CheckoutButton locale={locale} page={page} referral={referral} promo={promo?.code ?? (resolved?.code === "attributed" ? requestedPromo : null)} origin={origin} offer={offer.tier} billing={cadence} label={C.pay} pendingLabel={C.paying} />
           )}
           <p className="mt-4 flex items-center justify-center gap-2 text-center text-[12px] text-muted"><Lock className="size-3.5" />{C.secure}</p>
         </section>

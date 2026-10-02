@@ -34,7 +34,7 @@ insert into public.sales (customer_id, offer_id, affiliate_id, kind, status, gro
 select c.id, o.id, a.id, 'new', 'paid', 600000, 600000, 'EUR', now(), 'pi_referral_test'
   from public.customers c, public.offers o, public.affiliates a
  where c.email = 'buyer-referral@test.invalid'
-   and o.stripe_lookup_key = 'studio_yearly_eur'
+   and o.stripe_lookup_key = 'assistudio_premium_yearly_eur'
    and a.profile_id = '00000000-0000-0000-0000-00000000f002';
 
 select pg_temp.assert((select amount_cents from public.commissions where commission_role = 'direct'

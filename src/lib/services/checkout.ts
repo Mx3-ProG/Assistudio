@@ -84,6 +84,7 @@ export async function createCheckoutSession(input: {
   origin: CheckoutOrigin;
   sessionKey: string | null;
   privatePageSlug?: string | null;
+  referralCode?: string | null;
   productSlug?: string;
   tier: OfferTier;
   cadence?: BillingCadence;
@@ -98,11 +99,38 @@ export async function createCheckoutSession(input: {
   const offer = await activeOffer(input.productSlug ?? "studio", input.tier, cadence);
   const [priceId, resolved] = await Promise.all([
     stripePriceFor(offer),
-    resolveCheckoutAttribution({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug, code: input.promoCode ?? null }),
+    resolveCheckoutAttribution({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug, referralCode: input.referralCode, code: input.promoCode ?? null }),
   ]);
   const { attribution, promo } = resolved;
   if (resolved.code === "invalid") throw new CheckoutUnavailableError("code does not match attribution");
   const promoDiscountCents = promo ? discountCents(offer.price_cents, promo.discountRate) : 0;
+  const uiMode = input.uiMode ?? "hosted";
+
+  // Reloading an embedded checkout must not create a new Stripe session and
+  // coupon each time. Reuse a recent open session for the same visitor and
+  // commercial context, then cap rapid context changes from that visitor.
+  if (input.sessionKey && /^[0-9a-f-]{36}$/.test(input.sessionKey)) {
+    const since = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data: recent } = await sb.from("checkout_sessions")
+      .select("id,stripe_checkout_session_id,affiliate_id,promo_code_id,locale")
+      .eq("session_key", input.sessionKey).eq("offer_id", offer.id).eq("status", "open")
+      .gte("created_at", since).order("created_at", { ascending: false }).limit(6);
+    const reusable = recent?.find((candidate) => candidate.stripe_checkout_session_id
+      && candidate.affiliate_id === attribution.affiliateId
+      && candidate.promo_code_id === (promo?.id ?? null)
+      && candidate.locale === input.locale);
+    if (reusable?.stripe_checkout_session_id) {
+      const existing = await stripe().checkout.sessions.retrieve(reusable.stripe_checkout_session_id).catch(() => null);
+      const usable = existing?.status === "open" && (uiMode === "embedded" ? !!existing.client_secret : !!existing.url);
+      if (existing && usable) {
+        return { sessionId: existing.id, url: existing.url, clientSecret: existing.client_secret };
+      }
+      await sb.from("checkout_sessions").update({ status: "expired" }).eq("id", reusable.id);
+    }
+    const { count } = await sb.from("checkout_sessions").select("id", { count: "exact", head: true })
+      .eq("session_key", input.sessionKey).gte("created_at", new Date(Date.now() - 10 * 60_000).toISOString());
+    if ((count ?? 0) >= 6) throw new CheckoutUnavailableError("too many checkout attempts");
+  }
 
   const { data: row, error } = await sb.from("checkout_sessions").insert({
     origin: input.privatePageSlug && attribution.source === "private_page" ? "private_page" : input.origin,
@@ -126,50 +154,54 @@ export async function createCheckoutSession(input: {
     ...(promo ? { promo_code_id: promo.id, promo_code: promo.code } : {}),
   };
   const recurring = offer.price_type === "recurring";
-  const uiMode = input.uiMode ?? "hosted";
-  const coupon = promo && promoDiscountCents > 0 ? await stripe().coupons.create({
-    percent_off: promo.discountRate * 100,
-    duration: recurring ? "forever" : "once",
-    name: `${promo.code} — affiliate-funded`,
-    metadata: { promo_code_id: promo.id, affiliate_id: promo.affiliateId, checkout_id: row.id },
-  }, { idempotencyKey: `checkout-coupon:${row.id}` }) : null;
+  try {
+    const coupon = promo && promoDiscountCents > 0 ? await stripe().coupons.create({
+      percent_off: promo.discountRate * 100,
+      duration: recurring ? "forever" : "once",
+      name: `${promo.code} — affiliate-funded`,
+      metadata: { promo_code_id: promo.id, affiliate_id: promo.affiliateId, checkout_id: row.id },
+    }, { idempotencyKey: `checkout-coupon:${row.id}` }) : null;
 
-  const session = await stripe().checkout.sessions.create({
-    mode: recurring ? "subscription" : "payment",
-    ...(uiMode === "embedded" ? {
-      ui_mode: "embedded_page" as const,
-      redirect_on_completion: "if_required" as const,
-      return_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-    } : {
-      success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&cancelled=1${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
-    }),
-    line_items: [{ price: priceId, quantity: 1 }],
-    ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
-    client_reference_id: row.id,
-    metadata,
-    ...(recurring
-      ? { subscription_data: { metadata } }
-      : { invoice_creation: { enabled: true, invoice_data: { metadata } }, customer_creation: "always" as const }),
-    billing_address_collection: "required",
-    locale: checkoutLocale(input.locale),
-  }, { idempotencyKey: `checkout:${row.id}` });
+    const session = await stripe().checkout.sessions.create({
+      mode: recurring ? "subscription" : "payment",
+      ...(uiMode === "embedded" ? {
+        ui_mode: "embedded_page" as const,
+        redirect_on_completion: "if_required" as const,
+        return_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
+      } : {
+        success_url: `${env.siteUrl}/${input.locale}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${env.siteUrl}/${input.locale}/buy?offer=${input.tier}&billing=${cadence}&cancelled=1${input.referralCode ? `&referral=${encodeURIComponent(input.referralCode)}` : ""}${input.promoCode ? `&promo=${encodeURIComponent(input.promoCode)}` : ""}`,
+      }),
+      line_items: [{ price: priceId, quantity: 1 }],
+      ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
+      client_reference_id: row.id,
+      metadata,
+      ...(recurring
+        ? { subscription_data: { metadata } }
+        : { invoice_creation: { enabled: true, invoice_data: { metadata } }, customer_creation: "always" as const }),
+      billing_address_collection: "required",
+      locale: checkoutLocale(input.locale),
+    }, { idempotencyKey: `checkout:${row.id}` });
 
-  await sb.from("checkout_sessions").update({
-    stripe_checkout_session_id: session.id, status: "open",
-    stripe_coupon_id: coupon?.id ?? null,
-    expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
-  }).eq("id", row.id);
+    await sb.from("checkout_sessions").update({
+      stripe_checkout_session_id: session.id, status: "open",
+      stripe_coupon_id: coupon?.id ?? null,
+      expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
+    }).eq("id", row.id);
 
-  if (attribution.affiliateId) {
-    await sb.from("activity_events").insert({ affiliate_id: attribution.affiliateId, type: "checkout_started", payload: {} });
+    if (attribution.affiliateId) {
+      await sb.from("activity_events").insert({ affiliate_id: attribution.affiliateId, type: "checkout_started", payload: {} });
+    }
+    log.info("payments", "checkout session created", {
+      checkout_id: row.id, attribution: attribution.source, attributed: !!attribution.affiliateId,
+    });
+    if (uiMode === "hosted" && !session.url) throw new Error("Stripe returned no checkout URL");
+    if (uiMode === "embedded" && !session.client_secret) throw new Error("Stripe returned no embedded checkout client secret");
+    return { sessionId: session.id, url: session.url, clientSecret: session.client_secret };
+  } catch (cause) {
+    await sb.from("checkout_sessions").update({ status: "failed" }).eq("id", row.id);
+    throw cause;
   }
-  log.info("payments", "checkout session created", {
-    checkout_id: row.id, attribution: attribution.source, attributed: !!attribution.affiliateId,
-  });
-  if (uiMode === "hosted" && !session.url) throw new Error("Stripe returned no checkout URL");
-  if (uiMode === "embedded" && !session.client_secret) throw new Error("Stripe returned no embedded checkout client secret");
-  return { sessionId: session.id, url: session.url, clientSecret: session.client_secret };
 }
 
 /** Checkout for a doubly accepted dossier. The immutable offer snapshot is the

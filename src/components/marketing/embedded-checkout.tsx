@@ -11,15 +11,17 @@ interface EmbeddedCheckoutInput {
   locale: string;
   origin: "public" | "affiliate_link" | "private_page" | "dashboard_cta";
   page: string | null;
+  referral: string | null;
   offer: "one" | "pro" | "premium";
   billing: "annual" | "monthly";
   promo: string | null;
 }
 
-export function EmbeddedCheckoutPanel({ publishableKey, input, loadingLabel, errorLabel }: {
+export function EmbeddedCheckoutPanel({ publishableKey, input, loadingLabel, retryLabel, errorLabel }: {
   publishableKey: string;
   input: EmbeddedCheckoutInput;
   loadingLabel: string;
+  retryLabel: string;
   errorLabel: string;
 }) {
   const router = useRouter();
@@ -49,7 +51,7 @@ export function EmbeddedCheckoutPanel({ publishableKey, input, loadingLabel, err
       <AlertCircle className="size-7 text-danger" />
       <p className="mt-3 max-w-sm text-[14px] leading-relaxed text-fg-2">{errorLabel}</p>
       <button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-full bg-fg px-5 py-2.5 text-[13px] font-medium text-bg">
-        {loadingLabel}
+        {retryLabel}
       </button>
     </div>;
   }

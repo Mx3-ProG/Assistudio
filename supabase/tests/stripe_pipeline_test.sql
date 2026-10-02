@@ -35,7 +35,7 @@ create or replace function pg_temp.inv(
     'billing_reason', p_reason, 'currency', 'eur', 'amount_paid', p_amount, 'amount_due', p_amount,
     'total_excluding_tax', coalesce(p_net, p_amount), 'tax', 0,
     'period_start', p_start, 'period_end', p_start + interval '1 year', 'paid_at', p_start,
-    'stripe_price_id', 'price_test_studio', 'lookup_key', 'studio_yearly_eur',
+    'stripe_price_id', 'price_test_studio', 'lookup_key', 'assistudio_premium_yearly_eur',
     'stripe_payment_intent_id', p_pi, 'stripe_charge_id', 'ch_' || p_pi, 'studio_checkout_id', p_checkout,
     'attempt_count', 1, 'livemode', false)
 $$;
@@ -48,7 +48,7 @@ create or replace function pg_temp.sub(
     'stripe_subscription_id', p_sub, 'stripe_customer_id', p_cus, 'status', p_status,
     'start_date', p_start, 'current_period_start', p_start, 'current_period_end', p_start + interval '1 year',
     'cancel_at_period_end', p_cancel_at_period_end, 'stripe_price_id', 'price_test_studio',
-    'lookup_key', 'studio_yearly_eur', 'studio_checkout_id', p_checkout, 'livemode', false)
+    'lookup_key', 'assistudio_premium_yearly_eur', 'studio_checkout_id', p_checkout, 'livemode', false)
 $$;
 
 create or replace function pg_temp.aff(p_email text) returns uuid language sql as $$
@@ -68,7 +68,7 @@ begin
                                         affiliate_id, attribution_source)
   select v_checkout, 'cs_' || p_n, 'open', 'public', o.id, o.product_id, p_affiliate,
          case when p_affiliate is null then 'none' else p_source end
-    from public.offers o where o.stripe_lookup_key = 'studio_yearly_eur';
+    from public.offers o where o.stripe_lookup_key = 'assistudio_premium_yearly_eur';
   perform public.stripe_checkout_completed(jsonb_build_object(
     'stripe_checkout_session_id', 'cs_' || p_n, 'studio_checkout_id', v_checkout,
     'stripe_subscription_id', 'sub_' || p_n, 'customer', pg_temp.cust('cus_' || p_n, 'client' || p_n || '@client.invalid')));
@@ -363,7 +363,7 @@ values ('Bob — 40%, first 12 months', pg_temp.aff('bob@test.invalid'), 'percen
 select pg_temp.act_as(null);
 insert into public.checkout_sessions (id, stripe_checkout_session_id, status, offer_id, product_id, affiliate_id, attribution_source)
 select 'bbbbbbbb-0000-0000-0000-000000000001', 'cs_b1', 'open', o.id, o.product_id, pg_temp.aff('bob@test.invalid'), 'last_click'
-  from public.offers o where o.stripe_lookup_key = 'studio_yearly_eur';
+  from public.offers o where o.stripe_lookup_key = 'assistudio_premium_yearly_eur';
 select public.stripe_subscription_sync(pg_temp.sub('sub_b1', 'cus_b1', 'active', now() - interval '1 year', 'bbbbbbbb-0000-0000-0000-000000000001'));
 select public.stripe_invoice_paid(pg_temp.inv('in_b1', 'cus_b1', 'b1@client.invalid', 'sub_b1', 'subscription_create', 360000, 'pi_b1',
   now() - interval '1 year', 'bbbbbbbb-0000-0000-0000-000000000001', 300000));
@@ -379,7 +379,7 @@ select pg_temp.assert((select after->>'reason' from public.audit_logs where acti
 -- invoice.paid before checkout.session.completed, subscription without metadata.
 insert into public.checkout_sessions (id, stripe_checkout_session_id, status, offer_id, product_id, affiliate_id, attribution_source)
 select 'cccccccc-0000-0000-0000-000000000001', 'cs_late', 'open', o.id, o.product_id, pg_temp.aff('alice@test.invalid'), 'first_click'
-  from public.offers o where o.stripe_lookup_key = 'studio_yearly_eur';
+  from public.offers o where o.stripe_lookup_key = 'assistudio_premium_yearly_eur';
 select public.stripe_subscription_sync(pg_temp.sub('sub_late', 'cus_late', 'active', now()));
 select public.stripe_invoice_paid(pg_temp.inv('in_late', 'cus_late', 'late@client.invalid', 'sub_late', 'subscription_create', 600000, 'pi_late', now()));
 select pg_temp.assert((select count(*) from public.commissions c join public.sales s on s.id = c.sale_id where s.invoice_id =

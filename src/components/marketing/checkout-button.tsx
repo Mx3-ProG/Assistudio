@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 
 /** Keeps the visitor on Studio ATS. The destination page creates the Stripe
  * Session with a Server Action and mounts Embedded Checkout in our layout. */
-export function CheckoutButton({ locale, page, promo, origin, offer, billing = "annual", billingChoices, label }: {
-  locale: string; page: string | null; promo?: string | null; origin: string; offer: string; billing?: "annual" | "monthly";
+export function CheckoutButton({ locale, page, promo, referral, origin, offer, billing = "annual", billingChoices, label }: {
+  locale: string; page: string | null; promo?: string | null; referral?: string | null; origin: string; offer: string; billing?: "annual" | "monthly";
   billingChoices?: { label: string; monthly: string; annual: string };
   label: string; pendingLabel: string;
 }) {
@@ -18,8 +18,9 @@ export function CheckoutButton({ locale, page, promo, origin, offer, billing = "
     });
     if (page) query.set("page", page);
     if (promo) query.set("promo", promo);
+    if (referral) query.set("referral", referral);
     return `/${locale}/checkout?${query.toString()}`;
-  }, [locale, offer, origin, page, promo, selectedBilling]);
+  }, [locale, offer, origin, page, promo, referral, selectedBilling]);
 
   return (
     <div>

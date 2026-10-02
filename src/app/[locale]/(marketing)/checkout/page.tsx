@@ -32,6 +32,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
   const tier = isOfferTier(sp.offer) ? sp.offer : "premium";
   const billing = tier !== "one" && isBillingCadence(sp.billing) ? sp.billing : "annual";
   const page = typeof sp.page === "string" && isValidCode(sp.page) ? sp.page : null;
+  const referral = typeof sp.referral === "string" && isValidCode(sp.referral) ? sp.referral : null;
   const promoCode = normalizePromoCode(sp.promo);
   const requestedOrigin = typeof sp.origin === "string" ? sp.origin : "public";
   const origin = page ? "private_page" as const
@@ -49,6 +50,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
   const resolved = !isDemoMode ? await resolveCheckoutAttribution({
     sessionKey: jar.get(VISITOR_COOKIE)?.value ?? null,
     privatePageSlug: page,
+    referralCode: referral,
     code: promoCode,
   }) : null;
   const promo = resolved?.promo ?? null;
@@ -61,6 +63,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
     : resolved?.advisor ?? null;
   const backQuery = new URLSearchParams({ offer: tier, billing });
   if (page) backQuery.set("page", page);
+  if (referral) backQuery.set("referral", referral);
   if (promoCode) backQuery.set("promo", promoCode);
   const backHref = `/${locale}/buy?${backQuery.toString()}`;
   const unavailable = !settings.checkoutEnabled || isDemoMode || !isEmbeddedCheckoutConfigured || invalidPromo;
@@ -111,8 +114,9 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
             <Link href={backHref} className="mt-5 flex h-11 items-center justify-center rounded-full bg-fg px-5 text-[13px] font-medium text-bg">{C.backToOffer}</Link>
           </div> : <EmbeddedCheckoutPanel
             publishableKey={env.stripePublishableKey}
-            input={{ locale, origin, page, offer: tier, billing, promo: promo?.code ?? (resolved?.code === "attributed" ? promoCode : null) }}
+            input={{ locale, origin, page, referral, offer: tier, billing, promo: promo?.code ?? (resolved?.code === "attributed" ? promoCode : null) }}
             loadingLabel={C.loadingPayment}
+            retryLabel={C.retryPayment}
             errorLabel={C.paymentError}
           />}
         </section>

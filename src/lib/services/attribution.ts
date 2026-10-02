@@ -15,7 +15,7 @@ import { log } from "@/lib/log";
  * private sales page — wins, but only for an approved affiliate. A code typed
  * by the customer (`manual`) only attributes when nothing else does.
  */
-export type AttributionSource = "private_page" | "first_click" | "last_click" | "manual" | "none";
+export type AttributionSource = "private_page" | "affiliate_link" | "first_click" | "last_click" | "manual" | "none";
 
 export interface ResolvedAttribution {
   affiliateId: string | null;
@@ -86,12 +86,21 @@ export type CodeStatus = "none" | "applied" | "attributed" | "ignored" | "invali
  *   ignored    — valid ambassador code, but another ambassador brought the customer
  *   invalid    — unknown code, or a promo code of another ambassador
  */
-export async function resolveCheckoutAttribution(input: { sessionKey: string | null; privatePageSlug?: string | null; code: string | null }):
+export async function resolveCheckoutAttribution(input: { sessionKey: string | null; privatePageSlug?: string | null; referralCode?: string | null; code: string | null }):
   Promise<{ attribution: ResolvedAttribution; promo: ResolvedPromo | null; code: CodeStatus; advisor: string | null }> {
-  const [tracked, owner] = await Promise.all([
+  const [resolved, owner, fallback] = await Promise.all([
     resolveForConversion({ sessionKey: input.sessionKey, privatePageSlug: input.privatePageSlug }),
     resolveAmbassadorCode(input.code),
+    input.referralCode && isValidCode(input.referralCode) ? repo().resolveReferral(input.referralCode) : Promise.resolve(null),
   ]);
+  const tracked = !resolved.affiliateId && fallback?.active ? {
+    affiliateId: fallback.affiliateId,
+    referralSessionId: null,
+    linkId: fallback.linkId,
+    campaignId: fallback.campaignId,
+    privatePageId: null,
+    source: "affiliate_link" as const,
+  } : resolved;
   const trackedAdvisor = await affiliateDisplayName(tracked.affiliateId);
   if (!input.code) return { attribution: tracked, promo: null, code: "none", advisor: trackedAdvisor };
   if (!owner) return { attribution: tracked, promo: null, code: "invalid", advisor: trackedAdvisor };

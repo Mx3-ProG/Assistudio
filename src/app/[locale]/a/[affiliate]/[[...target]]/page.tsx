@@ -106,7 +106,7 @@ function FallbackAffiliatePage({ t, locale, offers, referrerName, market, slug, 
 }) {
   return <I18nProvider locale={locale} dict={t}><div lang={locale} dir={locale === "ar" ? "rtl" : "ltr"}>
     <PageBeacon slug={slug} referral={referral} /><Navbar variant="studio" />
-    <StudioContent t={t} locale={locale} offers={offers} page={slug} referrerName={referrerName}
+    <StudioContent t={t} locale={locale} offers={offers} page={slug} referral={referral} referrerName={referrerName}
       market={market} pitch="default" ctaVariant="request" />
     <Footer t={t} locale={locale}/>
   </div></I18nProvider>;

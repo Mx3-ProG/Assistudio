@@ -15,13 +15,15 @@ export interface StudioContentProps {
   offers: Offer[];
   /** Private sales page context */
   page?: string;
+  /** Affiliate or ambassador code carried to checkout as a server-verified attribution fallback. */
+  referral?: string;
   referrerName?: string | null;
   market?: MarketContent | null;
   pitch?: "default" | "premium" | "automation";
   ctaVariant?: "request" | "call";
 }
 
-export function StudioContent({ t, locale, offers, page, referrerName, market, pitch = "default", ctaVariant = "request" }: StudioContentProps) {
+export function StudioContent({ t, locale, offers, page, referral, referrerName, market, pitch = "default", ctaVariant = "request" }: StudioContentProps) {
   const s = t.studio;
   const cta = ctaVariant === "call" ? t.dash.link.page.ctaCall : s.cta;
   const heroSub = pitch === "automation" ? s.automationBody : market?.why ?? s.heroSubtitle;
@@ -132,7 +134,7 @@ export function StudioContent({ t, locale, offers, page, referrerName, market, p
           <h2 className="display text-center text-[34px] sm:text-[52px]">{s.pricingTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-[17px] text-muted">{t.pricing.subtitle}</p>
           <div className="mt-12">
-            <PricingPlans t={t} locale={locale} offers={offers} page={page} requestHref="#request" requestLabel={cta} detailed={false} />
+            <PricingPlans t={t} locale={locale} offers={offers} page={page} referral={referral} requestHref="#request" requestLabel={cta} detailed={false} />
           </div>
           <p className="mt-6 text-center text-[12px] text-muted">{s.pricingNote}</p>
         </div>
@@ -174,7 +176,7 @@ export function StudioContent({ t, locale, offers, page, referrerName, market, p
           <h2 className="text-[28px] font-semibold tracking-[-0.03em] sm:text-[36px]">{s.formTitle}</h2>
           <p className="mt-2 text-muted">{s.formSubtitle}</p>
           <div className="relative mt-8">
-            <LeadForm page={page} cta={cta} />
+            <LeadForm page={page} referral={referral} cta={cta} />
           </div>
         </div>
       </section>

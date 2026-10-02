@@ -57,8 +57,8 @@ function DisclosureIcon() {
 }
 
 /** Outcome first, included capabilities next, exact technical characteristics last. */
-export function PricingPlans({ t, locale, offers, page, promo, requestHref, requestLabel, detailed = true }: {
-  t: Dictionary; locale: Locale; offers: Offer[]; page?: string; promo?: string; requestHref: string; requestLabel: string; detailed?: boolean;
+export function PricingPlans({ t, locale, offers, page, promo, referral, requestHref, requestLabel, detailed = true }: {
+  t: Dictionary; locale: Locale; offers: Offer[]; page?: string; promo?: string; referral?: string; requestHref: string; requestLabel: string; detailed?: boolean;
 }) {
   const P = t.pricing;
   return <div>
@@ -66,7 +66,7 @@ export function PricingPlans({ t, locale, offers, page, promo, requestHref, requ
       {offers.map((o) => {
         const plan = P.plans[o.tier];
         const featured = o.tier === "premium";
-        const buy = `/${locale}/buy?offer=${o.tier}${page ? `&page=${page}` : ""}${promo ? `&promo=${encodeURIComponent(promo)}` : ""}`;
+        const buy = `/${locale}/buy?offer=${o.tier}${page ? `&page=${page}` : ""}${promo ? `&promo=${encodeURIComponent(promo)}` : ""}${referral ? `&referral=${encodeURIComponent(referral)}` : ""}`;
         return <HoloCard key={o.id} glow={HOLO[o.tier].glow} gradient={HOLO[o.tier].gradient} className={cn(featured ? "lg:z-10" : "lg:my-6")}>
           <article className={cn("flex h-full flex-col", featured ? "p-7 sm:p-9" : "p-7 sm:p-8")}>
             <div className="flex flex-wrap items-center gap-2">
