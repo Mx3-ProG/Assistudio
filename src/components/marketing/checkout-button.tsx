@@ -2,20 +2,22 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "@/components/providers";
+import { resolveCheckoutBilling, type BillingCadence, type OfferTier } from "@/lib/offers";
 
 /** Keeps the visitor on Studio ATS. The destination page creates the Stripe
  * Session with a Server Action and mounts Embedded Checkout in our layout. */
 export function CheckoutButton({ locale, page, promo, referral, origin, offer, billing = "annual", billingChoices, label }: {
-  locale: string; page: string | null; promo?: string | null; referral?: string | null; origin: string; offer: string; billing?: "annual" | "monthly";
+  locale: string; page: string | null; promo?: string | null; referral?: string | null; origin: string; offer: OfferTier; billing?: BillingCadence;
   billingChoices?: { label: string; monthly: string; annual: string };
   label: string; pendingLabel: string;
 }) {
   const { currency } = useI18n();
   const [selectedBilling, setSelectedBilling] = useState(billing);
+  const checkoutBilling = resolveCheckoutBilling(offer, billing, selectedBilling, Boolean(billingChoices));
   const href = useMemo(() => {
     const query = new URLSearchParams({
       offer,
-      billing: offer === "one" ? "annual" : selectedBilling,
+      billing: checkoutBilling,
       currency,
       origin: page ? "private_page" : origin === "dashboard_cta" ? "dashboard_cta" : origin === "affiliate_link" ? "affiliate_link" : "public",
     });
@@ -23,7 +25,7 @@ export function CheckoutButton({ locale, page, promo, referral, origin, offer, b
     if (promo) query.set("promo", promo);
     if (referral) query.set("referral", referral);
     return `/${locale}/checkout?${query.toString()}`;
-  }, [currency, locale, offer, origin, page, promo, referral, selectedBilling]);
+  }, [checkoutBilling, currency, locale, offer, origin, page, promo, referral]);
 
   return (
     <div>

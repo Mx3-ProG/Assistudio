@@ -32,6 +32,20 @@ export function offerLookupKey(tier: OfferTier, cadence: BillingCadence = "annua
   return cadence === "monthly" ? MONTHLY_OFFER_LOOKUP_KEYS[tier] ?? OFFER_LOOKUP_KEYS[tier] : OFFER_LOOKUP_KEYS[tier];
 }
 
+/**
+ * A checkout button embedded in a page follows the cadence from the URL.
+ * Buttons that render their own selector instead follow the visitor's local choice.
+ */
+export function resolveCheckoutBilling(
+  tier: OfferTier,
+  routeBilling: BillingCadence,
+  selectedBilling: BillingCadence,
+  hasBillingSelector: boolean,
+): BillingCadence {
+  if (tier === "one") return "annual";
+  return hasBillingSelector ? selectedBilling : routeBilling;
+}
+
 export function isOfferTier(x: unknown): x is OfferTier {
   return typeof x === "string" && (OFFER_TIERS as readonly string[]).includes(x);
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { firstSaleCommissionCents, maxEarningOffer, offerLookupKey, renews, sortOffers, tierOfLookupKey, type PricedOffer } from "./offers.ts";
+import { firstSaleCommissionCents, maxEarningOffer, offerLookupKey, renews, resolveCheckoutBilling, sortOffers, tierOfLookupKey, type PricedOffer } from "./offers.ts";
 
 const RATE = 0.25; // the existing direct rate — the offers change prices, not rates
 const offers: PricedOffer[] = [
@@ -39,4 +39,11 @@ test("billing cadence selects the right Stripe price", () => {
   assert.equal(offerLookupKey("pro", "monthly"), "assistudio_pro_monthly_eur");
   assert.equal(offerLookupKey("pro", "annual"), "assistudio_pro_yearly_eur");
   assert.equal(offerLookupKey("premium", "monthly"), "assistudio_premium_monthly_eur");
+});
+
+test("checkout cadence follows route changes unless the button owns its selector", () => {
+  assert.equal(resolveCheckoutBilling("premium", "monthly", "annual", false), "monthly");
+  assert.equal(resolveCheckoutBilling("pro", "annual", "monthly", false), "annual");
+  assert.equal(resolveCheckoutBilling("premium", "annual", "monthly", true), "monthly");
+  assert.equal(resolveCheckoutBilling("one", "monthly", "monthly", true), "annual");
 });
