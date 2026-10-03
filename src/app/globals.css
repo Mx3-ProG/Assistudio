@@ -98,6 +98,32 @@
   color-scheme: dark;
 }
 
+/* A deliberately light island inside either global theme (for example the
+   white Studio request card). Keep token-based form controls readable instead
+   of letting them inherit dark surfaces and light text. */
+.theme-light-surface {
+  --bg: #fbfbfd;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f4f4f6;
+  --surface-3: #ebebef;
+  --fg: #111114;
+  --fg-2: #3a3a40;
+  --muted: #6c6c74;
+  --line: rgb(17 17 20 / 0.12);
+  --line-strong: rgb(17 17 20 / 0.2);
+  --accent: #2f5bff;
+  --accent-2: #7a5cff;
+  --accent-fg: #ffffff;
+  --accent-soft: rgb(47 91 255 / 0.1);
+  --success: #127a43;
+  --success-soft: rgb(18 122 67 / 0.1);
+  --danger: #c92f2f;
+  --danger-soft: rgb(201 47 47 / 0.1);
+  color: var(--fg);
+  color-scheme: light;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-bg-elevated: var(--bg-elevated);

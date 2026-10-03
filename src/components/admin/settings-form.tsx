@@ -38,6 +38,10 @@ export function SettingsForm({ settings, canEdit }: { settings: Settings; canEdi
         </Field>
         <label className="flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-[14px]">Online checkout (Stripe) enabled<input type="checkbox" name="checkoutEnabled" defaultChecked={settings.checkoutEnabled} className="size-5 accent-[var(--accent)]" /></label>
         <label className="flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-[14px]">Stripe Connect payout accounts<input type="checkbox" name="connectEnabled" defaultChecked={settings.connectEnabled} className="size-5 accent-[var(--accent)]" /></label>
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-line p-3 text-[14px]">Show Studio onboarding capacity<input type="checkbox" name="studioCapacityEnabled" defaultChecked={settings.studioCapacityEnabled} className="size-5 accent-[var(--accent)]" /></label>
+        <Field label="Studio monthly capacity"><input name="studioMonthlyCapacity" type="number" min={0} max={100} defaultValue={settings.studioMonthlyCapacity} className={inputClass} /></Field>
+        <Field label="Studio places remaining"><input name="studioRemainingCapacity" type="number" min={0} max={100} defaultValue={settings.studioRemainingCapacity} className={inputClass} /></Field>
+        <Field label="Next onboarding window"><input name="studioNextOnboardingWindow" type="text" maxLength={80} defaultValue={settings.studioNextOnboardingWindow} placeholder="November 2026" className={inputClass} /></Field>
         <div className="flex items-center gap-3 sm:col-span-2">
           <button disabled={pending} className={buttonClass("primary", "md")}>{t.common.save}</button>
           {state.ok && <span className="text-[13px] text-success">{t.dash.settings.saved}</span>}

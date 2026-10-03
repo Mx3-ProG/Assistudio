@@ -1,7 +1,7 @@
 import { Check, ChevronDown, Minus, Wrench } from "lucide-react";
 import type { Dictionary } from "@/i18n/types";
 import type { Locale } from "@/i18n/config";
-import type { Offer } from "@/lib/data/types";
+import type { Offer, Settings } from "@/lib/data/types";
 import { fmt } from "@/i18n/format";
 import { formatPercent } from "@/lib/money";
 import { Money } from "@/components/ui/money";
@@ -9,6 +9,8 @@ import type { Currency } from "@/i18n/currency";
 import { firstSaleCommissionCents, maxEarningOffer, renews } from "@/lib/offers";
 import { cn } from "@/lib/cn";
 import { HoloCard } from "./holo-card";
+import { StudioCapacitySignal } from "./studio-capacity";
+import { TrackedStudioLink } from "./tracked-studio-link";
 
 const HOLO: Record<Offer["tier"], { glow: string; gradient: string }> = {
   one: { glow: "rgb(113 196 255 / 0.45)", gradient: "linear-gradient(145deg, rgb(71 85 105 / 0.45) 0%, rgb(113 196 255 / 0.12) 100%)" },
@@ -58,8 +60,8 @@ function DisclosureIcon() {
 }
 
 /** Outcome first, included capabilities next, exact technical characteristics last. */
-export function PricingPlans({ t, locale, offers, page, promo, referral, requestHref, requestLabel, detailed = true }: {
-  t: Dictionary; locale: Locale; offers: Offer[]; page?: string; promo?: string; referral?: string; requestHref: string; requestLabel: string; detailed?: boolean;
+export function PricingPlans({ t, locale, offers, page, promo, referral, requestHref, requestLabel, detailed = true, capacity }: {
+  t: Dictionary; locale: Locale; offers: Offer[]; page?: string; promo?: string; referral?: string; requestHref: string; requestLabel: string; detailed?: boolean; capacity?: Settings;
 }) {
   const P = t.pricing;
   return <div>
@@ -79,9 +81,10 @@ export function PricingPlans({ t, locale, offers, page, promo, referral, request
             <p className="mt-2 min-h-[4.5em] text-[14px] leading-relaxed text-white/65">{plan.subline}</p>
             <div className="mt-5"><OfferPrice offer={o} locale={locale} t={t} featured={featured} /></div>
             <p className="mt-5 border-s-2 border-white/25 ps-3 text-[14px] font-medium leading-relaxed text-white/90">{plan.promise}</p>
+            {o.tier !== "one" && capacity && <StudioCapacitySignal t={t} settings={capacity} compact dark className="mt-5" />}
             <ul className="mt-6 space-y-3">{plan.features.slice(0, 4).map((f) => <li key={f} className="flex items-start gap-3 text-[14px] leading-relaxed text-white/90"><Check className="mt-0.5 size-4 shrink-0 text-emerald-400" />{f}</li>)}</ul>
 
-            <a href={buy} className={cn("mt-7 flex h-12 items-center justify-center rounded-full px-4 text-center text-[15px] font-medium transition", featured ? "bg-accent text-accent-fg shadow-[0_8px_24px_-8px_var(--accent)] hover:brightness-110" : "bg-white text-black hover:bg-white/90")}>{fmt(P.choose, { name: plan.name })}</a>
+            <TrackedStudioLink href={buy} eventName="studio_offer_selected" placement={`offer_${o.tier}`} className={cn("mt-7 flex h-12 items-center justify-center rounded-full px-4 text-center text-[15px] font-medium transition", featured ? "bg-accent text-accent-fg shadow-[0_8px_24px_-8px_var(--accent)] hover:brightness-110" : "bg-white text-black hover:bg-white/90")}>{fmt(P.choose, { name: plan.name })}</TrackedStudioLink>
 
             {detailed && <details className="group holo-frame mt-5">
               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-[14px] font-semibold text-white/90">{P.exploreIncluded}<DisclosureIcon /></summary>

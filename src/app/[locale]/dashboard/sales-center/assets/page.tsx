@@ -10,6 +10,7 @@ import { PageHeader, EmptyState, Badge } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
 import { FavoriteButton } from "@/components/sales-center/favorite-button";
 import { CaseStudyCard } from "@/components/copilot/case-study-card";
+import { ProductShowcaseGallery } from "@/components/marketing/product-showcase-gallery";
 import { cn } from "@/lib/cn";
 
 /** "What can I send?" — projects & demos to show (filterable by sector), then the other sales assets. */
@@ -34,6 +35,7 @@ export default async function Assets({ params, searchParams }: PageProps<"/[loca
         <Link href={href()} className={chip(!sector)}>{C.filterAll}</Link>
         {withProjects.map((m) => <Link key={m.slug} href={href(m.slug)} className={chip(sector?.slug === m.slug)}>{marketContent(m, locale).name}</Link>)}
       </nav>
+      <ProductShowcaseGallery t={t} compact />
       <section>
         <h2 className="mb-3 text-[17px] font-semibold">{C.projectsTitle}</h2>
         {cases.length ? (

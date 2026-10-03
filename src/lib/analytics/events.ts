@@ -11,6 +11,8 @@ export const FUNNEL_EVENTS = [
   "commission_simulator_interaction", "sales_center_click", "first_prospect_cta", "cta_click",
   "signup_started", "signup_completed", "onboarding_started", "onboarding_completed",
   "affiliate_link_copied", "sales_script_copied", "prospect_added", "prospect_submitted",
+  "studio_view", "studio_cta_click", "studio_demo_interaction", "studio_proof_view",
+  "studio_offer_selected", "studio_form_started", "studio_lead_submitted", "studio_buy_view",
 ] as const;
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
 
@@ -19,6 +21,8 @@ export const CLIENT_EVENTS = [
   "home_view", "hero_signup_click", "see_product_click", "studio_demo_click",
   "commission_simulator_interaction", "sales_center_click", "first_prospect_cta", "cta_click",
   "affiliate_link_copied", "sales_script_copied",
+  "studio_view", "studio_cta_click", "studio_demo_interaction", "studio_proof_view",
+  "studio_offer_selected", "studio_form_started", "studio_buy_view",
 ] as const satisfies readonly FunnelEvent[];
 export type ClientEvent = (typeof CLIENT_EVENTS)[number];
 

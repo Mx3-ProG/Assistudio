@@ -237,6 +237,12 @@ const nl: Dictionary = {
       error: "Er is iets misgegaan. Probeer het opnieuw.",
     },
     referredBy: "Aanbevolen door {name}",
+    capacityAvailable: "Nog {remaining} van {total} onboardingplaatsen voor Pro en Premium deze maand.",
+    capacityFull: "Deze maand is vol. Kopen blijft mogelijk; volgende onboarding: {window}.",
+    capacityNext: "Volgende onboarding: {window}.",
+    demoOnly: "Studio-demonstratie — fictief voorbeeld zonder geclaimd klantresultaat.",
+    productCaptureTitle: "Echte schermen, geen beloftes.",
+    productCaptureNote: "Beelden van opgeleverde of demonstratie-interfaces. Zichtbare gegevens worden niet als klantresultaten gepresenteerd.",
   },
   auth: {
     loginTitle: "Welkom terug.",

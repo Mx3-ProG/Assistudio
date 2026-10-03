@@ -237,6 +237,12 @@ const pt: Dictionary = {
       error: "Algo correu mal. Tente novamente.",
     },
     referredBy: "Recomendado por {name}",
+    capacityAvailable: "Restam {remaining} de {total} vagas de onboarding para Pro e Premium este mês.",
+    capacityFull: "Este mês está completo. A compra continua disponível; próximo onboarding: {window}.",
+    capacityNext: "Próximo onboarding: {window}.",
+    demoOnly: "Demonstração do Studio — exemplo fictício, sem resultados de cliente alegados.",
+    productCaptureTitle: "Ecrãs reais, não promessas.",
+    productCaptureNote: "Capturas de interfaces entregues ou de demonstração. Os dados visíveis não são apresentados como resultados de clientes.",
   },
   auth: {
     loginTitle: "Bem-vindo de volta.",

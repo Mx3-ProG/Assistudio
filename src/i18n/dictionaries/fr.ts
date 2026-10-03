@@ -178,12 +178,12 @@ const fr: Dictionary = {
   },
   studio: {
     eyebrow: "Studio ATS",
-    heroTitle: "Transformez votre trafic en opportunités.",
-    heroTitle2: "Transformez vos opportunités en rendez-vous.",
+    heroTitle: "Chaque demande mérite un vrai",
+    heroTitle2: "parcours commercial.",
     heroSubtitle:
       "Un studio commercial en ligne pour les professionnels dont chaque nouveau client a une vraie valeur. Présentez votre travail, qualifiez les demandes et obtenez des rendez-vous — au même endroit.",
     cta: "Demander Studio ATS",
-    ctaSecondary: "Voir le fonctionnement",
+    ctaSecondary: "Voir Studio en action",
     problemTitle: "Un beau travail. Des demandes perdues.",
     problemBody:
       "Les demandes arrivent par formulaire, Instagram, WhatsApp et email. Personne ne sait lesquelles sont sérieuses, les relances sont oubliées et les bons prospects refroidissent.",
@@ -246,6 +246,12 @@ const fr: Dictionary = {
       error: "Une erreur est survenue. Merci de réessayer.",
     },
     referredBy: "Recommandé par {name}",
+    capacityAvailable: "{remaining} place(s) sur {total} encore disponible(s) ce mois-ci pour Pro et Premium.",
+    capacityFull: "Ce mois-ci est complet. L’achat reste ouvert ; prochaine fenêtre d’onboarding : {window}.",
+    capacityNext: "Prochaine fenêtre d’onboarding : {window}.",
+    demoOnly: "Démonstration Studio — exemple fictif, sans résultat client revendiqué.",
+    productCaptureTitle: "Des écrans réels, pas des promesses.",
+    productCaptureNote: "Captures d’interfaces livrées ou de démonstration. Les données visibles ne constituent pas des résultats clients.",
   },
   auth: {
     loginTitle: "Bon retour.",

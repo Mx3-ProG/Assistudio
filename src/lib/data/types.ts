@@ -85,6 +85,12 @@ export interface Settings {
   checkoutEnabled: boolean;
   /** referrals.sponsor_rate — share of an eligible payment paid to the seller's direct sponsor. */
   sponsorRate: number;
+  /** Truthful public production capacity for accompanied Studio offers. */
+  studioCapacityEnabled: boolean;
+  studioMonthlyCapacity: number;
+  studioRemainingCapacity: number;
+  /** Human-maintained localized-independent label, e.g. "November 2026". */
+  studioNextOnboardingWindow: string;
 }
 
 export interface Offer {

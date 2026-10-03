@@ -237,6 +237,12 @@ const ar: Dictionary = {
       error: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
     },
     referredBy: "بتوصية من {name}",
+    capacityAvailable: "تبقّت {remaining} من أصل {total} أماكن إعداد لباقتي Pro وPremium هذا الشهر.",
+    capacityFull: "اكتملت سعة هذا الشهر. يظل الشراء متاحًا؛ موعد الإعداد التالي: {window}.",
+    capacityNext: "موعد الإعداد التالي: {window}.",
+    demoOnly: "عرض توضيحي من Studio — مثال خيالي من دون ادعاء نتائج لعميل.",
+    productCaptureTitle: "واجهات حقيقية، لا وعود.",
+    productCaptureNote: "لقطات لواجهات مُسلّمة أو تجريبية. لا تُعرض البيانات الظاهرة على أنها نتائج عملاء.",
   },
   auth: {
     loginTitle: "مرحبًا بعودتك.",

@@ -237,6 +237,12 @@ const it: Dictionary = {
       error: "Qualcosa è andato storto. Riprova.",
     },
     referredBy: "Consigliato da {name}",
+    capacityAvailable: "Restano {remaining} posti su {total} per l’onboarding Pro e Premium questo mese.",
+    capacityFull: "Questo mese è completo. L’acquisto resta disponibile; prossimo onboarding: {window}.",
+    capacityNext: "Prossimo onboarding: {window}.",
+    demoOnly: "Dimostrazione Studio — esempio fittizio senza risultati cliente dichiarati.",
+    productCaptureTitle: "Schermate reali, non promesse.",
+    productCaptureNote: "Schermate di interfacce consegnate o dimostrative. I dati visibili non sono presentati come risultati dei clienti.",
   },
   auth: {
     loginTitle: "Bentornato.",

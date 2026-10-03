@@ -103,6 +103,9 @@ export async function updateSettings(_: AdminState, f: FormData) {
     billingEmailsOwner: z.enum(["stripe", "studio"]),
     commissionValidationDays: z.coerce.number().int().min(0).max(365),
     payoutMinimumEuros: z.coerce.number().min(0).max(100_000),
+    studioMonthlyCapacity: z.coerce.number().int().min(0).max(100),
+    studioRemainingCapacity: z.coerce.number().int().min(0).max(100),
+    studioNextOnboardingWindow: z.string().trim().max(80),
   }).parse(Object.fromEntries(f));
   return run(() => repo().adminUpdateSettings(s, {
     attributionWindowDays: d.attributionWindowDays,
@@ -114,6 +117,10 @@ export async function updateSettings(_: AdminState, f: FormData) {
     billingEmailsOwner: d.billingEmailsOwner,
     connectEnabled: f.get("connectEnabled") === "on",
     checkoutEnabled: f.get("checkoutEnabled") === "on",
+    studioCapacityEnabled: f.get("studioCapacityEnabled") === "on",
+    studioMonthlyCapacity: d.studioMonthlyCapacity,
+    studioRemainingCapacity: Math.min(d.studioRemainingCapacity, d.studioMonthlyCapacity),
+    studioNextOnboardingWindow: d.studioNextOnboardingWindow,
   }));
 }
 

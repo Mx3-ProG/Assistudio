@@ -237,6 +237,12 @@ const de: Dictionary = {
       error: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
     },
     referredBy: "Empfohlen von {name}",
+    capacityAvailable: "Noch {remaining} von {total} Onboarding-Plätzen für Pro und Premium in diesem Monat.",
+    capacityFull: "Dieser Monat ist ausgebucht. Der Kauf bleibt möglich; nächstes Onboarding-Fenster: {window}.",
+    capacityNext: "Nächstes Onboarding-Fenster: {window}.",
+    demoOnly: "Studio-Demonstration — fiktives Beispiel ohne behauptetes Kundenergebnis.",
+    productCaptureTitle: "Echte Oberflächen statt Versprechen.",
+    productCaptureNote: "Aufnahmen aus ausgelieferten oder demonstrierten Oberflächen. Sichtbare Daten werden nicht als Kundenergebnis dargestellt.",
   },
   auth: {
     loginTitle: "Willkommen zurück.",

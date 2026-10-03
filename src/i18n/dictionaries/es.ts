@@ -237,6 +237,12 @@ const es: Dictionary = {
       error: "Algo ha fallado. Inténtalo de nuevo.",
     },
     referredBy: "Recomendado por {name}",
+    capacityAvailable: "Quedan {remaining} de {total} plazas de incorporación para Pro y Premium este mes.",
+    capacityFull: "Este mes está completo. La compra sigue abierta; próxima incorporación: {window}.",
+    capacityNext: "Próxima incorporación: {window}.",
+    demoOnly: "Demostración de Studio: ejemplo ficticio sin resultados de cliente declarados.",
+    productCaptureTitle: "Pantallas reales, no promesas.",
+    productCaptureNote: "Capturas de interfaces entregadas o de demostración. Los datos visibles no se presentan como resultados de clientes.",
   },
   auth: {
     loginTitle: "Bienvenido de nuevo.",

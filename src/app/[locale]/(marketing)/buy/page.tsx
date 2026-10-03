@@ -19,6 +19,8 @@ import { VISITOR_COOKIE } from "@/lib/attribution";
 import { resolveCheckoutAttribution } from "@/lib/services/attribution";
 import { discountCents, normalizePromoCode } from "@/lib/services/promo";
 import { formatPercent } from "@/lib/money";
+import { StudioViewBeacon } from "@/components/marketing/studio-tracking";
+import { StudioCapacitySignal } from "@/components/marketing/studio-capacity";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/buy">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
@@ -75,6 +77,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
     <>
       <Navbar variant="studio" />
       <main className="mx-auto max-w-xl px-4 pb-24 pt-14 sm:px-6 sm:pt-20">
+        <StudioViewBeacon surface="buy" />
         {referrer && (
           <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3 py-1 text-[12px] font-medium text-fg-2">
             <Sparkles className="size-3.5 text-accent" /> {fmt(C.referredBy, { name: referrer })}
@@ -99,6 +102,7 @@ export default async function BuyPage({ params, searchParams }: PageProps<"/[loc
           <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-accent">{plan.name}</p>
           <p className="mt-2 text-[20px] font-semibold leading-snug">{plan.tagline}</p>
           <p className="mt-2 text-[14px] leading-relaxed text-muted">{plan.subline}</p>
+          {offer.tier !== "one" && <StudioCapacitySignal t={t} settings={settings} className="mt-5" />}
           {offer.tier !== "one" && <nav aria-label={C.billingCadence} className="mt-5 grid grid-cols-2 gap-1 rounded-full border border-line bg-surface-2 p-1">
             {(["monthly", "annual"] as const).map((value) => <Link key={value} href={hrefForCadence(value)} aria-current={cadence === value ? "page" : undefined}
               className={cn("rounded-full px-3 py-2 text-center text-[13px] font-medium transition", cadence === value ? "bg-surface text-fg shadow-soft" : "text-muted hover:text-fg")}>

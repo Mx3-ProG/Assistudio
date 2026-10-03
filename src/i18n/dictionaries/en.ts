@@ -250,6 +250,12 @@ const en = {
       error: "Something went wrong. Please try again.",
     },
     referredBy: "Recommended by {name}",
+    capacityAvailable: "{remaining} of {total} Pro / Premium onboarding places still available this month.",
+    capacityFull: "This month is full. Purchasing remains open; next onboarding window: {window}.",
+    capacityNext: "Next onboarding window: {window}.",
+    demoOnly: "Studio demonstration — fictional example with no claimed client result.",
+    productCaptureTitle: "Real screens, not promises.",
+    productCaptureNote: "Screens from delivered or demonstration interfaces. Visible data is not presented as a client result.",
   },
   auth: {
     loginTitle: "Welcome back.",

@@ -138,6 +138,10 @@ function seed(): Store {
     connectEnabled: false,
     checkoutEnabled: true,
     sponsorRate: 0.05,
+    studioCapacityEnabled: true,
+    studioMonthlyCapacity: 4,
+    studioRemainingCapacity: 2,
+    studioNextOnboardingWindow: "November 2026",
   };
   // Mirrors supabase/migrations/20260928000001_offers_v3.sql (same rate on every offer).
   const offers: Offer[] = [

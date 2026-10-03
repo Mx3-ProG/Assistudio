@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "@/components/providers";
 import { resolveCheckoutBilling, type BillingCadence, type OfferTier } from "@/lib/offers";
+import { track } from "@/lib/analytics/client";
 
 /** Keeps the visitor on Studio ATS. The destination page creates the Stripe
  * Session with a Server Action and mounts Embedded Checkout in our layout. */
@@ -37,7 +38,7 @@ export function CheckoutButton({ locale, page, promo, referral, origin, offer, b
           <option value="annual">{billingChoices.annual}</option>
         </select>
       </label> : null}
-      <Link href={href}
+      <Link href={href} onClick={() => track("studio_offer_selected", { placement: "checkout", meta: { offer, billing: checkoutBilling } })}
         className="mt-8 flex h-12 w-full items-center justify-center rounded-full bg-accent text-[15px] font-medium text-accent-fg shadow-[0_8px_24px_-8px_var(--accent)] transition hover:brightness-110">
         {label}
       </Link>

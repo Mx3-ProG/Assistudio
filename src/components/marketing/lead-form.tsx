@@ -7,6 +7,7 @@ import { useI18n } from "@/components/providers";
 import { Field, inputClass, textareaClass } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { trackOnce } from "@/lib/analytics/client";
 
 export function LeadForm({ page, referral, cta, requestType, advisorName }: { page?: string; referral?: string; cta?: string; requestType?: "info" | "call" | "question" | "quote"; advisorName?: string | null }) {
   const { t, locale } = useI18n();
@@ -24,7 +25,7 @@ export function LeadForm({ page, referral, cta, requestType, advisorName }: { pa
   }
 
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <form action={action} onFocusCapture={() => trackOnce("studio-lead-form", "studio_form_started", { placement: "lead_form" })} className="grid gap-4 sm:grid-cols-2">
       <input type="hidden" name="locale" value={locale} />
       {page && <input type="hidden" name="page" value={page} />}
       {referral && <input type="hidden" name="referral" value={referral} />}

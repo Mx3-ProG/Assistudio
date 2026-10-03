@@ -251,6 +251,10 @@ export const supabaseRepo: Repo = {
       checkoutEnabled: v["checkout.enabled"] !== false,
       // Same default as public.accrue_sponsor_commission().
       sponsorRate: Number(v["referrals.sponsor_rate"] ?? 0.05),
+      studioCapacityEnabled: v["studio.capacity_enabled"] === true,
+      studioMonthlyCapacity: Math.max(0, Number(v["studio.monthly_capacity"] ?? 0)),
+      studioRemainingCapacity: Math.max(0, Number(v["studio.remaining_capacity"] ?? 0)),
+      studioNextOnboardingWindow: String(v["studio.next_onboarding_window"] ?? ""),
     };
   },
 
@@ -1135,6 +1139,10 @@ export const supabaseRepo: Repo = {
     if (patch.billingEmailsOwner !== undefined) map.h = ["emails.customer_billing_owner", patch.billingEmailsOwner];
     if (patch.connectEnabled !== undefined) map.i = ["payouts.connect_enabled", patch.connectEnabled];
     if (patch.checkoutEnabled !== undefined) map.j = ["checkout.enabled", patch.checkoutEnabled];
+    if (patch.studioCapacityEnabled !== undefined) map.k = ["studio.capacity_enabled", patch.studioCapacityEnabled];
+    if (patch.studioMonthlyCapacity !== undefined) map.l = ["studio.monthly_capacity", patch.studioMonthlyCapacity];
+    if (patch.studioRemainingCapacity !== undefined) map.m = ["studio.remaining_capacity", patch.studioRemainingCapacity];
+    if (patch.studioNextOnboardingWindow !== undefined) map.n = ["studio.next_onboarding_window", patch.studioNextOnboardingWindow];
     for (const [key, value] of Object.values(map)) {
       check(await sb.from("settings").update({ value, updated_by: s.userId, updated_at: new Date().toISOString() }).eq("key", key));
     }

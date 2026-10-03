@@ -97,6 +97,7 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
     requestType: d.requestType ?? null,
     advisorConsent: d.advisorConsent,
   });
+  await r.recordFunnelEvent({ event: "studio_lead_submitted", affiliateId: target?.affiliateId ?? null, locale, placement: "lead_form", meta: {} });
   kickEmailOutbox(); // lead.confirmation + affiliate.new_lead, queued by the leads trigger
   return { status: "success" };
 }
