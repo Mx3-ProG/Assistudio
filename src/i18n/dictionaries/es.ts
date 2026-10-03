@@ -213,6 +213,7 @@ const es: Dictionary = {
       { title: "Construcción", body: "Diseñamos y configuramos tu Studio ATS." },
       { title: "Lanzamiento", body: "Empiezas a recibir solicitudes cualificadas." },
     ],
+    team: { eyebrow: "Las personas detrás de Studio ATS", title: "Un equipo identificable. Personas con las que hablar.", founderRole: "Fundador · producto y tecnología", founderBody: "Mathieu Deffontaines crea productos digitales desde la adolescencia. Fundador de Wayne-Web y cofundador de NwH Studios, reúne desarrollo de software, dirección de producto y experiencia comercial de campo.", founderLink: "Ver la trayectoria de Mathieu", collectiveTitle: "Unos diez programadores", collectiveBody: "Unos diez programadores diseñan, prueban y mejoran cada día los Studios en línea. Cada proyecto lo revisan personas que conocen el producto y siguen presentes tras el lanzamiento.", commitments: ["Revisión diaria del producto", "Controles de calidad y seguridad", "Seguimiento humano tras el lanzamiento"] },
     faqTitle: "Preguntas",
     faq: [
       { q: "¿Studio ATS es solo una web?", a: "No. La web es un componente. Studio ATS abarca presentación, conversión, cualificación, contactos, citas, correos y seguimientos." },
@@ -240,9 +241,9 @@ const es: Dictionary = {
     capacityAvailable: "Quedan {remaining} de {total} plazas de incorporación para Pro y Premium este mes.",
     capacityFull: "Este mes está completo. La compra sigue abierta; próxima incorporación: {window}.",
     capacityNext: "Próxima incorporación: {window}.",
-    demoOnly: "Demostración de Studio: ejemplo ficticio sin resultados de cliente declarados.",
+    demoOnly: "Demostración Studio",
     productCaptureTitle: "Pantallas reales, no promesas.",
-    productCaptureNote: "Capturas de interfaces entregadas o de demostración. Los datos visibles no se presentan como resultados de clientes.",
+    productCaptureNote: "Demostración Studio",
   },
   auth: {
     loginTitle: "Bienvenido de nuevo.",
@@ -1177,6 +1178,8 @@ const es: Dictionary = {
     security: { title: "Seguridad", body: "Seguridad a nivel de fila en cada tabla, transporte cifrado, identificadores de seguimiento con hash, operaciones financieras auditadas y ningún dato bancario guardado por Studio ATS." },
     placeholderBody: "Esta página es provisional. Su contenido final debe redactarlo y validarlo un asesor jurídico antes de la puesta en producción. La información obligatoria (identidad de la empresa, registro, alojamiento, responsable del tratamiento, contacto, ley aplicable…) no se ha inventado a propósito.",
   },
+  contactForm: { eyebrow: "Contáctanos", title: "¿Tienes una pregunta? Hablemos.", body: "Studio ATS, el programa de socios o un proyecto digital: escríbenos. Una persona te responderá directamente.", firstName: "Nombre", lastName: "Apellidos", email: "Email", phone: "Teléfono", company: "Actividad o empresa", message: "Tu mensaje", consent: "Acepto que Studio ATS use estos datos para responder a mi solicitud.", submit: "Enviar mi mensaje", sending: "Enviando…", success: "Gracias. Tu mensaje se ha enviado.", error: "No se pudo enviar el mensaje. Revisa los campos." },
+  newsletter: { eyebrow: "Newsletter Studio ATS", title: "El mundo digital, sin ruido.", body: "Recibe ocasionalmente novedades de nuestros servicios, Studio ATS y cambios útiles del mundo digital.", email: "Tu email", consent: "Acepto recibir la newsletter de Studio ATS. Puedo darme de baja en cualquier momento.", submit: "Suscribirme", sending: "Suscribiendo…", success: "Ya estás suscrito. Revisa tu correo.", error: "No se pudo guardar la suscripción." },
   cookieBanner: {
     text: "Usamos cookies estrictamente necesarias, incluida una cookie de referido para acreditar al socio que recomendó Studio ATS. Las cookies analíticas opcionales están desactivadas salvo que las aceptes.",
     accept: "Aceptar analítica",

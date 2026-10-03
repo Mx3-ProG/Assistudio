@@ -213,6 +213,7 @@ const de: Dictionary = {
       { title: "Aufbau", body: "Wir gestalten und konfigurieren Ihr Studio ATS." },
       { title: "Start", body: "Sie erhalten qualifizierte Anfragen." },
     ],
+    team: { eyebrow: "Die Menschen hinter Studio ATS", title: "Ein sichtbares Team. Menschen, die erreichbar sind.", founderRole: "Gründer · Produkt und Technologie", founderBody: "Mathieu Deffontaines entwickelt seit seiner Jugend digitale Produkte. Als Gründer von Wayne-Web und Mitgründer von NwH Studios verbindet er Softwareentwicklung, Produktleitung und praktische Vertriebserfahrung.", founderLink: "Mathieus Werdegang ansehen", collectiveTitle: "Rund zehn Programmierer", collectiveBody: "Rund zehn Programmierer entwickeln, testen und verbessern die aktiven Studios täglich. Jedes Projekt wird von Menschen geprüft, die das Produkt kennen und nach dem Start erreichbar bleiben.", commitments: ["Tägliche Produktprüfung", "Qualitäts- und Sicherheitskontrollen", "Persönliche Begleitung nach dem Start"] },
     faqTitle: "Fragen",
     faq: [
       { q: "Ist Studio ATS nur eine Website?", a: "Nein. Die Website ist ein Baustein. Studio ATS umfasst Präsentation, Konvertierung, Qualifizierung, Kontakte, Termine, E-Mails und Nachfassen." },
@@ -240,9 +241,9 @@ const de: Dictionary = {
     capacityAvailable: "Noch {remaining} von {total} Onboarding-Plätzen für Pro und Premium in diesem Monat.",
     capacityFull: "Dieser Monat ist ausgebucht. Der Kauf bleibt möglich; nächstes Onboarding-Fenster: {window}.",
     capacityNext: "Nächstes Onboarding-Fenster: {window}.",
-    demoOnly: "Studio-Demonstration — fiktives Beispiel ohne behauptetes Kundenergebnis.",
+    demoOnly: "Studio-Demonstration",
     productCaptureTitle: "Echte Oberflächen statt Versprechen.",
-    productCaptureNote: "Aufnahmen aus ausgelieferten oder demonstrierten Oberflächen. Sichtbare Daten werden nicht als Kundenergebnis dargestellt.",
+    productCaptureNote: "Studio-Demonstration",
   },
   auth: {
     loginTitle: "Willkommen zurück.",
@@ -1177,6 +1178,8 @@ const de: Dictionary = {
     security: { title: "Sicherheit", body: "Zeilenbasierte Zugriffskontrolle auf jeder Tabelle, verschlüsselte Übertragung, gehashte Tracking-Kennungen, protokollierte Finanzvorgänge und keine von Studio ATS gespeicherten Bankdaten." },
     placeholderBody: "Diese Seite ist ein Platzhalter. Ihr endgültiger Inhalt muss vor dem Produktivbetrieb von einem Rechtsberater verfasst und geprüft werden. Pflichtangaben (Firmenidentität, Registrierung, Hoster, Verantwortlicher, Kontakt, anwendbares Recht…) wurden bewusst nicht erfunden.",
   },
+  contactForm: { eyebrow: "Kontakt", title: "Eine Frage? Sprechen wir darüber.", body: "Studio ATS, Partnerprogramm oder Digitalprojekt: Schreiben Sie uns. Eine echte Person antwortet Ihnen direkt.", firstName: "Vorname", lastName: "Nachname", email: "E-Mail", phone: "Telefon", company: "Tätigkeit oder Unternehmen", message: "Ihre Nachricht", consent: "Ich stimme zu, dass Studio ATS diese Angaben zur Beantwortung meiner Anfrage verwendet.", submit: "Nachricht senden", sending: "Wird gesendet…", success: "Vielen Dank. Ihre Nachricht wurde gesendet.", error: "Die Nachricht konnte nicht gesendet werden. Bitte prüfen Sie die Felder." },
+  newsletter: { eyebrow: "Studio ATS Newsletter", title: "Digitales, ohne den Lärm.", body: "Erhalten Sie gelegentlich Neuigkeiten zu unseren Services, Studio ATS und relevanten Entwicklungen der digitalen Welt.", email: "Ihre E-Mail", consent: "Ich möchte den Studio ATS Newsletter erhalten und kann mich jederzeit abmelden.", submit: "Abonnieren", sending: "Anmeldung…", success: "Sie sind angemeldet. Prüfen Sie Ihren Posteingang.", error: "Die Anmeldung konnte nicht gespeichert werden." },
   cookieBanner: {
     text: "Wir verwenden notwendige Cookies, darunter ein Empfehlungs-Cookie zur Zuordnung des vermittelnden Partners. Optionale Analyse-Cookies bleiben deaktiviert, bis Sie zustimmen.",
     accept: "Analyse erlauben",

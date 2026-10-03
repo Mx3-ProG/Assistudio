@@ -213,6 +213,7 @@ const nl: Dictionary = {
       { title: "Bouwen", body: "Wij ontwerpen en configureren je Studio ATS." },
       { title: "Lancering", body: "Je begint gekwalificeerde aanvragen te ontvangen." },
     ],
+    team: { eyebrow: "De mensen achter Studio ATS", title: "Een herkenbaar team. Mensen die je kunt spreken.", founderRole: "Oprichter · product en technologie", founderBody: "Mathieu Deffontaines bouwt sinds zijn tienerjaren digitale producten. Als oprichter van Wayne-Web en medeoprichter van NwH Studios combineert hij softwareontwikkeling, productleiding en praktijkervaring in verkoop.", founderLink: "Bekijk Mathieus achtergrond", collectiveTitle: "Ongeveer tien programmeurs", collectiveBody: "Ongeveer tien programmeurs ontwerpen, testen en verbeteren dagelijks de online Studios. Elk project wordt beoordeeld door mensen die het product kennen en ook na de lancering betrokken blijven.", commitments: ["Dagelijkse productbeoordeling", "Kwaliteits- en veiligheidscontroles", "Menselijke ondersteuning na de lancering"] },
     faqTitle: "Vragen",
     faq: [
       { q: "Is Studio ATS gewoon een website?", a: "Nee. De website is één onderdeel. Studio ATS omvat presentatie, conversie, kwalificatie, contacten, afspraken, e-mails en opvolging." },
@@ -240,9 +241,9 @@ const nl: Dictionary = {
     capacityAvailable: "Nog {remaining} van {total} onboardingplaatsen voor Pro en Premium deze maand.",
     capacityFull: "Deze maand is vol. Kopen blijft mogelijk; volgende onboarding: {window}.",
     capacityNext: "Volgende onboarding: {window}.",
-    demoOnly: "Studio-demonstratie — fictief voorbeeld zonder geclaimd klantresultaat.",
+    demoOnly: "Studio-demonstratie",
     productCaptureTitle: "Echte schermen, geen beloftes.",
-    productCaptureNote: "Beelden van opgeleverde of demonstratie-interfaces. Zichtbare gegevens worden niet als klantresultaten gepresenteerd.",
+    productCaptureNote: "Studio-demonstratie",
   },
   auth: {
     loginTitle: "Welkom terug.",
@@ -1177,6 +1178,8 @@ const nl: Dictionary = {
     security: { title: "Beveiliging", body: "Beveiliging op rijniveau voor elke tabel, versleuteld transport, gehashte tracking-ID's, geauditeerde financiële handelingen en geen bankgegevens opgeslagen door Studio ATS." },
     placeholderBody: "Deze pagina is een tijdelijke tekst. De definitieve inhoud moet vóór productie door een juridisch adviseur worden opgesteld en gecontroleerd. Verplichte gegevens (bedrijfsidentiteit, registratie, hostingpartij, verwerkingsverantwoordelijke, contact, toepasselijk recht…) zijn bewust niet verzonnen.",
   },
+  contactForm: { eyebrow: "Neem contact op", title: "Een vraag? Laten we praten.", body: "Studio ATS, het partnerprogramma of een digitaal project: schrijf ons. Een echt persoon antwoordt rechtstreeks.", firstName: "Voornaam", lastName: "Achternaam", email: "E-mail", phone: "Telefoon", company: "Activiteit of bedrijf", message: "Je bericht", consent: "Ik ga ermee akkoord dat Studio ATS deze gegevens gebruikt om mijn vraag te beantwoorden.", submit: "Bericht versturen", sending: "Versturen…", success: "Bedankt. Je bericht is verzonden.", error: "Het bericht kon niet worden verzonden. Controleer de velden." },
+  newsletter: { eyebrow: "Studio ATS nieuwsbrief", title: "Digitaal nieuws, zonder ruis.", body: "Ontvang af en toe nieuws over onze diensten, Studio ATS en nuttige digitale ontwikkelingen.", email: "Je e-mail", consent: "Ik wil de Studio ATS nieuwsbrief ontvangen en kan me altijd uitschrijven.", submit: "Inschrijven", sending: "Inschrijven…", success: "Je bent ingeschreven. Controleer je inbox.", error: "De inschrijving kon niet worden opgeslagen." },
   cookieBanner: {
     text: "We gebruiken strikt noodzakelijke cookies, waaronder een doorverwijscookie om de partner te belonen die Studio ATS aanbeval. Optionele analytische cookies blijven uit tenzij je ze accepteert.",
     accept: "Analytics accepteren",

@@ -25,6 +25,8 @@ import { CommissionSimulator } from "@/components/marketing/home/commission-simu
 import { RelationSplit, SalesCenterBlock, HandoffBlock, AmbassadorProfiles, HomeFaq } from "@/components/marketing/home/sections";
 import { StickyCta } from "@/components/marketing/home/sticky-cta";
 import { HomeView } from "@/components/marketing/home/home-view";
+import { ContactNewsletter } from "@/components/marketing/contact-newsletter";
+import { TeamSection } from "@/components/marketing/team-section";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
@@ -182,6 +184,10 @@ export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
             rate, window: settings.attributionWindowDays, validation: settings.commissionValidationDays, model: settings.attributionModel,
           }} />
         </section>
+
+        <TeamSection t={t} />
+
+        <ContactNewsletter t={t} source="home" />
 
         {/* ------------------------------------------------------------ URGENCY → ACTION */}
         <section className="px-4 pb-24 sm:px-6">

@@ -12,6 +12,8 @@ import { log } from "@/lib/log";
  */
 export interface EmailMessage {
   to: string;
+  /** Optional verified address for direct replies (for example, a contact form sender). */
+  replyTo?: string;
   subject: string;
   html: string;
   text?: string;
@@ -43,7 +45,7 @@ const resend: EmailAdapter = {
         subject: msg.subject,
         html: msg.html,
         text: msg.text,
-        ...(env.emailReplyTo ? { reply_to: env.emailReplyTo } : {}),
+        ...(msg.replyTo || env.emailReplyTo ? { reply_to: msg.replyTo || env.emailReplyTo } : {}),
         ...(msg.tags ? { tags: msg.tags } : {}),
       }),
     });

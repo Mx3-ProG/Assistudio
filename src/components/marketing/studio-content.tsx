@@ -12,6 +12,7 @@ import { PricingPlans } from "./pricing-plans";
 import { StudioSectionBeacon, StudioViewBeacon } from "./studio-tracking";
 import { TrackedStudioLink } from "./tracked-studio-link";
 import { StudioCapacitySignal } from "./studio-capacity";
+import { TeamSection } from "./team-section";
 import studioHero from "../../../public/portfolio/maisonaurelia.webp";
 
 export interface StudioContentProps {
@@ -109,7 +110,9 @@ export function StudioContent({ t, locale, offers, settings, page, referral, ref
         <ul className="mt-12 grid gap-x-10 border-y border-line md:grid-cols-2">{s.features.map((feature) => <li key={feature.title} className="flex gap-4 border-b border-line py-6 md:[&:nth-last-child(-n+2)]:border-b-0"><CircleCheck className="mt-0.5 size-5 shrink-0 text-accent" /><div><h3 className="font-semibold">{feature.title}</h3><p className="mt-1.5 text-[14px] leading-relaxed text-muted">{feature.body}</p></div></li>)}</ul>
       </section>
 
-      <section id="how" className="border-y border-line bg-fg py-20 text-bg sm:py-28"><div className="mx-auto max-w-6xl px-4 sm:px-6"><h2 className="display text-[42px] sm:text-[62px]">{s.howTitle}</h2><ol className="mt-12 grid gap-px overflow-hidden rounded-[28px] bg-white/10 md:grid-cols-4">{s.how.map((step, index) => <li key={step.title} className="bg-fg p-7 sm:p-8"><span className="tabular text-[12px] font-semibold text-blue-300">0{index + 1}</span><h3 className="mt-8 text-[20px] font-semibold">{step.title}</h3><p className="mt-3 text-[14px] leading-relaxed text-white/60">{step.body}</p></li>)}</ol></div></section>
+      <TeamSection t={t} />
+
+      <section id="how" className="border-y border-white/10 bg-[#071020] py-20 text-white sm:py-28"><div className="mx-auto max-w-6xl px-4 sm:px-6"><h2 className="display text-[42px] sm:text-[62px]">{s.howTitle}</h2><ol className="mt-12 grid gap-px overflow-hidden rounded-[28px] bg-white/10 md:grid-cols-4">{s.how.map((step, index) => <li key={step.title} className="bg-[#071020] p-7 sm:p-8"><span className="tabular text-[12px] font-semibold text-blue-300">0{index + 1}</span><h3 className="mt-8 text-[20px] font-semibold text-white">{step.title}</h3><p className="mt-3 text-[14px] leading-relaxed text-white/65">{step.body}</p></li>)}</ol></div></section>
 
       <section id="pricing" className="scroll-mt-20 bg-surface-2/60 py-20 sm:py-28"><div className="mx-auto max-w-6xl px-4 sm:px-6"><div className="mx-auto max-w-3xl text-center"><h2 className="display text-[42px] sm:text-[62px]">{s.pricingTitle}</h2><p className="mt-5 text-[17px] text-muted">{t.pricing.subtitle}</p></div><div className="mt-12"><PricingPlans t={t} locale={locale} offers={offers} page={page} referral={referral} requestHref="#request" requestLabel={cta} detailed={false} capacity={settings} /></div><p className="mt-6 text-center text-[12px] text-muted">{s.pricingNote}</p></div></section>
 

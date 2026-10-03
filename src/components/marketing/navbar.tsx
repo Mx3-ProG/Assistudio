@@ -11,7 +11,7 @@ import { Logo } from "./logo";
 import { track } from "@/lib/analytics/client";
 import { cn } from "@/lib/cn";
 
-export function Navbar({ variant = "partners" }: { variant?: "partners" | "studio" }) {
+export function Navbar({ variant = "partners", studioCtaHref = "#request" }: { variant?: "partners" | "studio"; studioCtaHref?: string }) {
   const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -74,7 +74,7 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
             </>
           ) : (
             <span className="hidden sm:inline-flex">
-              <a href="#request" className={buttonClass("primary", "sm")}>
+              <a href={studioCtaHref} className={buttonClass("primary", "sm")}>
                 {t.studio.cta}
               </a>
             </span>
@@ -107,7 +107,7 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
             </li>}
           </ul>
           <Link
-            href={variant === "partners" ? p("/register") : "#request"}
+            href={variant === "partners" ? p("/register") : studioCtaHref}
             onClick={() => {
               setOpen(false);
               if (variant === "partners") track("cta_click", { placement: "nav_mobile" });

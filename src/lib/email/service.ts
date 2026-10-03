@@ -40,8 +40,10 @@ export async function flushEmailOutbox(opts: { limit?: number; ids?: string[] } 
     }
     try {
       const rendered = renderEmail(row.template as TemplateId, row.params ?? {}, { locale: row.locale, appUrl: env.siteUrl });
+      const requestedReplyTo = typeof row.params?.reply_to === "string" ? row.params.reply_to.trim().toLowerCase() : "";
+      const replyTo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedReplyTo) ? requestedReplyTo : undefined;
       const res = await email.send({
-        to: row.to_email, ...rendered, idempotencyKey: row.idempotency_key,
+        to: row.to_email, replyTo, ...rendered, idempotencyKey: row.idempotency_key,
         tags: [{ name: "template", value: row.template.replace(/[^a-zA-Z0-9_-]/g, "_") }],
       });
       await mark("sent", res.id, null);
@@ -65,19 +67,43 @@ export async function queueDirectEmail(input: {
   dossierId: string;
   params: Record<string, unknown>;
 }): Promise<void> {
-  if (!isSupabaseConfigured) return;
+  const id = await queuePublicEmail({
+    to: input.to,
+    locale: input.locale,
+    template: input.template,
+    key: input.key,
+    recipientType: "lead",
+    relatedEntity: "commercial_dossier",
+    relatedId: input.dossierId,
+    params: input.params,
+  });
+  if (id) await flushEmailOutbox({ ids: [id] });
+}
+
+/** Queue a server-validated public form email without exposing the outbox. */
+export async function queuePublicEmail(input: {
+  to: string;
+  locale: Locale;
+  template: TemplateId;
+  key: string;
+  recipientType: "lead" | "staff";
+  relatedEntity: string;
+  relatedId: string;
+  params: Record<string, unknown>;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   const sb = supabaseService();
   const { data, error } = await sb.from("email_events").upsert({
     idempotency_key: input.key,
     template: input.template,
-    recipient_type: "lead",
+    recipient_type: input.recipientType,
     recipient_email: input.to.toLowerCase(),
-    related_entity: "commercial_dossier",
-    related_id: input.dossierId,
+    related_entity: input.relatedEntity,
+    related_id: input.relatedId,
     params: { ...input.params, locale: input.locale },
   }, { onConflict: "idempotency_key", ignoreDuplicates: true }).select("id").maybeSingle();
-  if (error) throw new Error(`queue dossier email: ${error.message}`);
-  if (data?.id) await flushEmailOutbox({ ids: [data.id] });
+  if (error) throw new Error(`queue public email: ${error.message}`);
+  return data?.id ?? null;
 }
 
 /**

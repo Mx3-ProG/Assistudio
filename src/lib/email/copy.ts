@@ -11,7 +11,8 @@ export type TemplateId =
   | "customer.welcome" | "customer.order_confirmation" | "customer.renewal_receipt" | "customer.payment_failed"
   | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation"
   | "dossier.invite" | "dossier.changes_requested" | "dossier.ready_to_accept"
-  | "dossier.otp" | "dossier.payment" | "dossier.active" | "staff.help_request" | "system.test";
+  | "dossier.otp" | "dossier.payment" | "dossier.active" | "staff.help_request"
+  | "staff.contact_request" | "newsletter.confirmation" | "system.test";
 
 export interface TemplateCopy {
   subject: string;
@@ -202,6 +203,26 @@ const en: Copy = {
       cta: { label: "Open this partner in the admin", path: "{admin_path}" },
       footnote: "Reply from the admin (Help requests) so the partner is notified. Replying to this email does not reach them.",
     },
+    "staff.contact_request": {
+      subject: "New contact request — {full_name}",
+      preheader: "A visitor wrote to Studio ATS.",
+      title: "A new contact request has arrived.",
+      paragraphs: [
+        "Name: {full_name}\nEmail: {email}\nPhone: {phone}",
+        "Activity or company: {company}",
+        "Message:\n{message}",
+        "Source: {source}",
+      ],
+    },
+    "newsletter.confirmation": {
+      subject: "You are subscribed to Studio ATS updates",
+      preheader: "Services, product updates and useful digital insights.",
+      title: "Welcome to the Studio ATS newsletter.",
+      paragraphs: [
+        "You will occasionally receive news about our services, Studio ATS updates and useful changes in the digital world.",
+        "You can unsubscribe at any time by replying to one of our emails.",
+      ],
+    },
     "system.test": {
       subject: "Studio ATS — test email",
       preheader: "Email delivery works.",
@@ -386,6 +407,26 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       ],
       cta: { label: "Ouvrir ce partenaire dans l’admin", path: "{admin_path}" },
       footnote: "Répondez depuis l’admin (Demandes d’aide) pour que le partenaire soit notifié. Répondre à cet email ne lui parvient pas.",
+    },
+    "staff.contact_request": {
+      subject: "Nouvelle demande de contact — {full_name}",
+      preheader: "Un visiteur a écrit à Studio ATS.",
+      title: "Une nouvelle demande de contact est arrivée.",
+      paragraphs: [
+        "Nom : {full_name}\nEmail : {email}\nTéléphone : {phone}",
+        "Activité ou entreprise : {company}",
+        "Message :\n{message}",
+        "Source : {source}",
+      ],
+    },
+    "newsletter.confirmation": {
+      subject: "Votre inscription aux actualités Studio ATS",
+      preheader: "Services, nouveautés produit et évolutions utiles du numérique.",
+      title: "Bienvenue dans la newsletter Studio ATS.",
+      paragraphs: [
+        "Vous recevrez occasionnellement nos nouveaux services, les évolutions de Studio ATS et une lecture utile des changements du monde numérique.",
+        "Vous pourrez vous désinscrire à tout moment en répondant à l’un de nos emails.",
+      ],
     },
     "system.test": {
       subject: "Studio ATS — email de test",

@@ -213,6 +213,7 @@ const it: Dictionary = {
       { title: "Realizzazione", body: "Progettiamo e configuriamo il tuo Studio ATS." },
       { title: "Lancio", body: "Inizi a ricevere richieste qualificate." },
     ],
+    team: { eyebrow: "Le persone dietro Studio ATS", title: "Un team riconoscibile. Persone con cui parlare.", founderRole: "Fondatore · prodotto e tecnologia", founderBody: "Mathieu Deffontaines crea prodotti digitali dall’adolescenza. Fondatore di Wayne-Web e cofondatore di NwH Studios, unisce sviluppo software, direzione prodotto ed esperienza di vendita sul campo.", founderLink: "Scopri il percorso di Mathieu", collectiveTitle: "Una decina di programmatori", collectiveBody: "Una decina di programmatori progetta, testa e migliora ogni giorno gli Studio online. Ogni progetto è valutato da persone che conoscono il prodotto e restano presenti dopo il lancio.", commitments: ["Valutazione quotidiana del prodotto", "Controlli di qualità e sicurezza", "Supporto umano dopo il lancio"] },
     faqTitle: "Domande",
     faq: [
       { q: "Studio ATS è solo un sito web?", a: "No. Il sito è un componente. Studio ATS copre presentazione, conversione, qualificazione, contatti, appuntamenti, email e follow-up." },
@@ -240,9 +241,9 @@ const it: Dictionary = {
     capacityAvailable: "Restano {remaining} posti su {total} per l’onboarding Pro e Premium questo mese.",
     capacityFull: "Questo mese è completo. L’acquisto resta disponibile; prossimo onboarding: {window}.",
     capacityNext: "Prossimo onboarding: {window}.",
-    demoOnly: "Dimostrazione Studio — esempio fittizio senza risultati cliente dichiarati.",
+    demoOnly: "Dimostrazione Studio",
     productCaptureTitle: "Schermate reali, non promesse.",
-    productCaptureNote: "Schermate di interfacce consegnate o dimostrative. I dati visibili non sono presentati come risultati dei clienti.",
+    productCaptureNote: "Dimostrazione Studio",
   },
   auth: {
     loginTitle: "Bentornato.",
@@ -1177,6 +1178,8 @@ const it: Dictionary = {
     security: { title: "Sicurezza", body: "Sicurezza a livello di riga su ogni tabella, trasporto cifrato, identificatori di tracciamento con hash, operazioni finanziarie sottoposte ad audit e nessun dato bancario conservato da Studio ATS." },
     placeholderBody: "Questa pagina è provvisoria. Il contenuto definitivo deve essere redatto e convalidato da un consulente legale prima della messa in produzione. Le informazioni obbligatorie (identità della società, registrazione, hosting, titolare del trattamento, contatti, legge applicabile…) non sono state inventate di proposito.",
   },
+  contactForm: { eyebrow: "Contattaci", title: "Hai una domanda? Parliamone.", body: "Studio ATS, programma partner o progetto digitale: scrivici. Una persona ti risponderà direttamente.", firstName: "Nome", lastName: "Cognome", email: "Email", phone: "Telefono", company: "Attività o azienda", message: "Il tuo messaggio", consent: "Accetto che Studio ATS usi questi dati per rispondere alla mia richiesta.", submit: "Invia il messaggio", sending: "Invio…", success: "Grazie. Il messaggio è stato inviato.", error: "Impossibile inviare il messaggio. Controlla i campi." },
+  newsletter: { eyebrow: "Newsletter Studio ATS", title: "Il digitale, senza rumore.", body: "Ricevi occasionalmente novità sui nostri servizi, Studio ATS e cambiamenti utili del mondo digitale.", email: "La tua email", consent: "Accetto di ricevere la newsletter Studio ATS. Posso annullare l’iscrizione in qualsiasi momento.", submit: "Iscrivimi", sending: "Iscrizione…", success: "Iscrizione completata. Controlla la posta.", error: "Impossibile salvare l’iscrizione." },
   cookieBanner: {
     text: "Usiamo cookie strettamente necessari, tra cui un cookie di referral per accreditare il partner che ha consigliato Studio ATS. I cookie statistici facoltativi restano disattivati finché non li accetti.",
     accept: "Accetta le statistiche",

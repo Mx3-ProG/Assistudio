@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { getDictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { pageMetadata } from "@/lib/seo";
-import { InfoPage } from "@/components/marketing/info-page";
+import { Navbar } from "@/components/marketing/navbar";
+import { ContactNewsletter } from "@/components/marketing/contact-newsletter";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/contact">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
@@ -13,5 +14,5 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/contact"
 export default async function Page({ params }: PageProps<"/[locale]/contact">) {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  return <InfoPage title={t.pages.contact.title} body={t.pages.contact.body} placeholder={t.pages.placeholderBody} placeholderLabel={t.common.legalPlaceholder} />;
+  return <><Navbar /><main><ContactNewsletter t={t} source="contact" /></main></>;
 }

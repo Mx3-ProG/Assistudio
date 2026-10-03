@@ -5,12 +5,15 @@ import { repo } from "@/lib/data";
 import { REF_COOKIE, VISITOR_COOKIE, decodeRefCookie, resolveAttribution, isValidCode } from "@/lib/attribution";
 import { isLocale } from "@/i18n/config";
 import type { ReferralTarget } from "@/lib/data/types";
-import { isDemoMode } from "@/lib/env";
+import { env, isDemoMode } from "@/lib/env";
 import { resolveForConversion } from "@/lib/services/attribution";
-import { kickEmailOutbox } from "@/lib/email/service";
+import { kickEmailOutbox, queuePublicEmail } from "@/lib/email/service";
+import { log } from "@/lib/log";
 
 const schema = z.object({
-  fullName: z.string().trim().min(2).max(120),
+  fullName: z.string().trim().max(120).optional().default(""),
+  firstName: z.string().trim().max(80).optional().default(""),
+  lastName: z.string().trim().max(80).optional().default(""),
   company: z.string().trim().max(160).optional().default(""),
   profession: z.string().trim().max(120).optional().default(""),
   email: z.email().max(200),
@@ -22,9 +25,14 @@ const schema = z.object({
   page: z.string().optional().default(""),
   referral: z.string().trim().max(64).optional().default(""),
   requestType: z.enum(["info", "call", "question", "quote"]).optional(),
+  source: z.enum(["home", "contact", "studio", "affiliate"]).optional().default("studio"),
   advisorConsent: z.string().optional().transform((v) => v === "on"),
   // Honeypot: real users never fill it.
   company_url: z.string().max(0).optional().default(""),
+}).superRefine((value, ctx) => {
+  if ((value.fullName || `${value.firstName} ${value.lastName}`.trim()).length < 2) {
+    ctx.addIssue({ code: "custom", path: [value.firstName || value.lastName ? "lastName" : "fullName"], message: "Name is required" });
+  }
 });
 
 export type LeadState = { status: "idle" | "success" | "error"; fields?: string[] };
@@ -37,6 +45,7 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
     return { status: "error", fields: parsed.error.issues.map((i) => String(i.path[0])) };
   }
   const d = parsed.data;
+  const fullName = d.fullName || [d.firstName, d.lastName].filter(Boolean).join(" ");
   const locale = isLocale(d.locale) ? d.locale : "en";
   const r = repo();
   const jar = await cookies();
@@ -76,8 +85,8 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
   }
 
   // TODO(security): add rate limiting / bot scoring (e.g. Vercel BotID) before launch.
-  await r.createLead({
-    fullName: d.fullName,
+  const lead = await r.createLead({
+    fullName,
     company: d.company || null,
     profession: d.profession || null,
     email: d.email.toLowerCase(),
@@ -98,6 +107,28 @@ export async function submitLead(_prev: LeadState, form: FormData): Promise<Lead
     advisorConsent: d.advisorConsent,
   });
   await r.recordFunnelEvent({ event: "studio_lead_submitted", affiliateId: target?.affiliateId ?? null, locale, placement: "lead_form", meta: {} });
+  try {
+    await queuePublicEmail({
+      to: env.emailReplyTo,
+      locale,
+      template: "staff.contact_request",
+      key: `staff.contact_request:${lead.id}`,
+      recipientType: "staff",
+      relatedEntity: "lead",
+      relatedId: lead.id,
+      params: {
+        full_name: fullName,
+        email: d.email.toLowerCase(),
+        phone: d.phone || "—",
+        company: d.company || d.profession || "—",
+        message: d.message || "—",
+        source: d.source,
+        reply_to: d.email.toLowerCase(),
+      },
+    });
+  } catch (error) {
+    log.error("email", "contact notification queue failed", { lead_id: lead.id, error: error instanceof Error ? error.message : String(error) });
+  }
   kickEmailOutbox(); // lead.confirmation + affiliate.new_lead, queued by the leads trigger
   return { status: "success" };
 }
