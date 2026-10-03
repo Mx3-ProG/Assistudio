@@ -6,11 +6,13 @@ import cp from "./copilot.ar";
 import gd from "./guided.ar";
 import ct from "./contracts.ar";
 import net from "./network.ar";
+import hc from "./home-conversion.ar";
 
 /** العربية — complete. TODO(i18n): native review before launch. */
 const ar: Dictionary = {
   sc,
   net,
+  hc,
   msg,
   cp,
   gd,

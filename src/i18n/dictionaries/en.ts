@@ -8,10 +8,12 @@ import cp from "./copilot.en";
 import gd from "./guided.en";
 import ct from "./contracts.en";
 import net from "./network.en";
+import hc from "./home-conversion.en";
 
 const en = {
   sc,
   net,
+  hc,
   msg,
   cp,
   gd,

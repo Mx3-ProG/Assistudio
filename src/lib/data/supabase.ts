@@ -17,7 +17,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
-  PerformanceRow, ProductView, SalesAnalytics, AdminSaleRow, AdminCommissionRow, AdminLeadRow, Payout,
+  PerformanceRow, ProductView, SalesAnalytics, ActivationFunnel, AdminSaleRow, AdminCommissionRow, AdminLeadRow, Payout,
   AdminNetworkStats, HelpRequest,
 } from "./types";
 
@@ -315,6 +315,13 @@ export const supabaseRepo: Repo = {
       target_key: e.targetKey ?? null, channel: e.channel ?? null, meta: e.meta ?? {},
     });
     if (error) console.error(JSON.stringify({ level: "warn", scope: "sales_events", message: error.message }));
+  },
+
+  async recordFunnelEvent(e) {
+    const { error } = await supabaseService().from("funnel_events").insert({
+      event: e.event, affiliate_id: e.affiliateId, locale: e.locale ?? null, placement: e.placement ?? null, meta: e.meta ?? {},
+    });
+    if (error) console.error(JSON.stringify({ level: "warn", scope: "funnel_events", message: error.message }));
   },
 
   async getSalesSettings() {
@@ -1187,6 +1194,17 @@ export const supabaseRepo: Repo = {
   async adminSalesAnalytics(_s, sinceDays): Promise<SalesAnalytics> {
     const sb = await supabaseServer();
     return check(await sb.rpc("admin_sales_center_analytics", { p_since: new Date(Date.now() - sinceDays * DAY).toISOString() })) as SalesAnalytics;
+  },
+  async adminActivationFunnel(_s, sinceDays): Promise<ActivationFunnel> {
+    const sb = await supabaseServer();
+    const since = new Date(Date.now() - sinceDays * DAY).toISOString();
+    const { data, error } = await sb.rpc("admin_activation_funnel", { p_since: since });
+    // Migration 20261010000001 not applied yet: show an empty funnel rather than breaking the analytics page.
+    if (error && isMissingDbObject(error)) {
+      return { since, signups: 0, link_copied: 0, first_prospect: 0, first_handoff: 0, opportunities: 0, opportunities_won: 0,
+        median_hours_first_action: null, median_hours_first_prospect: null, active_ambassadors: 0, revenue_cents: 0, events: {} };
+    }
+    return check({ data, error }) as ActivationFunnel;
   },
   async adminListSalesPages() {
     const sb = await supabaseServer();

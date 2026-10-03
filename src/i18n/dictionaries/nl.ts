@@ -6,11 +6,13 @@ import cp from "./copilot.nl";
 import gd from "./guided.nl";
 import ct from "./contracts.nl";
 import net from "./network.nl";
+import hc from "./home-conversion.nl";
 
 /** Nederlands — complete. TODO(i18n): native review before launch. */
 const nl: Dictionary = {
   sc,
   net,
+  hc,
   msg,
   cp,
   gd,

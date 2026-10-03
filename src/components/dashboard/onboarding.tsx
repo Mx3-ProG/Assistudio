@@ -107,7 +107,7 @@ export function Onboarding({ markets, link, priceCents, commissionCents, startSt
             <p className="mt-2 text-[15px] text-fg-2">{O.linkBody}</p>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
               <input readOnly value={link} className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-surface-2 px-4 font-mono text-[14px]" />
-              <CopyButton value={link} variant="accent" size="lg" />
+              <CopyButton track="affiliate_link_copied" value={link} variant="accent" size="lg" />
             </div>
             {pending && <div className="mt-4"><Notice tone="warning">{O.pendingNote}</Notice></div>}
           </>
@@ -119,7 +119,7 @@ export function Onboarding({ markets, link, priceCents, commissionCents, startSt
             <div className="mt-6 rounded-2xl bg-surface-2 p-4">
               <p className="whitespace-pre-line text-[14px] leading-relaxed">{message || marketContent(markets[0], locale).message}</p>
             </div>
-            <CopyButton value={message || marketContent(markets[0], locale).message} variant="primary" size="md" className="mt-4" />
+            <CopyButton track="sales_script_copied" value={message || marketContent(markets[0], locale).message} variant="primary" size="md" className="mt-4" />
           </>
         )}
 

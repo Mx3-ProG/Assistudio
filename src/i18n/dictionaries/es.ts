@@ -6,11 +6,13 @@ import cp from "./copilot.es";
 import gd from "./guided.es";
 import ct from "./contracts.es";
 import net from "./network.es";
+import hc from "./home-conversion.es";
 
 /** Español — complete. TODO(i18n): native review before launch. */
 const es: Dictionary = {
   sc,
   net,
+  hc,
   msg,
   cp,
   gd,

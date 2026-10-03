@@ -57,7 +57,7 @@ export function FindClients({ markets, savedCount }: { markets: Market[]; savedC
             <div className="rounded-2xl bg-surface-2 p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{t.home.marketMessage}</span>
-                <CopyButton value={c.message} />
+                <CopyButton track="sales_script_copied" value={c.message} />
               </div>
               <p className="whitespace-pre-line text-[14px] leading-relaxed">{c.message}</p>
             </div>

@@ -6,11 +6,13 @@ import cp from "./copilot.pt";
 import gd from "./guided.pt";
 import ct from "./contracts.pt";
 import net from "./network.pt";
+import hc from "./home-conversion.pt";
 
 /** Português (pt-PT) — complete. TODO(i18n): native review before launch. */
 const pt: Dictionary = {
   sc,
   net,
+  hc,
   msg,
   cp,
   gd,

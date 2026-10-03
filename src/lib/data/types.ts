@@ -5,6 +5,7 @@ import type { SalesAsset } from "@/content/sales-kit";
 import type { Locale } from "@/i18n/config";
 import type { ContentKind, Channel, FunnelStage, CtaMode } from "@/lib/sales/content";
 import type { OfferTier } from "@/lib/offers";
+import type { FunnelEvent } from "@/lib/analytics/events";
 
 export type Role = "super_admin" | "admin" | "affiliate_manager" | "agency" | "sales_closer" | "affiliate";
 export type AffiliateStatus = "pending" | "approved" | "rejected" | "suspended";
@@ -323,6 +324,31 @@ export interface SalesContentInput {
   tags: string[];
   sort: number;
   body: unknown;
+}
+
+/** A funnel event (see src/lib/analytics/events.ts). No personal data. */
+export interface FunnelEventInput {
+  event: FunnelEvent;
+  affiliateId: string | null;
+  locale?: string | null;
+  placement?: string | null;
+  meta?: Record<string, string | number | boolean>;
+}
+
+/** admin_activation_funnel(): what happens after sign-up, for the ambassadors who joined in the period. */
+export interface ActivationFunnel {
+  since: string;
+  signups: number;
+  link_copied: number;
+  first_prospect: number;
+  first_handoff: number;
+  opportunities: number;
+  opportunities_won: number;
+  median_hours_first_action: number | null;
+  median_hours_first_prospect: number | null;
+  active_ambassadors: number;
+  revenue_cents: number;
+  events: Record<string, number>;
 }
 
 export interface SalesAnalytics {

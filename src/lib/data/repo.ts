@@ -4,7 +4,7 @@ import type {
   FinancialOverview, ConnectStatus, AdminFinanceFilters, AdminFinanceSummary, AdminFinanceOptions,
   ReferralTarget, ReferralDashboard, LeadInput, ClickInput, Market, SalesAsset, AdminOverview, AdminAffiliateRow,
   AdminCommissionRow, AdminSaleRow, AdminLeadRow, FraudFlag, FraudStatus, AuditLog, AdminPayoutCandidate, AffiliateStatus,
-  SalesPageInput, PerformanceRow, ProductView, SalesEventInput, SalesContentInput, SalesAnalytics,
+  SalesPageInput, PerformanceRow, ProductView, SalesEventInput, SalesContentInput, SalesAnalytics, FunnelEventInput, ActivationFunnel,
   PromoCode, ProspectEvent, ProspectEventType, ProspectStage,
   AdminNetworkStats, AdminAffiliateDetail, HelpRequest, HelpRequestInput, HelpStatus,
 } from "./types";
@@ -111,6 +111,8 @@ export interface Repo extends MessagingRepo {
   listPublishedContent(kinds: ContentKind[]): Promise<SalesContent[]>;
   /** Usage / funnel events (service role). No personal data. */
   recordSalesEvent(e: SalesEventInput): Promise<void>;
+  /** Activation funnel events (service role, best-effort). No personal data. */
+  recordFunnelEvent(e: FunnelEventInput): Promise<void>;
   /** Sales Center rules read from settings (CRM thresholds, page options). */
   getSalesSettings(): Promise<{ followUpDays: number; checkoutCheckInDays: number; allowIndexing: boolean; advisorEnabled: boolean }>;
 
@@ -225,6 +227,8 @@ export interface Repo extends MessagingRepo {
   adminNewSalesContentVersion(s: Session, id: string, locale: Locale | null): Promise<{ id: string }>;
   adminDeleteSalesContentDraft(s: Session, id: string): Promise<void>;
   adminSalesAnalytics(s: Session, sinceDays: number): Promise<SalesAnalytics>;
+  /** Sign-up → activation → first prospect → opportunity → sale, for ambassadors who joined in the period. Staff only. */
+  adminActivationFunnel(s: Session, sinceDays: number): Promise<ActivationFunnel>;
   adminListSalesPages(s: Session): Promise<(PrivatePage & { affiliateName: string | null })[]>;
   adminSetSalesPageActive(s: Session, id: string, active: boolean, reason: string): Promise<void>;
   /** One aggregated row per affiliate (sponsor, recruits, prospects, sales, money buckets, open requests). */

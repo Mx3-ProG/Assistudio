@@ -14,6 +14,7 @@ import { fmt } from "@/i18n/format";
 import { TrackedCopy } from "./tracked-copy";
 import type { StartTarget } from "./start-selling";
 import { cn } from "@/lib/cn";
+import { CHECKLIST_LAST_STEP, CHECKLIST_SIZE, checklistDone } from "@/lib/sales/onboarding-checklist";
 
 const STEPS = 6;
 
@@ -23,13 +24,16 @@ const STEPS = 6;
  * explains how the commission comes back. Success = they know who to contact,
  * what to say, what to show and how they get paid — not "modules completed".
  */
-export function SalesOnboarding({ productLine, pitch, offerLine, targets, messages, templateKey, pageBase, existingPages, startStep, pending, advisorName, link, code }: {
+export function SalesOnboarding({ productLine, pitch, offerLine, targets, messages, templateKey, pageBase, existingPages, startStep, pending, advisorName, link, code, next }: {
   productLine: string; pitch: string | null; offerLine: string | null; targets: (StartTarget & { id: string })[]; messages: SalesContent<"message">[];
   templateKey: string | null; pageBase: string; existingPages: Record<string, string>; startStep: number; pending: boolean; advisorName: string;
   link: string; code: string;
+  /** Where the visitor was heading when they signed up (e.g. the Sales Center); shown as the finish CTA. */
+  next?: string;
 }) {
   const { t, locale } = useI18n();
   const O = t.sc.onboarding;
+  const A = t.hc.activation;
   const [step, setStep] = useState(Math.min(Math.max(startStep, 0), STEPS - 1));
   const [target, setTarget] = useState<(StartTarget & { id: string }) | null>(null);
   const [pageUrl, setPageUrl] = useState<string | null>(null);
@@ -53,7 +57,8 @@ export function SalesOnboarding({ productLine, pitch, offerLine, targets, messag
     return (
       <div className="card mx-auto max-w-xl p-8 text-center shadow-lift sm:p-12">
         <PartyPopper className="mx-auto size-12 text-accent" />
-        <h1 className="display mt-6 text-[34px] sm:text-[44px]">{O.doneTitle}</h1>
+        <p className="tabular mt-6 text-[13px] font-semibold text-success">{fmt(A.progress, { done: CHECKLIST_SIZE, total: CHECKLIST_SIZE })}</p>
+        <h1 className="display mt-2 text-[34px] sm:text-[44px]">{A.ready}</h1>
         <p className="mt-4 text-[17px] text-fg-2">{O.doneBody}</p>
         <div className="mt-6 rounded-2xl bg-surface-2 p-5 text-start">
           <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-accent">{O.paidTitle}</p>
@@ -61,7 +66,7 @@ export function SalesOnboarding({ productLine, pitch, offerLine, targets, messag
             {O.paidSteps.map((x, i) => <li key={x} className="flex gap-3 text-[14.5px]"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-semibold text-accent-fg">{i + 1}</span>{x}</li>)}
           </ol>
         </div>
-        <Link href={`/${locale}/dashboard/sales-center`} className={buttonClass("accent", "lg", "mt-8")}>{O.doneCta}<ArrowRight className="flip-rtl size-4" /></Link>
+        <Link href={next ?? `/${locale}/dashboard/sales-center`} className={buttonClass("accent", "lg", "mt-8")}>{next ? t.common.continue : O.doneCta}<ArrowRight className="flip-rtl size-4" /></Link>
       </div>
     );
   }
@@ -74,22 +79,39 @@ export function SalesOnboarding({ productLine, pitch, offerLine, targets, messag
   const msgSource = c?.message || msg?.body.text || "";
   const msgText = msgSource ? personalize(msgSource, { advisorName, affiliateUrl: url ?? link, sector: c?.name }, t.sc.messages.vars).text : "";
   const needsTarget = step >= 2 && !target;
+  const checked = checklistDone(step);
 
   return (
     <div className="mx-auto max-w-2xl">
       <div className="text-center">
         <Sparkles className="mx-auto size-8 text-accent" />
-        <h1 className="display mt-4 text-[32px] sm:text-[44px]">{O.title}</h1>
-        <p className="mt-3 text-[16px] text-muted">{O.subtitle}</p>
+        <h1 className="display mt-4 text-[32px] sm:text-[44px]">{A.welcomeTitle}</h1>
+        <p className="mt-3 text-[17px] font-medium text-fg-2">{A.goal}</p>
       </div>
       {pending && <div className="mt-6"><Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice></div>}
-      <ol className="mt-8 flex gap-1.5" aria-label="progress">
-        {O.steps.map((label, i) => (
-          <li key={label} className={cn("h-1.5 flex-1 rounded-full", i <= step ? "bg-accent" : "bg-surface-3")} title={label} />
-        ))}
-      </ol>
+      <div className="mt-8">
+        <div className="flex items-center justify-between gap-3">
+          <ol className="flex flex-1 gap-1.5" aria-hidden>
+            {CHECKLIST_LAST_STEP.map((last, i) => <li key={i} className={cn("h-1.5 flex-1 rounded-full", step > last ? "bg-success" : step >= (CHECKLIST_LAST_STEP[i - 1] ?? -1) + 1 ? "bg-accent" : "bg-surface-3")} />)}
+          </ol>
+          <span className="tabular shrink-0 text-[13px] font-semibold">{fmt(A.progress, { done: checked, total: CHECKLIST_SIZE })}</span>
+        </div>
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {A.checklist.map((label, i) => {
+            const done = step > CHECKLIST_LAST_STEP[i];
+            const current = !done && step >= (CHECKLIST_LAST_STEP[i - 1] ?? -1) + 1;
+            return (
+              <li key={label} className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12.5px]",
+                done ? "border-success/30 bg-success-soft text-success" : current ? "border-accent/40 bg-accent-soft font-medium text-fg" : "border-line text-muted")}>
+                {done ? <Check className="size-3.5" aria-hidden /> : <span className="tabular text-[11px] font-semibold">{i + 1}</span>}
+                <span>{label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
       <div className="card mt-6 p-5 sm:p-8">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-accent">{step + 1} / {STEPS}</p>
+        <p className="tabular text-[12px] font-semibold uppercase tracking-[0.12em] text-accent">{Math.max(0, CHECKLIST_LAST_STEP.findIndex((last) => step <= last)) + 1} / {CHECKLIST_SIZE}</p>
         <h2 className="mt-1 text-[22px] font-semibold tracking-tight">{O.steps[step]}</h2>
 
         {step === 0 && (

@@ -8,6 +8,7 @@ import { repo } from "@/lib/data";
 import { formatMoney, formatNumber, formatRelative } from "@/lib/money";
 import { computeCommissionCents } from "@/lib/commission";
 import { Card, CardHeader, Notice, Badge } from "@/components/ui/primitives";
+import { buttonClass } from "@/components/ui/button";
 import { LiveSales } from "@/components/dashboard/live-sales";
 import { EarningsChart } from "@/components/dashboard/earnings-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
@@ -17,6 +18,8 @@ import { salesContext, nextActions, ofKind } from "@/lib/sales/server";
 import { reachedCounts, firstSalePath } from "@/lib/sales/guide";
 import { marketContent } from "@/content/markets";
 import { FirstSaleStarter } from "@/components/guided/first-sale-starter";
+import { primaryAction } from "@/lib/sales/primary-action";
+import { checklistDone, CHECKLIST_SIZE } from "@/lib/sales/onboarding-checklist";
 
 function greeting(t: Awaited<ReturnType<typeof getDictionary>>, name: string) {
   const h = new Date().getHours();
@@ -69,6 +72,14 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
     [W.prospects, reached.new], [W.messages, reached.contacted], [W.replies, reached.replied], [W.needs, reached.qualified],
     [W.proofs, reached.proof_sent], [W.meetings, Math.max(reached.appointment, reached.handed_off)], [W.quotes, reached.checkout], [W.sales, paidSales],
   ] as const;
+  // ONE main action, always: the ambassador never wonders what to do next.
+  const top = next[0];
+  const primary = primaryAction({
+    onboardingDone: !!s.affiliate.onboardingCompletedAt,
+    prospectCount: prospects.length,
+    top: top ? { id: top.prospect.id, name: top.prospect.name, stage: top.prospect.stage, mode: top.rec.mode } : null,
+  });
+  const P = t.hc.activation.primary[primary.kind];
   const sources = ofKind(sales.content, "find_source").map((x) => ({ key: x.key, title: x.title, how: x.body.how, action: x.body.action, tip: x.body.tip }));
 
   const numbers = (
@@ -160,10 +171,21 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
         <p className="mt-1 text-[15px] text-muted">{t.dash.overviewSubtitle}</p>
       </header>
 
-      {!s.affiliate.onboardingCompletedAt && (
+      <Link href={`${base}${primary.path}`}
+        className="card group relative flex flex-col gap-4 overflow-hidden border-accent/40 p-5 transition hover:shadow-md sm:flex-row sm:items-center sm:p-6">
+        <div className="pointer-events-none absolute -end-20 -top-20 size-56 rounded-full bg-accent/15 blur-3xl" />
+        <div className="relative min-w-0 flex-1">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent">{t.hc.activation.primary.eyebrow}</p>
+          <h2 className="mt-1 text-[22px] font-semibold tracking-tight sm:text-[26px]">{P.title}</h2>
+          <p className="mt-1 text-[14.5px] text-fg-2">{fmt(P.body, { name: primary.prospect?.name ?? "" })}</p>
+        </div>
+        <span className={buttonClass("accent", "lg", "relative w-full sm:w-auto")}>{P.cta}<ArrowRight className="flip-rtl size-4" /></span>
+      </Link>
+
+      {!s.affiliate.onboardingCompletedAt && primary.kind !== "onboarding" && (
         <Link href={`${base}/welcome`} className="card flex items-center gap-4 border-accent/30 bg-accent-soft p-4 transition hover:shadow-md">
           <Sparkles className="size-5 shrink-0 text-accent" />
-          <span className="flex-1 text-[14px] font-medium">{t.dash.onboarding.resume}</span>
+          <span className="flex-1 text-[14px] font-medium">{fmt(t.hc.activation.resume, { done: checklistDone(s.affiliate.onboardingStep), total: CHECKLIST_SIZE })}</span>
           <ArrowRight className="flip-rtl size-4 text-accent" />
         </Link>
       )}

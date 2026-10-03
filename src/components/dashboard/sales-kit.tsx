@@ -44,7 +44,7 @@ export function SalesKit({ assets, link }: { assets: SalesAsset[]; link: string 
           <article key={a.id} className="card p-5 sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-[16px] font-semibold">{a.title}</h3>
-              {a.body ? <CopyButton value={withLink(a.body)} /> : a.filePath ? (
+              {a.body ? <CopyButton track="sales_script_copied" value={withLink(a.body)} /> : a.filePath ? (
                 <a href={a.filePath} download className={buttonClass("secondary", "sm")}><Download className="size-4" />{t.common.download}</a>
               ) : null}
             </div>

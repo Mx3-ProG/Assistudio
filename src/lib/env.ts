@@ -24,6 +24,8 @@ export const env = {
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: orDefault(process.env.EMAIL_FROM, DEFAULT_EMAIL_FROM),
   emailReplyTo: orDefault(process.env.EMAIL_REPLY_TO, DEFAULT_EMAIL_REPLY_TO),
+  /** Optional Studio demo (video file or embeddable player URL) shown from the partner home. Unset = no demo button. */
+  studioDemoUrl: /^https:\/\//.test(process.env.STUDIO_DEMO_URL ?? "") ? process.env.STUDIO_DEMO_URL! : "",
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);

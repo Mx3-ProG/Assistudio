@@ -32,7 +32,7 @@ export function SharePanel({ url, qrDataUrl }: { url: string; qrDataUrl: string 
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <input readOnly value={url} onFocus={(ev) => ev.currentTarget.select()} aria-label={t.dash.link.title}
               className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-surface-2 px-4 font-mono text-[14px] outline-none sm:text-[15px]" />
-            <CopyButton value={url} variant="accent" size="lg" />
+            <CopyButton track="affiliate_link_copied" value={url} variant="accent" size="lg" />
           </div>
           <p className="mt-6 text-[13px] font-medium text-muted">{t.dash.link.share}</p>
           <div className="mt-2 flex flex-wrap gap-2">

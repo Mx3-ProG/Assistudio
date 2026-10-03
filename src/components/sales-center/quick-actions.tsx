@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Search, Rocket, Link2, PanelsTopLeft, UserPlus, Phone, ShieldQuestion, Wallet, Check } from "lucide-react";
 import { useI18n } from "@/components/providers";
+import { track } from "@/lib/analytics/client";
 
 /** One-tap actions, reachable immediately on mobile (horizontal scroll). */
 export function QuickActions({ link, pageUrl }: { link: string; pageUrl: string | null }) {
@@ -19,6 +20,7 @@ export function QuickActions({ link, pageUrl }: { link: string; pageUrl: string 
         await navigator.clipboard.writeText(link).catch(() => undefined);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
+        track("affiliate_link_copied", { placement: "quick_actions" });
       }}>
         {copied ? <Check className="size-4 text-success" /> : <Link2 className="size-4 text-accent" />}{copied ? t.common.copied : Q.copyLink}
       </button>

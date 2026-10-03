@@ -14,6 +14,8 @@ AFFILIATE → LINK → PROSPECT/LEAD → SALE → PAYMENT → COMMISSION → REN
 
 **V0.5 — guided pipeline**: every prospect has a "next best action" page (why · what to do · say · show · and then?), prospect replies with answer levels 1/2/3, "Hand over to Studio" (attribution kept), official facts, first-sale path. **[docs/V0.5-guided-pipeline.md](docs/V0.5-guided-pipeline.md)**.
 
+**V0.6 — home conversion & activation**: the partner home walks the visitor from promise to action (what you sell, who buys, first commission, simulator, Sales Center, hand-over, objection FAQ, mobile sticky CTA), sign-up lands on a 5-item checklist, the dashboard always shows one next action, and a cookie-free activation funnel is measured in Admin → Sales analytics. **[docs/V0.6-home-conversion.md](docs/V0.6-home-conversion.md)**.
+
 ## Quick start (demo mode, no setup)
 
 ```bash

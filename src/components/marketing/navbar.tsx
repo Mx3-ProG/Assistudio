@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleSwitcher } from "@/components/ui/locale-switcher";
 import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { Logo } from "./logo";
+import { track } from "@/lib/analytics/client";
 import { cn } from "@/lib/cn";
 
 export function Navbar({ variant = "partners" }: { variant?: "partners" | "studio" }) {
@@ -25,12 +26,13 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
 
   const links = variant === "partners"
     ? [
-        { href: p("/#how"), label: t.nav.howItWorks },
-        { href: p("/#sell"), label: t.nav.whatYouSell },
-        { href: p("/#markets"), label: t.nav.markets },
+        { href: p("/#sell"), label: t.hc.nav.whatYouSell },
+        { href: p("/#how"), label: t.hc.nav.firstCommission },
+        { href: p("/#simulator"), label: t.hc.nav.simulator },
+        { href: p("/#sales-center"), label: t.hc.nav.salesCenter },
         { href: p("/studio"), label: t.nav.discover },
         { href: p("/pricing"), label: t.nav.pricing },
-        { href: p("/faq"), label: t.nav.faq },
+        { href: p("/#faq"), label: t.nav.faq },
       ]
     : [
         { href: p("/studio#features"), label: t.nav.whatYouSell },
@@ -65,8 +67,8 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
                 {t.nav.login}
               </Link>
               <span className="hidden sm:inline-flex">
-                <Link href={p("/register")} className={buttonClass("primary", "sm")}>
-                  {t.nav.becomePartner}
+                <Link href={p("/register")} onClick={() => track("cta_click", { placement: "nav" })} className={buttonClass("primary", "sm")}>
+                  {t.hc.nav.ambassador}
                 </Link>
               </span>
             </>
@@ -106,10 +108,13 @@ export function Navbar({ variant = "partners" }: { variant?: "partners" | "studi
           </ul>
           <Link
             href={variant === "partners" ? p("/register") : "#request"}
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              if (variant === "partners") track("cta_click", { placement: "nav_mobile" });
+            }}
             className={buttonClass("primary", "md", "mt-4 w-full")}
           >
-            {variant === "partners" ? t.nav.becomePartner : t.studio.cta}
+            {variant === "partners" ? t.hc.nav.ambassador : t.studio.cta}
           </Link>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <LocaleSwitcher />

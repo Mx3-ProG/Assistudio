@@ -17,7 +17,7 @@ export function AmbassadorKit({ t, base, link, code, qr }: { t: Dictionary; base
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{K.link}</p>
           <div className="mt-1.5 flex items-center gap-2">
             <p className="min-w-0 flex-1 truncate rounded-xl bg-surface-2 px-3 py-2 font-mono text-[13px]" dir="ltr">{link}</p>
-            <CopyButton value={link} variant="accent" size="md" />
+            <CopyButton track="affiliate_link_copied" value={link} variant="accent" size="md" />
           </div>
         </div>
         <div>

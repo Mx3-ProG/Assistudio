@@ -53,7 +53,7 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
           <p className="mt-0.5 text-[13px] text-muted">{t.dash.link.checkoutHint}</p>
           <p className="mt-2 truncate font-mono text-[12px] text-fg-2">{checkoutUrl}</p>
         </div>
-        <CopyButton value={checkoutUrl} />
+        <CopyButton track="affiliate_link_copied" value={checkoutUrl} />
       </Card>
       <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
         {cells.map(([label, value]) => (
@@ -63,7 +63,7 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
           </div>
         ))}
       </section>
-      {links.length > 0 && <Card className="mt-6 overflow-hidden"><ul className="divide-y divide-line">{links.map((l) => <li key={l.id} className="flex flex-wrap items-center gap-3 p-4"><div className="min-w-0 flex-1"><p className="font-medium">{l.name}</p><p className="truncate font-mono text-[12px] text-muted">{env.siteUrl}/s/{l.code}</p></div><span className="text-[12px] text-muted">{l.stats.uniqueVisitors} {t.sc.links.funnel.visitors} · {l.stats.conversions} {t.sc.links.funnel.sales}</span><CopyButton value={`${env.siteUrl}/s/${l.code}`} /></li>)}</ul></Card>}
+      {links.length > 0 && <Card className="mt-6 overflow-hidden"><ul className="divide-y divide-line">{links.map((l) => <li key={l.id} className="flex flex-wrap items-center gap-3 p-4"><div className="min-w-0 flex-1"><p className="font-medium">{l.name}</p><p className="truncate font-mono text-[12px] text-muted">{env.siteUrl}/s/{l.code}</p></div><span className="text-[12px] text-muted">{l.stats.uniqueVisitors} {t.sc.links.funnel.visitors} · {l.stats.conversions} {t.sc.links.funnel.sales}</span><CopyButton track="affiliate_link_copied" value={`${env.siteUrl}/s/${l.code}`} /></li>)}</ul></Card>}
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
         <Card className="p-5 sm:p-6"><SlugForm current={s.affiliate.slug} siteUrl={env.siteUrl} /></Card>
         <Card className="p-5 sm:p-6">

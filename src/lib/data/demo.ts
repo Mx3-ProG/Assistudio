@@ -122,6 +122,7 @@ interface Store {
   favorites: { affiliateId: string; kind: string; key: string }[];
   progress: { affiliateId: string; key: string }[];
   events: { affiliateId: string | null; event: string; pageId: string | null; linkId: string | null; campaignId: string | null; contentKind: string | null; contentKey: string | null; at: string }[];
+  funnel: { affiliateId: string | null; event: string; at: string }[];
 }
 
 function seed(): Store {
@@ -159,7 +160,7 @@ function seed(): Store {
       targetKey: c.targetKey ?? null, channel: c.channel ?? null, stage: c.stage ?? null, title: c.title, summary: c.summary ?? null,
       body: c.body, tags: c.tags ?? [], sort: c.sort ?? 0, publishedAt: c.status === "active" ? daysAgo(20) : null, updatedAt: daysAgo(20),
     }) as SalesContent),
-    favorites: [], progress: [], events: [],
+    favorites: [], progress: [], events: [], funnel: [],
   };
 
   const mkAffiliate = (
@@ -636,6 +637,10 @@ export const demoRepo: Repo = {
       affiliateId: e.affiliateId, event: e.event, pageId: e.privatePageId ?? null, linkId: e.linkId ?? null, campaignId: e.campaignId ?? null,
       contentKind: e.contentKind ?? null, contentKey: e.contentKey ?? null, at: iso(now()),
     });
+  },
+
+  async recordFunnelEvent(e) {
+    db().funnel.push({ affiliateId: e.affiliateId, event: e.event, at: iso(now()) });
   },
 
   async getSalesSettings() {
@@ -1438,6 +1443,54 @@ export const demoRepo: Repo = {
     if (c?.status !== "draft") throw new Error("Only drafts can be deleted");
     st.content = st.content.filter((x) => x.id !== cid);
   },
+  async adminActivationFunnel(s, sinceDays) {
+    mustStaff(s);
+    const st = db();
+    const since = now() - sinceDays * DAY;
+    const after = (at: string | null | undefined) => !!at && Date.parse(at) >= since;
+    const staffIds = new Set(st.users.filter((u) => u.role !== "affiliate").map((u) => u.userId));
+    const cohort = st.affiliates.filter((a) => after(a.createdAt) && !staffIds.has(a.userId));
+    const first = (dates: string[]) => dates.length ? Math.min(...dates.map(Date.parse)) : null;
+    const ACTIONS = new Set(["affiliate_link_copied", "sales_script_copied", "prospect_added", "prospect_submitted"]);
+    const rows = cohort.map((a) => {
+      const prospectAt = first(st.prospects.filter((p) => p.affiliateId === a.id && !p.deletedAt).map((p) => p.createdAt));
+      const actionAt = first(st.funnel.filter((f) => f.affiliateId === a.id && ACTIONS.has(f.event)).map((f) => f.at));
+      const firstAction = [prospectAt, actionAt].filter((x): x is number => x !== null);
+      return {
+        created: Date.parse(a.createdAt), prospectAt, firstAction: firstAction.length ? Math.min(...firstAction) : null,
+        link: st.funnel.some((f) => f.affiliateId === a.id && f.event === "affiliate_link_copied"),
+        handoff: st.prospectEvents.some((e) => e.affiliateId === a.id && e.type === "handed_off"),
+      };
+    });
+    const median = (xs: number[]) => {
+      if (!xs.length) return null;
+      const v = [...xs].sort((x, y) => x - y), m = Math.floor(v.length / 2);
+      return Math.round((v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2) / 360_000) / 10;
+    };
+    const opp = st.prospects.filter((p) => !p.deletedAt && after(p.createdAt)
+      && (["handed_off", "checkout", "won"].includes(p.stage) || st.prospectEvents.some((e) => e.prospectId === p.id && (e.type === "handed_off" || e.type === "quote"))));
+    const paid = st.sales.filter((x) => x.status === "paid" && after(x.paidAt) && x.affiliateId);
+    const active = new Set<string>([
+      ...st.prospects.filter((p) => after(p.createdAt) && !p.deletedAt).map((p) => p.affiliateId),
+      ...st.funnel.filter((f) => after(f.at) && f.affiliateId && ACTIONS.has(f.event)).map((f) => f.affiliateId!),
+      ...paid.map((x) => x.affiliateId!),
+    ]);
+    const events: Record<string, number> = {};
+    for (const f of st.funnel) if (after(f.at)) events[f.event] = (events[f.event] ?? 0) + 1;
+    return {
+      since: iso(since), signups: cohort.length,
+      link_copied: rows.filter((r) => r.link).length,
+      first_prospect: rows.filter((r) => r.prospectAt !== null).length,
+      first_handoff: rows.filter((r) => r.handoff).length,
+      opportunities: opp.length, opportunities_won: opp.filter((p) => p.stage === "won").length,
+      median_hours_first_action: median(rows.filter((r) => r.firstAction !== null).map((r) => r.firstAction! - r.created)),
+      median_hours_first_prospect: median(rows.filter((r) => r.prospectAt !== null).map((r) => r.prospectAt! - r.created)),
+      active_ambassadors: active.size,
+      revenue_cents: paid.reduce((sum, x) => sum + x.amountCents, 0),
+      events,
+    };
+  },
+
   async adminSalesAnalytics(s) {
     mustStaff(s);
     const st = db();

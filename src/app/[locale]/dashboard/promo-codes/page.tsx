@@ -31,7 +31,7 @@ export default async function PromoCodesPage({ params }: PageProps<"/[locale]/da
             <p className="mt-1 text-[13px] text-muted">{formatPercent(code.discountRate, locale, 0)} · {fmt(P.margin, { rate: formatPercent(Math.max(0, s.affiliate.commissionRate - code.discountRate), locale, 0) })} · {fmt(P.uses, { count: code.redemptions })} · {formatDate(code.createdAt, locale, "short")}</p>
           </div>
           <div className="flex items-center gap-2">
-            {code.active && <CopyButton value={trackedUrl(code.code)} />}
+            {code.active && <CopyButton track="affiliate_link_copied" value={trackedUrl(code.code)} />}
             <form action={setPromoCodeActive}><input type="hidden" name="id" value={code.id} /><input type="hidden" name="active" value={String(!code.active)} /><button className={buttonClass("secondary", "sm")}>{code.active ? P.disable : P.enable}</button></form>
           </div>
         </li>)}</ul>}

@@ -37,7 +37,7 @@ export default async function Referrals({ params }: PageProps<"/[locale]/dashboa
             <img src={qr} alt="QR code" className="size-36 rounded-2xl border border-line bg-white p-2" />
             <div className="min-w-0 flex-1">
               <p className="break-all rounded-xl bg-surface-2 p-3 font-mono text-[12px]" dir="ltr">{url}</p>
-              <CopyButton value={url} className="mt-3" />
+              <CopyButton track="affiliate_link_copied" value={url} className="mt-3" />
             </div>
           </div>
         </Card>

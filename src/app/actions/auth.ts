@@ -12,6 +12,7 @@ import { formatCode, generateCode, hashCode, normalizeCode, normalizeEmail, type
 import { email as emailTransport } from "@/lib/email";
 import { kickEmailOutbox } from "@/lib/email/service";
 import { log } from "@/lib/log";
+import { recordFunnel } from "@/lib/analytics/server";
 import { describeError } from "@/lib/auth-errors";
 import { isLocale, localeMeta, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n";
@@ -155,6 +156,7 @@ async function issue(form: FormData): Promise<AuthState> {
       return { status: "error", error: "sendFailed", detail };
     }
   }
+  if (purpose === "signup") recordFunnel({ event: "signup_started", affiliateId: null, locale });
   return { status: "code", ...base, sentAt: Date.now(), ...(demoCode ? { demoCode } : {}) };
 }
 
@@ -180,8 +182,13 @@ async function verifyCode(prev: AuthState, form: FormData): Promise<AuthState> {
     const errors = { invalid: "codeInvalid", expired: "codeExpired", too_many_attempts: "tooManyAttempts" } as const;
     return { ...keep, error: errors[res.status] };
   }
-  if (res.isNew) kickEmailOutbox(); // affiliate.welcome, queued when the account was created
-  redirect(res.isNew ? `/${locale}/dashboard/welcome` : safeNext(form.get("next"), locale));
+  if (res.isNew) {
+    kickEmailOutbox(); // affiliate.welcome, queued when the account was created
+    recordFunnel({ event: "signup_completed", affiliateId: null, locale });
+  }
+  // A new ambassador always starts with the welcome checklist; it ends on the page they came for.
+  const next = safeNext(form.get("next"), locale);
+  redirect(res.isNew ? `/${locale}/dashboard/welcome${next !== `/${locale}/dashboard` ? `?next=${encodeURIComponent(next)}` : ""}` : next);
 }
 
 export async function demoSignIn(form: FormData) {

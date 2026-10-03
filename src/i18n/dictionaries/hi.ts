@@ -6,11 +6,13 @@ import cp from "./copilot.hi";
 import gd from "./guided.hi";
 import ct from "./contracts.hi";
 import net from "./network.hi";
+import hc from "./home-conversion.hi";
 
 /** हिन्दी — complete. TODO(i18n): native review before launch. */
 const hi: Dictionary = {
   sc,
   net,
+  hc,
   msg,
   cp,
   gd,

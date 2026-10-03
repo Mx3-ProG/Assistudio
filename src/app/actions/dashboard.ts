@@ -4,6 +4,7 @@ import { z } from "zod";
 import { repo, getSession } from "@/lib/data";
 import { PROSPECT_STAGES, type ProspectStage, type Session } from "@/lib/data/types";
 import { locales } from "@/i18n/config";
+import { recordFunnel } from "@/lib/analytics/server";
 
 /**
  * Affiliate server actions. The affiliate id always comes from the server
@@ -134,6 +135,7 @@ export async function createProspect(_: FormState, form: FormData): Promise<Form
   if (!d.success) return { error: d.error.issues.map((i) => i.path[0]).join(",") };
   const p = await repo().createProspect(s, toProspectInput(d.data));
   await repo().addProspectEvent(s, p.id, "created", p.stage).catch(() => undefined); // history is best-effort
+  recordFunnel({ event: "prospect_added", affiliateId: s.affiliate!.id, placement: s.affiliate!.onboardingCompletedAt ? "crm" : "onboarding" });
   refresh();
   return { ok: true };
 }
@@ -201,6 +203,9 @@ export async function setLeaderboardOptIn(optIn: boolean) {
 export async function advanceOnboarding(step: number, completed = false) {
   const s = await affiliateSession();
   await repo().setOnboardingStep(s, step, completed);
+  const a = s.affiliate!;
+  if (!a.onboardingCompletedAt && step === 1 && a.onboardingStep < 1) recordFunnel({ event: "onboarding_started", affiliateId: a.id });
+  if (completed && !a.onboardingCompletedAt) recordFunnel({ event: "onboarding_completed", affiliateId: a.id });
   if (completed) refresh();
 }
 

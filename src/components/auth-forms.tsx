@@ -173,15 +173,15 @@ export function LoginForm({ demo, next, notice }: { demo: boolean; next?: string
   );
 }
 
-export function RegisterForm({ demo, sponsorCode, sponsorName }: { demo: boolean; sponsorCode?: string | null; sponsorName?: string | null }) {
+export function RegisterForm({ demo, sponsorCode, sponsorName, next }: { demo: boolean; sponsorCode?: string | null; sponsorName?: string | null; next?: string }) {
   const { t, locale } = useI18n();
   const [state, action, pending] = useActionState<AuthState, FormData>(codeAuth, { status: "idle" });
   const v = state.values ?? {};
   return (
     <Shell title={t.auth.registerTitle} subtitle={t.auth.registerSubtitle}>
-      {state.status === "code" ? <CodeStep state={state} action={action} pending={pending} /> : (
+      {state.status === "code" ? <CodeStep state={state} action={action} pending={pending} next={next} /> : (
         <form key={JSON.stringify(v)} action={action} className="grid gap-4">
-          <Hidden values={{ locale, purpose: "signup", sponsorCode: sponsorCode ?? undefined }} />
+          <Hidden values={{ locale, purpose: "signup", sponsorCode: sponsorCode ?? undefined, next }} />
           {sponsorCode && <Notice>{sponsorName ? t.auth.sponsorInvite.replace("{name}", sponsorName) : t.auth.sponsorInviteGeneric}</Notice>}
           <Field label={t.auth.fullName}>
             <input name="fullName" required minLength={2} autoComplete="name" defaultValue={v.fullName} aria-invalid={invalid(state, "fullName")} className={inputClass} />
@@ -212,7 +212,7 @@ export function RegisterForm({ demo, sponsorCode, sponsorName }: { demo: boolean
       )}
       {demo && <DemoAccess />}
       <p className="mt-6 text-center text-[13px] text-muted">
-        {t.auth.haveAccount} <Link href={`/${locale}/login`} className="font-medium text-fg hover:underline">{t.nav.login}</Link>
+        {t.auth.haveAccount} <Link href={`/${locale}/login${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-medium text-fg hover:underline">{t.nav.login}</Link>
       </p>
     </Shell>
   );

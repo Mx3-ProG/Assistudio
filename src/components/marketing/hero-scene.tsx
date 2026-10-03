@@ -14,6 +14,7 @@ export function HeroScene() {
   useEffect(() => {
     const el = host.current;
     if (!el) return;
+    if (!el.offsetWidth) return; // hidden by the page (e.g. on small screens): never download Three.js
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const probe = document.createElement("canvas");
     if (!(probe.getContext("webgl2") || probe.getContext("webgl"))) return;

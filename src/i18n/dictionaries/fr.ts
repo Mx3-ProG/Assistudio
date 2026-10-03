@@ -6,10 +6,12 @@ import cp from "./copilot.fr";
 import gd from "./guided.fr";
 import ct from "./contracts.fr";
 import net from "./network.fr";
+import hc from "./home-conversion.fr";
 
 const fr: Dictionary = {
   sc,
   net,
+  hc,
   msg,
   cp,
   gd,

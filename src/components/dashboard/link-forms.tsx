@@ -112,7 +112,7 @@ export function PrivatePages({ pages, markets, campaigns, siteUrl }: {
                 </div>
               </div>
               <div className="flex gap-2">
-                <CopyButton value={url} />
+                <CopyButton track="affiliate_link_copied" value={url} />
                 <a href={url} target="_blank" rel="noopener" className={buttonClass("ghost", "sm")}><ExternalLink className="size-4" /></a>
               </div>
             </li>

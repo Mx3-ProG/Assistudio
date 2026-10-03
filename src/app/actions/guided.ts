@@ -10,6 +10,7 @@ import { getDictionary } from "@/i18n";
 import { fmt } from "@/i18n/format";
 import { GUIDE_EVENTS, KEY_PATTERN, pickLocale, type ReplyBody } from "@/lib/sales/content";
 import { marketContent } from "@/content/markets";
+import { recordFunnel } from "@/lib/analytics/server";
 
 /**
  * Guided pipeline actions (V0.5). They only move the prospect in the single
@@ -52,6 +53,7 @@ export async function startProspect(form: FormData) {
     stage: d.state, nextAction: null, nextActionAt: null, potentialValueCents: null,
   });
   await repo().addProspectEvent(s, p.id, "created", p.stage, { relation: d.relation });
+  recordFunnel({ event: "prospect_added", affiliateId: s.affiliate!.id, locale: d.locale, placement: "first_sale" });
   if (d.state !== "new") await repo().addProspectEvent(s, p.id, d.state === "contacted" ? "message_sent" : "interest", p.stage);
   refresh();
   redirect(`/${d.locale}/dashboard/prospects/${p.id}`);
@@ -136,6 +138,7 @@ export async function handOffProspect(_: HandOffState, form: FormData): Promise<
   }
   await repo().updateProspect(s, p.id, { stage: "handed_off", nextAction: null, nextActionAt: null });
   await repo().addProspectEvent(s, p.id, "handed_off", "handed_off", { reason, consent });
+  recordFunnel({ event: "prospect_submitted", affiliateId: s.affiliate!.id, locale, meta: { reason } });
   refresh();
   return { ok: true };
 }

@@ -39,7 +39,7 @@ export default async function Campaigns({ params }: PageProps<"/[locale]/dashboa
                         <p className="truncate font-medium">{l.name}</p>
                         <p className="truncate font-mono text-[12px] text-muted" dir="ltr">/s/{l.code}</p>
                       </div>
-                      <CopyButton value={url} />
+                      <CopyButton track="affiliate_link_copied" value={url} />
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {l.source && <Badge className="capitalize">{l.source}</Badge>}
@@ -83,7 +83,7 @@ export default async function Campaigns({ params }: PageProps<"/[locale]/dashboa
                         <td className="tabular px-4 py-3 text-end">{l.stats.leads}</td>
                         <td className="tabular px-4 py-3 text-end">{l.stats.conversions}</td>
                         <td className="tabular px-4 py-3 text-end font-medium">{formatMoney(l.stats.commissionCents, locale)}</td>
-                        <td className="px-4 py-3 text-end"><CopyButton value={`${env.siteUrl}/s/${l.code}`} /></td>
+                        <td className="px-4 py-3 text-end"><CopyButton track="affiliate_link_copied" value={`${env.siteUrl}/s/${l.code}`} /></td>
                       </tr>
                     );
                   })}
