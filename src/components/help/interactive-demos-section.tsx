@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MousePointerClick, Sparkles } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/types";
-import { INTERACTIVE_DEMOS } from "@/content/interactive-demos";
+import { INTERACTIVE_DEMOS, isLive } from "@/content/interactive-demos";
 import { pick } from "@/content/help-videos";
 import { Badge, EmptyState } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
@@ -30,7 +30,8 @@ export function InteractiveDemosSection({ t, locale }: { t: Dictionary; locale: 
                   <div className="mt-2 flex flex-wrap gap-1.5"><Badge>{L.demoBadge}</Badge>{d.sector && <Badge tone="accent">{pick(d.sector, locale)}</Badge>}</div>
                 </div>
                 <p className="text-[14px] leading-relaxed text-fg-2">{pick(d.description, locale)}</p>
-                <Link href={`${base}/${d.slug}`} className={buttonClass("secondary", "sm", "mt-auto self-start")}><MousePointerClick className="size-4" />{L.demoOpen}</Link>
+                {isLive(d) ? <Link href={`${base}/${d.slug}`} className={buttonClass("secondary", "sm", "mt-auto self-start")}><MousePointerClick className="size-4" />{L.demoOpen}</Link>
+                  : <Badge className="mt-auto self-start">{t.studio.demos.soon}</Badge>}
               </div>
             </li>
           ))}

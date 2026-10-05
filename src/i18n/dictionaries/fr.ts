@@ -291,7 +291,7 @@ const fr: Dictionary = {
     capacityFull: "Ce mois-ci est complet. L’achat reste ouvert ; prochaine fenêtre d’onboarding : {window}.",
     capacityNext: "Prochaine fenêtre d’onboarding : {window}.",
     demoOnly: "Démonstration Studio",
-    demos: { eyebrow: "Démos", title: "Imaginez votre activité", title2: "à la place.", body: "Des sites de démonstration réalisés par Studio ATS. Ouvrez-les, cliquez, et projetez-vous avec votre propre activité.", open: "Ouvrir la démo", tryIt: "Essayer la démo", interactive: "Interactive", hotel: "Hôtellerie", cars: "Vente automobile", restaurant: "Restaurant", back: "Retour à Studio ATS", newTab: "Ouvrir dans un nouvel onglet", note: "Ceci est une démonstration : aucune donnée réelle n’est envoyée." },
+    demos: { eyebrow: "Explorer les sites démo", title: "Bien plus qu’un site.", title2: "Essayez-le.", body: "Ouvrez les démos Studio One et Studio Pro comme le feront vos clients : le site, et avec Pro, le dashboard qui pilote votre activité. Studio Premium arrive bientôt.", open: "Ouvrir la démo", soon: "Bientôt disponible", back: "Retour à Studio ATS", newTab: "Ouvrir dans un nouvel onglet", note: "Ceci est une démonstration : aucune donnée réelle n’est envoyée." },
     productCaptureTitle: "Des écrans réels, pas des promesses.",
     productCaptureNote: "Démonstration Studio",
   },

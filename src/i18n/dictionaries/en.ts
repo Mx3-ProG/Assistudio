@@ -295,7 +295,7 @@ const en = {
     capacityFull: "This month is full. Purchasing remains open; next onboarding window: {window}.",
     capacityNext: "Next onboarding window: {window}.",
     demoOnly: "Studio demonstration",
-    demos: { eyebrow: "Demos", title: "Picture your business", title2: "in it.", body: "Demonstration sites built by Studio ATS. Open them, click around, and imagine your own business in their place.", open: "Open the demo", tryIt: "Try the demo", interactive: "Interactive", hotel: "Hotel", cars: "Car dealer", restaurant: "Restaurant", back: "Back to Studio ATS", newTab: "Open in a new tab", note: "This is a demonstration: no real data is sent." },
+    demos: { eyebrow: "Explore the demo sites", title: "More than a website.", title2: "Try it.", body: "Open the Studio One and Studio Pro demos as your clients would: the site, and with Pro, the dashboard you run your business from. Studio Premium is coming soon.", open: "Open the demo", soon: "Coming soon", back: "Back to Studio ATS", newTab: "Open in a new tab", note: "This is a demonstration: no real data is sent." },
     productCaptureTitle: "Real screens, not promises.",
     productCaptureNote: "Studio demonstration",
   },

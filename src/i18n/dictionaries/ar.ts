@@ -246,7 +246,7 @@ const ar: Dictionary = {
     capacityFull: "اكتملت سعة هذا الشهر. يظل الشراء متاحًا؛ موعد الإعداد التالي: {window}.",
     capacityNext: "موعد الإعداد التالي: {window}.",
     demoOnly: "عرض Studio توضيحي",
-    demos: { eyebrow: "العروض", title: "تخيّل نشاطك", title2: "هنا.", body: "مواقع تجريبية أنجزتها Studio ATS. افتحها وتصفّحها وتخيّل نشاطك مكانها.", open: "فتح العرض", tryIt: "جرّب العرض", interactive: "تفاعلي", hotel: "الفندقة", cars: "بيع السيارات", restaurant: "مطعم", back: "العودة إلى Studio ATS", newTab: "فتح في علامة تبويب جديدة", note: "هذا عرض توضيحي: لا تُرسل أي بيانات حقيقية." },
+    demos: { eyebrow: "استكشف المواقع التجريبية", title: "أكثر من مجرد موقع.", title2: "جرّبه.", body: "افتح عروض Studio One وStudio Pro كما سيفعل عملاؤك: الموقع، ومع Pro لوحة التحكم التي تدير منها نشاطك. Studio Premium قريبًا.", open: "فتح العرض", soon: "قريبًا", back: "العودة إلى Studio ATS", newTab: "فتح في علامة تبويب جديدة", note: "هذا عرض توضيحي: لا تُرسل أي بيانات حقيقية." },
     productCaptureTitle: "واجهات حقيقية، لا وعود.",
     productCaptureNote: "عرض Studio توضيحي",
   },

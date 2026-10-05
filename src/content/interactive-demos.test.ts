@@ -16,6 +16,7 @@ test("demos have unique url-safe slugs and en + fr texts", () => {
 
 test("demos point at real files or an https URL", () => {
   for (const d of INTERACTIVE_DEMOS) {
+    if (!d.src) continue;
     if (d.src.startsWith("https://")) continue;
     assert.ok(d.src.startsWith("/interactive-demos/"), `${d.slug}: local demos live in public/interactive-demos/`);
     assert.ok(existsSync(pub(d.src)), `${d.slug}: missing ${d.src}`);
