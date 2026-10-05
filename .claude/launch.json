@@ -25,6 +25,23 @@
       "env": {
         "STUDIO_DEMO_MODE": "true"
       }
+    },
+    {
+      "name": "studio-help-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/private/tmp/claude-501/-Users-mathieu-pro-Empire-wayne-web-affili--softwares/b7f788a1-fa98-4772-b7af-200431a1259b/scratchpad/studio",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3200"
+      ],
+      "port": 3200,
+      "env": {
+        "STUDIO_DEMO_MODE": "true"
+      }
     }
   ]
 }
