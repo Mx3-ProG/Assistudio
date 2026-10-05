@@ -1,15 +1,15 @@
-import { Globe, Inbox, Users, CalendarDays, Mail, Repeat, BarChart3, ChevronDown, ChevronRight } from "lucide-react";
+import { Globe, Inbox, CalendarDays, Repeat, ChevronDown, ChevronRight } from "lucide-react";
 import type { Dictionary } from "@/i18n/types";
 
-const ICONS = [Globe, Inbox, Users, CalendarDays, Mail, Repeat, BarChart3];
+const ICONS = [Globe, Inbox, CalendarDays, Repeat];
 
-/** Studio in 30 seconds: one chain from the website to the signed client. Vertical on mobile, one row on desktop. */
+/** Studio in 30 seconds: what it does for the business, as one chain. Vertical on mobile, one row on desktop. */
 export function StudioFlow({ t }: { t: Dictionary }) {
   const S = t.hc.sell;
   return (
     <figure className="card overflow-hidden p-4 sm:p-6">
       <figcaption className="mb-4 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{S.flowLabel}</figcaption>
-      <ol className="grid gap-1 lg:grid-cols-7 lg:gap-2">
+      <ol className="grid gap-1 lg:grid-cols-4 lg:gap-2">
         {S.flow.map((step, i) => {
           const Icon = ICONS[i] ?? Globe;
           const last = i === S.flow.length - 1;

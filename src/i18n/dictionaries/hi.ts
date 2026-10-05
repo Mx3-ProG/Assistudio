@@ -7,12 +7,16 @@ import gd from "./guided.hi";
 import ct from "./contracts.hi";
 import net from "./network.hi";
 import hc from "./home-conversion.hi";
+import hp from "./help.hi";
+import po from "./payouts.hi";
 
 /** हिन्दी — complete. TODO(i18n): native review before launch. */
 const hi: Dictionary = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -727,13 +731,7 @@ const hi: Dictionary = {
       history: "भुगतान इतिहास",
       documents: "दस्तावेज़",
       status: "स्थिति",
-      statuses: {
-        scheduled: "निर्धारित",
-        processing: "प्रोसेस हो रहा है",
-        paid: "भुगतान किया गया",
-        failed: "विफल",
-        cancelled: "रद्द",
-      },
+      statuses: po.statuses,
       minimum: "न्यूनतम भुगतान: {amount}",
       empty: "अभी कोई भुगतान नहीं।",
       settingsLink: "भुगतान सेटिंग्स",
@@ -930,6 +928,11 @@ const hi: Dictionary = {
     },
   },
   notificationsText: {
+    payoutRequested: "{amount} का भुगतान अनुरोध {payout_ref} भेजा गया",
+    payoutRequestStaff: "नया भुगतान अनुरोध {payout_ref}: {amount} — {affiliate_name}",
+    payoutProcessing: "आपका भुगतान {payout_ref} ({amount}) प्रक्रिया में है",
+    payoutRejected: "भुगतान अनुरोध {payout_ref} अस्वीकृत: {reason}",
+    payoutFailed: "भुगतान {payout_ref} विफल: {reason} — राशि फिर उपलब्ध है",
     newLead: "नई लीड मिली ({profession})",
     paymentConfirmed: "{sale_ref} के लिए भुगतान पुष्ट",
     commissionAvailable: "{amount} का कमीशन अब उपलब्ध है",

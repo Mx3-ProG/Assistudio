@@ -10,5 +10,5 @@ export const commissionTone: Record<CommissionStatus, Tone> = {
   awaiting_payment: "neutral", pending: "warning", disputed: "warning", available: "accent", paid: "success", reversed: "danger",
 };
 export const payoutTone: Record<PayoutStatus, Tone> = {
-  scheduled: "neutral", processing: "warning", paid: "success", failed: "danger", cancelled: "neutral",
+  requested: "accent", scheduled: "neutral", processing: "warning", paid: "success", failed: "danger", cancelled: "neutral", rejected: "danger",
 };

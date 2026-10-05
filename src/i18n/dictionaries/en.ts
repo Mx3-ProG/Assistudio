@@ -9,11 +9,15 @@ import gd from "./guided.en";
 import ct from "./contracts.en";
 import net from "./network.en";
 import hc from "./home-conversion.en";
+import hp from "./help.en";
+import po from "./payouts.en";
 
 const en = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -778,13 +782,7 @@ const en = {
       history: "Payment history",
       documents: "Documents",
       status: "Status",
-      statuses: {
-        scheduled: "Scheduled",
-        processing: "Processing",
-        paid: "Paid",
-        failed: "Failed",
-        cancelled: "Cancelled",
-      },
+      statuses: po.statuses,
       minimum: "Minimum payout: {amount}",
       empty: "No payouts yet.",
       settingsLink: "Payout settings",
@@ -981,6 +979,11 @@ const en = {
     },
   },
   notificationsText: {
+    payoutRequested: "Payout request {payout_ref} of {amount} sent",
+    payoutRequestStaff: "New payout request {payout_ref}: {amount} — {affiliate_name}",
+    payoutProcessing: "Your payout {payout_ref} of {amount} is being processed",
+    payoutRejected: "Payout request {payout_ref} declined: {reason}",
+    payoutFailed: "Payout {payout_ref} failed: {reason} — the amount is available again",
     newLead: "New lead captured ({profession})",
     paymentConfirmed: "Payment confirmed for {sale_ref}",
     commissionAvailable: "Commission of {amount} is now available",

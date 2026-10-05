@@ -4,6 +4,7 @@ import {
   computeCommissionCents, newCommission, summarize, transition,
   type CommissionEvent, type CommissionState, type SaleStatus,
 } from "@/lib/commission";
+import { OPEN_PAYOUT_STATUSES, PayoutError, allocate, checkRequest, payableCents, payoutProblem, type PayoutStatus } from "@/lib/payouts";
 import { defaultMarkets, type Market, type MarketContent } from "@/content/markets";
 import { assetsFor } from "@/content/sales-kit";
 import { maxEarningOffer } from "@/lib/offers";
@@ -18,7 +19,7 @@ import type {
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
   ClickInput, LeadInput, ReferralTarget, LinkStats, RecurringContract, SubscriptionStatus,
   PerformanceRow, ProductView,
-  PromoCode, ProspectEvent, AdminNetworkStats, HelpRequest, HelpRequestInput,
+  PromoCode, ProspectEvent, AdminNetworkStats, HelpRequest, HelpRequestInput, AdminPayoutDetail,
 } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -82,7 +83,13 @@ interface DemoSale {
 interface DemoCommission extends CommissionState { id: string; affiliateId: string; saleId: string; payoutId: string | null; expectedPaymentDate: string | null; createdAt: string; kind: "new" | "renewal"; disputeReason: string | null }
 /** Clawbacks (negative) and manual adjustments not tied to a commission status — netted into `available`. */
 interface DemoLedgerExtra { id: string; affiliateId: string; amountCents: number; type: "clawback" | "adjustment"; reason: string; settledBy: string | null; createdAt: string }
-interface DemoPayout { id: string; ref: string; affiliateId: string; amountCents: number; status: Payout["status"]; scheduledFor: string; paidAt: string | null }
+interface DemoPayout {
+  id: string; ref: string; affiliateId: string; amountCents: number; status: Payout["status"]; scheduledFor: string; paidAt: string | null;
+  requestedAt: string; method: Payout["method"]; processedAt: string | null; rejectedAt: string | null; failedAt: string | null;
+  rejectionReason: string | null; providerRef: string | null; balanceBeforeCents: number | null; idempotencyKey: string | null; adminNote: string | null;
+}
+interface DemoAllocation { payoutId: string; commissionId: string; amountCents: number; releasedAt: string | null }
+interface DemoPayoutEvent { payoutId: string; at: string; actorId: string | null; actorRole: "affiliate" | "staff" | "system"; from: PayoutStatus | null; to: PayoutStatus; amountCents: number; note: string | null }
 interface DemoActivity extends ActivityEvent { affiliateId: string }
 interface DemoNotification extends Notification { userId: string }
 interface DemoPromoCode extends PromoCode { affiliateId: string }
@@ -108,6 +115,8 @@ interface Store {
   commissions: DemoCommission[];
   ledgerExtras: DemoLedgerExtra[];
   payouts: DemoPayout[];
+  payoutAllocations: DemoAllocation[];
+  payoutEvents: DemoPayoutEvent[];
   pages: PrivatePage[];
   activity: DemoActivity[];
   notifications: DemoNotification[];
@@ -157,7 +166,7 @@ function seed(): Store {
   const s: Store = {
     markets: structuredClone(defaultMarkets).map((m) => ({ ...m, active: true })),
     settings, offer, offers, users: [], affiliates: [], links: [], campaigns: [], clicks: [], leads: [],
-    prospects: [], prospectEvents: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], pages: [],
+    prospects: [], prospectEvents: [], customers: [], subscriptions: [], sales: [], commissions: [], ledgerExtras: [], payouts: [], payoutAllocations: [], payoutEvents: [], pages: [],
     activity: [], notifications: [], promoCodes: [], helpRequests: [], fraud: [], audit: [], goals: {}, privacyRequests: [],
     content: defaultSalesContent.map((c, i) => ({
       id: `cnt_${i}`, kind: c.kind, key: c.key, locale: c.locale, version: 1, status: c.status, productId: "prod_studio",
@@ -254,8 +263,16 @@ function seed(): Store {
     };
     if (opts.payout && com.status === "available") {
       const paidAt = iso(Date.parse(com.availableAt!) + 5 * DAY);
-      const p: DemoPayout = { id: id("pay"), ref: `PAY-${String(s.payouts.length + 1).padStart(4, "0")}`, affiliateId, amountCents: com.amountCents, status: "paid", scheduledFor: paidAt.slice(0, 10), paidAt };
+      const p: DemoPayout = {
+        id: id("pay"), ref: `PAY-${String(s.payouts.length + 1).padStart(4, "0")}`, affiliateId, amountCents: com.amountCents, status: "paid",
+        scheduledFor: paidAt.slice(0, 10), paidAt, requestedAt: iso(Date.parse(paidAt) - 2 * DAY), method: "manual", processedAt: paidAt,
+        rejectedAt: null, failedAt: null, rejectionReason: null, providerRef: `VIR-DEMO-${s.payouts.length + 1}`, balanceBeforeCents: com.amountCents,
+        idempotencyKey: null, adminNote: null,
+      };
       s.payouts.push(p);
+      s.payoutAllocations.push({ payoutId: p.id, commissionId: com.id, amountCents: com.amountCents, releasedAt: null });
+      s.payoutEvents.push({ payoutId: p.id, at: p.requestedAt, actorId: null, actorRole: "system", from: null, to: "scheduled", amountCents: p.amountCents, note: null },
+        { payoutId: p.id, at: paidAt, actorId: null, actorRole: "system", from: "scheduled", to: "paid", amountCents: p.amountCents, note: p.providerRef });
       Object.assign(com, transition(com, { type: "payout_paid", at: paidAt }).state, { payoutId: p.id });
     }
     s.commissions.push(com);
@@ -409,7 +426,7 @@ interface DemoCode { purpose: CodePurpose; code: string; signup: SignupData | nu
 const demoCodes = () => ((g as { __studioDemoCodes?: Map<string, DemoCode> }).__studioDemoCodes ??= new Map());
 
 // Bump when the Store shape changes so hot reloads don't keep a stale store.
-const STORE_VERSION = 7;
+const STORE_VERSION = 8;
 const g = globalThis as unknown as { __studioDemo?: Store & { v?: number } };
 function db(): Store {
   if (g.__studioDemo?.v !== STORE_VERSION) g.__studioDemo = Object.assign(seed(), { v: STORE_VERSION });
@@ -472,11 +489,65 @@ function commissionRow(c: DemoCommission): CommissionRow {
   return {
     id: c.id, kind: c.kind, saleRef: sale.ref, customerRef: cust.ref, grossCents: sale.amountCents, amountCents: c.amountCents,
     status: c.status, validatedAt: c.validatedAt, holdUntil: c.holdUntil, expectedPaymentDate: c.expectedPaymentDate,
-    paidAt: c.paidAt, reversalReason: c.reversalReason, createdAt: c.createdAt,
+    paidAt: c.paidAt, reversalReason: c.reversalReason, createdAt: c.createdAt, requestedCents: allocOf(c.id).open,
   };
 }
+/** Live allocations of a commission (requested, in progress or paid). */
+function allocOf(commissionId: string) {
+  const st = db();
+  let paid = 0, open = 0;
+  for (const a of st.payoutAllocations) {
+    if (a.commissionId !== commissionId || a.releasedAt) continue;
+    const p = st.payouts.find((x) => x.id === a.payoutId);
+    if (p?.status === "paid") paid += a.amountCents; else open += a.amountCents;
+  }
+  return { paid, open, total: paid + open };
+}
+function allocatable(affiliateId: string) {
+  return db().commissions.filter((c) => c.affiliateId === affiliateId)
+    .map((c) => ({ id: c.id, status: c.status, amountCents: c.amountCents, availableAt: c.availableAt, createdAt: c.createdAt, allocatedCents: allocOf(c.id).total }));
+}
+function demoPayout(p: DemoPayout): Payout {
+  return {
+    id: p.id, ref: p.ref, amountCents: p.amountCents, status: p.status, scheduledFor: p.scheduledFor, paidAt: p.paidAt, documentPath: null,
+    requestedAt: p.requestedAt, method: p.method, processedAt: p.processedAt, rejectedAt: p.rejectedAt, failedAt: p.failedAt,
+    rejectionReason: p.rejectionReason, paymentReference: p.providerRef, balanceBeforeCents: p.balanceBeforeCents,
+  };
+}
+function payoutEvent(s: Session | null, p: DemoPayout, from: PayoutStatus | null, to: PayoutStatus, note: string | null) {
+  db().payoutEvents.push({ payoutId: p.id, at: iso(now()), actorId: s?.userId ?? null, actorRole: !s ? "system" : s.affiliate && s.role === "affiliate" ? "affiliate" : "staff", from, to, amountCents: p.amountCents, note });
+  if (s) audit(s, `payout.${to}`, "payout", p.ref, from ? { status: from } : null, { status: to, amount_cents: p.amountCents }, note);
+}
+function releasePayout(p: DemoPayout) {
+  const st = db();
+  for (const a of st.payoutAllocations) if (a.payoutId === p.id && !a.releasedAt) a.releasedAt = iso(now());
+  for (const x of st.ledgerExtras) if (x.settledBy === p.id) x.settledBy = null;
+}
+function notifyAffiliate(affiliateId: string, titleKey: string, params: Record<string, string | number>, href: string) {
+  const a = db().affiliates.find((x) => x.id === affiliateId);
+  if (a) db().notifications.push({ id: id("ntf"), userId: a.userId, type: "payout", titleKey, params, href, readAt: null, status: "unread", createdAt: iso(now()) });
+}
+function staffPayout(s: Session, pid: string) {
+  mustStaff(s);
+  const p = db().payouts.find((x) => x.id === pid);
+  if (!p) throw new PayoutError("not_found");
+  return p;
+}
+function demoPayoutProblem(p: DemoPayout) {
+  const st = db();
+  return payoutProblem(st.payoutAllocations.filter((a) => a.payoutId === p.id && !a.releasedAt).map((a) => {
+    const c = st.commissions.find((x) => x.id === a.commissionId)!;
+    return { status: c.status, amountCents: c.amountCents, allocatedCents: allocOf(c.id).total, ref: st.sales.find((x) => x.id === c.saleId)?.ref ?? c.id };
+  }));
+}
+
 function applyCommissionEvent(c: DemoCommission, e: CommissionEvent) {
+  // Partially paid commission refunded: the paid cents are clawed back (mirrors commission_reverse).
+  const paidPart = c.status === "available" ? allocOf(c.id).paid : 0;
   const { state, moves } = transition(c, e);
+  if (paidPart > 0 && state.status === "reversed") {
+    db().ledgerExtras.push({ id: id("led"), affiliateId: c.affiliateId, amountCents: -paidPart, type: "clawback", reason: "refund after partial payout", settledBy: null, createdAt: iso(now()) });
+  }
   Object.assign(c, state);
   for (const m of moves) {
     if (m.type === "clawback") {
@@ -488,7 +559,12 @@ function unsettled(affiliateId: string) {
   return db().ledgerExtras.filter((x) => x.affiliateId === affiliateId && !x.settledBy).reduce((a, x) => a + x.amountCents, 0);
 }
 function balancesOf(affiliateId: string) {
-  return summarize(db().commissions.filter((c) => c.affiliateId === affiliateId), unsettled(affiliateId));
+  const st = db();
+  const requested = st.payouts.filter((p) => p.affiliateId === affiliateId && OPEN_PAYOUT_STATUSES.includes(p.status)).reduce((a, p) => a + p.amountCents, 0);
+  return summarize(st.commissions.filter((c) => c.affiliateId === affiliateId).map((c) => {
+    const al = allocOf(c.id);
+    return { ...c, paidAllocCents: al.paid, openAllocCents: al.open };
+  }), unsettled(affiliateId), requested);
 }
 function affiliateName(affId: string | null) {
   if (!affId) return null;
@@ -898,8 +974,37 @@ export const demoRepo: Repo = {
   },
   async listPayouts(s) {
     const aff = mustAffiliate(s);
-    return db().payouts.filter((p) => p.affiliateId === aff).map((p) => ({ id: p.id, ref: p.ref, amountCents: p.amountCents, status: p.status, scheduledFor: p.scheduledFor, paidAt: p.paidAt, documentPath: null }))
-      .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor));
+    return db().payouts.filter((p) => p.affiliateId === aff).map(demoPayout).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+  },
+  async requestPayout(s, amountCents, key) {
+    const aff = mustAffiliate(s);
+    const st = db();
+    const done = key ? st.payouts.find((p) => p.affiliateId === aff && p.idempotencyKey === key) : null;
+    if (done) return { id: done.id, ref: done.ref, amountCents: done.amountCents, status: done.status, created: false };
+    const a = st.affiliates.find((x) => x.id === aff)!;
+    const available = payableCents(allocatable(aff), unsettled(aff));
+    const err = checkRequest({
+      amountCents, minimumCents: st.settings.payoutMinimumCents, availableCents: available, approved: a.status === "approved",
+      hasOpenPayout: st.payouts.some((p) => p.affiliateId === aff && OPEN_PAYOUT_STATUSES.includes(p.status)),
+    });
+    if (err) throw new PayoutError(err);
+    const extras = st.ledgerExtras.filter((x) => x.affiliateId === aff && !x.settledBy);
+    const parts = allocate(allocatable(aff), amountCents, extras.reduce((t, x) => t + x.amountCents, 0));
+    const p: DemoPayout = {
+      id: id("pay"), ref: `PAY-${String(st.payouts.length + 1).padStart(4, "0")}`, affiliateId: aff, amountCents, status: "requested",
+      scheduledFor: iso(now()).slice(0, 10), paidAt: null, requestedAt: iso(now()), method: "manual", processedAt: null, rejectedAt: null,
+      failedAt: null, rejectionReason: null, providerRef: null, balanceBeforeCents: available, idempotencyKey: key || null, adminNote: null,
+    };
+    st.payouts.push(p);
+    for (const x of extras) x.settledBy = p.id;
+    for (const part of parts) st.payoutAllocations.push({ payoutId: p.id, commissionId: part.commissionId, amountCents: part.amountCents, releasedAt: null });
+    payoutEvent(s, p, null, "requested", null);
+    const params = { amount_cents: amountCents, currency: "EUR", payout_ref: p.ref };
+    notifyAffiliate(aff, "payoutRequested", params, "/dashboard/payouts");
+    for (const u of st.users.filter((x) => x.role === "super_admin" || x.role === "admin")) {
+      st.notifications.push({ id: id("ntf"), userId: u.userId, type: "payout", titleKey: "payoutRequestStaff", params: { ...params, affiliate_name: affiliateName(aff) ?? "—" }, href: `/admin/payouts/${p.id}`, readAt: null, status: "unread", createdAt: iso(now()) });
+    }
+    return { id: p.id, ref: p.ref, amountCents, status: p.status, created: true };
   },
   async listNotifications(s, status = "inbox") {
     return db().notifications
@@ -921,7 +1026,7 @@ export const demoRepo: Repo = {
   async getConnectStatus() {
     return {
       enabled: db().settings.connectEnabled, providerConfigured: false, accountConnected: false,
-      onboardingStatus: "not_started", payoutsEnabled: false, requirementsStatus: null, updatedAt: null,
+      onboardingStatus: "not_started", payoutsEnabled: false, requirementsStatus: null, updatedAt: null, payoutLast4: null,
     };
   },
   async getLeaderboard(s) {
@@ -1349,38 +1454,110 @@ export const demoRepo: Repo = {
   async adminPayoutCandidates(s) {
     mustStaff(s);
     const st = db();
-    return st.affiliates.map((a) => ({
-      affiliateId: a.id, affiliateName: affiliateName(a.id) ?? "—",
-      availableCents: st.commissions.filter((c) => c.affiliateId === a.id && c.status === "available" && !c.payoutId).reduce((x, c) => x + c.amountCents, 0) + unsettled(a.id),
-    })).filter((x) => x.availableCents >= st.settings.payoutMinimumCents);
+    return st.affiliates
+      .filter((a) => !st.payouts.some((p) => p.affiliateId === a.id && OPEN_PAYOUT_STATUSES.includes(p.status)))
+      .map((a) => ({ affiliateId: a.id, affiliateName: affiliateName(a.id) ?? "—", availableCents: balancesOf(a.id).availableCents }))
+      .filter((x) => x.availableCents > 0 && x.availableCents >= st.settings.payoutMinimumCents);
   },
-  async adminListPayouts(s) {
+  async adminListPayouts(s, status) {
     mustStaff(s);
-    return db().payouts.map((p) => ({ id: p.id, ref: p.ref, amountCents: p.amountCents, status: p.status, scheduledFor: p.scheduledFor, paidAt: p.paidAt, documentPath: null, affiliateName: affiliateName(p.affiliateId) ?? "—" }))
-      .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor));
+    return db().payouts.filter((p) => !status?.length || status.includes(p.status))
+      .map((p) => ({ ...demoPayout(p), affiliateName: affiliateName(p.affiliateId) ?? "—" }))
+      .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+  },
+  async adminGetPayout(s, pid) {
+    mustStaff(s);
+    const st = db();
+    const p = st.payouts.find((x) => x.id === pid);
+    if (!p) return null;
+    const a = st.affiliates.find((x) => x.id === p.affiliateId);
+    const user = st.users.find((u) => u.userId === a?.userId);
+    const detail: AdminPayoutDetail = {
+      ...demoPayout(p), affiliateId: p.affiliateId, affiliateName: affiliateName(p.affiliateId) ?? "—", affiliateEmail: user?.email ?? null,
+      adminNote: p.adminNote, stripeAccountId: null,
+      problem: OPEN_PAYOUT_STATUSES.includes(p.status) ? demoPayoutProblem(p) : null,
+      allocations: st.payoutAllocations.filter((x) => x.payoutId === p.id).map((x) => {
+        const c = st.commissions.find((y) => y.id === x.commissionId)!;
+        const sale = st.sales.find((y) => y.id === c.saleId)!;
+        return {
+          commissionId: c.id, saleRef: sale.ref, customerRef: st.customers.find((y) => y.id === sale.customerId)?.ref ?? "—",
+          commissionCents: c.amountCents, amountCents: x.amountCents, status: c.status, released: !!x.releasedAt,
+        };
+      }),
+      events: st.payoutEvents.filter((e) => e.payoutId === p.id).map((e) => ({
+        at: e.at, actorName: e.actorId ? st.users.find((u) => u.userId === e.actorId)?.fullName ?? null : null, actorRole: e.actorRole,
+        from: e.from, to: e.to, amountCents: e.amountCents, note: e.note,
+      })),
+    };
+    return detail;
   },
   async adminCreatePayout(s, affId) {
     mustStaff(s);
     const st = db();
-    const coms = st.commissions.filter((c) => c.affiliateId === affId && c.status === "available" && !c.payoutId);
+    if (st.payouts.some((p) => p.affiliateId === affId && OPEN_PAYOUT_STATUSES.includes(p.status))) throw new PayoutError("already_open");
+    const total = balancesOf(affId).availableCents;
+    if (total <= 0 || total < st.settings.payoutMinimumCents) throw new PayoutError("below_minimum");
     const extras = st.ledgerExtras.filter((x) => x.affiliateId === affId && !x.settledBy);
-    const total = coms.reduce((a, c) => a + c.amountCents, 0) + extras.reduce((a, x) => a + x.amountCents, 0);
-    if (total <= 0 || total < st.settings.payoutMinimumCents) throw new Error("below_minimum");
-    const p: DemoPayout = { id: id("pay"), ref: `PAY-${String(st.payouts.length + 1).padStart(4, "0")}`, affiliateId: affId, amountCents: total, status: "scheduled", scheduledFor: iso(now()).slice(0, 10), paidAt: null };
+    const parts = allocate(allocatable(affId), total, extras.reduce((t, x) => t + x.amountCents, 0));
+    const p: DemoPayout = {
+      id: id("pay"), ref: `PAY-${String(st.payouts.length + 1).padStart(4, "0")}`, affiliateId: affId, amountCents: total, status: "scheduled",
+      scheduledFor: iso(now()).slice(0, 10), paidAt: null, requestedAt: iso(now()), method: "manual", processedAt: null, rejectedAt: null,
+      failedAt: null, rejectionReason: null, providerRef: null, balanceBeforeCents: total, idempotencyKey: null, adminNote: null,
+    };
     st.payouts.push(p);
-    for (const c of coms) c.payoutId = p.id;
     for (const x of extras) x.settledBy = p.id;
-    audit(s, "payout.create", "payout", p.ref, null, { amount_cents: total }, null);
+    for (const part of parts) st.payoutAllocations.push({ payoutId: p.id, commissionId: part.commissionId, amountCents: part.amountCents, releasedAt: null });
+    payoutEvent(s, p, null, "scheduled", null);
+  },
+  async adminProcessPayout(s, pid, note) {
+    const p = staffPayout(s, pid);
+    if (p.status === "processing") return;
+    if (p.status !== "requested" && p.status !== "scheduled") throw new PayoutError("invalid_status", p.status);
+    const problem = demoPayoutProblem(p);
+    if (problem) throw new PayoutError("ineligible", problem);
+    const from = p.status;
+    p.status = "processing"; p.processedAt = iso(now()); p.adminNote = note?.trim() || p.adminNote;
+    payoutEvent(s, p, from, "processing", note?.trim() || null);
+    notifyAffiliate(p.affiliateId, "payoutProcessing", { amount_cents: p.amountCents, currency: "EUR", payout_ref: p.ref }, "/dashboard/payouts");
   },
   async adminMarkPayoutPaid(s, pid, providerRef) {
-    mustStaff(s);
+    const p = staffPayout(s, pid);
+    if (p.status === "paid") return;
+    if (!OPEN_PAYOUT_STATUSES.includes(p.status)) throw new PayoutError("invalid_status", p.status);
+    if (!providerRef.trim()) throw new PayoutError("reference_required");
+    const problem = demoPayoutProblem(p);
+    if (problem) throw new PayoutError("ineligible", problem);
     const st = db();
-    const p = st.payouts.find((x) => x.id === pid);
-    if (!p || p.status === "paid") return;
-    audit(s, "payout.paid", "payout", p.ref, { status: p.status }, { status: "paid", provider_ref: providerRef }, null);
-    p.status = "paid"; p.paidAt = iso(now());
-    for (const c of st.commissions.filter((x) => x.payoutId === p.id && x.status === "available")) applyCommissionEvent(c, { type: "payout_paid", at: p.paidAt });
+    const from = p.status;
+    p.status = "paid"; p.paidAt = iso(now()); p.providerRef = providerRef.trim(); p.processedAt ??= p.paidAt;
+    for (const a of st.payoutAllocations.filter((x) => x.payoutId === p.id && !x.releasedAt)) {
+      const c = st.commissions.find((x) => x.id === a.commissionId)!;
+      if (c.status === "available" && allocOf(c.id).paid >= c.amountCents) applyCommissionEvent(c, { type: "payout_paid", at: p.paidAt });
+    }
     st.activity.push({ id: id("act"), affiliateId: p.affiliateId, type: "payout_completed", occurredAt: p.paidAt, payload: { amount_cents: p.amountCents, currency: "EUR" } });
+    notifyAffiliate(p.affiliateId, "payoutPaid", { amount_cents: p.amountCents, currency: "EUR", payout_ref: p.ref }, "/dashboard/payouts");
+    payoutEvent(s, p, from, "paid", p.providerRef);
+  },
+  async adminRejectPayout(s, pid, reason) {
+    const p = staffPayout(s, pid);
+    if (p.status === "rejected") return;
+    if (!reason.trim()) throw new PayoutError("reason_required");
+    if (!OPEN_PAYOUT_STATUSES.includes(p.status)) throw new PayoutError("invalid_status", p.status);
+    const from = p.status;
+    p.status = "rejected"; p.rejectedAt = iso(now()); p.rejectionReason = reason.trim();
+    releasePayout(p);
+    payoutEvent(s, p, from, "rejected", p.rejectionReason);
+    notifyAffiliate(p.affiliateId, "payoutRejected", { amount_cents: p.amountCents, currency: "EUR", payout_ref: p.ref, reason: p.rejectionReason }, "/dashboard/payouts");
+  },
+  async adminFailPayout(s, pid, reason) {
+    const p = staffPayout(s, pid);
+    if (p.status === "failed") return;
+    if (!reason.trim()) throw new PayoutError("reason_required");
+    if (p.status !== "processing") throw new PayoutError("invalid_status", p.status);
+    p.status = "failed"; p.failedAt = iso(now()); p.rejectionReason = reason.trim();
+    releasePayout(p);
+    payoutEvent(s, p, "processing", "failed", p.rejectionReason);
+    notifyAffiliate(p.affiliateId, "payoutFailed", { amount_cents: p.amountCents, currency: "EUR", payout_ref: p.ref, reason: p.rejectionReason }, "/dashboard/payouts");
   },
   async adminListFraudFlags(s) { mustStaff(s); return db().fraud; },
   async adminReviewFraudFlag(s, fid, status, note) {
@@ -1553,8 +1730,7 @@ export const demoRepo: Repo = {
       leads: leads.filter((l) => l.affiliateId === affiliateId),
       sales: sales.filter((x) => x.affiliateId === affiliateId),
       commissions: commissions.filter((c) => c.affiliateId === affiliateId),
-      payouts: st.payouts.filter((p) => p.affiliateId === affiliateId).map((p) => ({ id: p.id, ref: p.ref, amountCents: p.amountCents, status: p.status, scheduledFor: p.scheduledFor, paidAt: p.paidAt, documentPath: null }))
-        .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor)),
+      payouts: st.payouts.filter((p) => p.affiliateId === affiliateId).map(demoPayout).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)),
       help: await demoRepo.adminListHelpRequests(s, { affiliateId }),
     };
   },

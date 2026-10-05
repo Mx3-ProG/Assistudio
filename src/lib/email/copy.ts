@@ -8,6 +8,7 @@
 export type TemplateId =
   | "affiliate.welcome" | "affiliate.new_lead" | "affiliate.appointment" | "affiliate.sale_detected"
   | "affiliate.commission_available" | "affiliate.payout_sent" | "affiliate.renewal" | "affiliate.customer_cancelled"
+  | "affiliate.payout_requested" | "affiliate.payout_rejected" | "staff.payout_request"
   | "customer.welcome" | "customer.order_confirmation" | "customer.renewal_receipt" | "customer.payment_failed"
   | "customer.cancellation" | "lead.confirmation" | "lead.appointment_confirmation"
   | "dossier.invite" | "dossier.changes_requested" | "dossier.ready_to_accept"
@@ -93,6 +94,37 @@ const en: Copy = {
       title: "A payout was sent to you.",
       paragraphs: ["Payout {payout_ref}: {amount}. Depending on your bank, funds usually arrive within a few business days."],
       cta: { label: "View my payouts", path: "/dashboard/payouts" },
+    },
+    "affiliate.payout_requested": {
+      subject: "Your payout request has been received",
+      preheader: "Payout request {payout_ref}: {amount}.",
+      title: "Hello {first_name}, we have received your payout request.",
+      paragraphs: [
+        "Amount requested: {amount}\nReference: {payout_ref}",
+        "The Studio ATS team processes it and you can follow its status at any time in your Studio ATS space.",
+      ],
+      cta: { label: "Follow my payout", path: "/dashboard/payouts" },
+    },
+    "affiliate.payout_rejected": {
+      subject: "Your payout request {payout_ref} was declined",
+      preheader: "Reason: {reason}",
+      title: "Your payout request was declined.",
+      paragraphs: [
+        "Payout request {payout_ref} ({amount}) was declined by the Studio ATS team.\nReason: {reason}",
+        "What is still available is back in your balance: you can submit a new request from your payouts page.",
+      ],
+      cta: { label: "View my payouts", path: "/dashboard/payouts" },
+    },
+    "staff.payout_request": {
+      subject: "New payout request — Studio ATS",
+      preheader: "{affiliate_name} requests {amount} ({payout_ref}).",
+      title: "New partner payout request",
+      paragraphs: [
+        "Partner: {affiliate_name}\nEmail: {affiliate_email}",
+        "Amount requested: {amount}\nAvailable balance before the request: {balance_before}\nReference: {payout_ref}\nDate: {requested_on}\nPayout method: {method_label}",
+      ],
+      cta: { label: "View the request", path: "{admin_path}" },
+      footnote: "Accept, pay and mark as paid from the admin (Partner payouts): the partner is notified at each step.",
     },
     "affiliate.customer_cancelled": {
       subject: "A contract you brought was cancelled",
@@ -298,6 +330,37 @@ const fr: Partial<Copy> & { templates: Partial<Record<TemplateId, TemplateCopy>>
       title: "Un paiement vous a été envoyé.",
       paragraphs: ["Paiement {payout_ref} : {amount}. Selon votre banque, les fonds arrivent généralement sous quelques jours ouvrés."],
       cta: { label: "Voir mes paiements", path: "/dashboard/payouts" },
+    },
+    "affiliate.payout_requested": {
+      subject: "Votre demande de paiement a bien été reçue",
+      preheader: "Demande de paiement {payout_ref} : {amount}.",
+      title: "Bonjour {first_name}, nous avons bien reçu votre demande de paiement.",
+      paragraphs: [
+        "Montant demandé : {amount}\nRéférence : {payout_ref}",
+        "L’équipe Studio ATS la traite et vous pouvez suivre son état à tout moment depuis votre espace Studio ATS.",
+      ],
+      cta: { label: "Suivre mon paiement", path: "/dashboard/payouts" },
+    },
+    "affiliate.payout_rejected": {
+      subject: "Votre demande de paiement {payout_ref} a été refusée",
+      preheader: "Raison : {reason}",
+      title: "Votre demande de paiement a été refusée.",
+      paragraphs: [
+        "La demande de paiement {payout_ref} ({amount}) a été refusée par l’équipe Studio ATS.\nRaison : {reason}",
+        "Ce qui reste disponible est revenu dans votre solde : vous pouvez faire une nouvelle demande depuis votre page Paiements.",
+      ],
+      cta: { label: "Voir mes paiements", path: "/dashboard/payouts" },
+    },
+    "staff.payout_request": {
+      subject: "Nouvelle demande de paiement — Studio ATS",
+      preheader: "{affiliate_name} demande {amount} ({payout_ref}).",
+      title: "Nouvelle demande de paiement ambassadeur",
+      paragraphs: [
+        "Ambassadeur : {affiliate_name}\nEmail : {affiliate_email}",
+        "Montant demandé : {amount}\nSolde disponible avant demande : {balance_before}\nRéférence : {payout_ref}\nDate : {requested_on}\nMoyen de paiement : {method_label}",
+      ],
+      cta: { label: "Voir la demande", path: "{admin_path}" },
+      footnote: "Acceptez, payez puis marquez comme payé depuis l’admin (Paiements partenaires) : le partenaire est prévenu à chaque étape.",
     },
     "affiliate.customer_cancelled": {
       subject: "Un contrat que vous avez apporté a été résilié",

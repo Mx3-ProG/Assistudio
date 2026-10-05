@@ -45,7 +45,7 @@ export function StickyCta({ href }: { href: string }) {
       inert={!show}
     >
       <TrackedLink href={href} event="hero_signup_click" placement="sticky_mobile" size="md" className="h-12 w-full text-[15px]">
-        {t.hc.sticky.cta} <ArrowRight className="flip-rtl size-4" />
+        {t.hc.cta} <ArrowRight className="flip-rtl size-4" />
       </TrackedLink>
     </div>
   );

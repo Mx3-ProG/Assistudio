@@ -89,6 +89,11 @@ test("refund / connect account", () => {
   const a = normalizeAccount({ id: "acct_1", payouts_enabled: false, details_submitted: true,
     requirements: { currently_due: ["external_account"], past_due: [], pending_verification: [], disabled_reason: null } } as unknown as Stripe.Account);
   assert.equal(a.requirements_status, "currently_due");
+  assert.equal(a.payout_last4, null);
+  const b = normalizeAccount({ id: "acct_2", payouts_enabled: true, details_submitted: true, requirements: {},
+    external_accounts: { data: [{ object: "bank_account", last4: "1111" }, { object: "bank_account", last4: "4821", default_for_currency: true, account_number: "FR7612345678901234567894821" }] } } as unknown as Stripe.Account);
+  assert.equal(b.payout_last4, "4821", "only the last 4 digits of the default account");
+  assert.ok(!JSON.stringify(b).includes("FR76"), "never the full account number");
 });
 
 test("event reference keeps ids and amounts, never personal data", () => {

@@ -105,6 +105,8 @@ export interface ConnectAccountPayload {
   details_submitted: boolean;
   disabled_reason: string | null;
   requirements_status: "none" | "currently_due" | "past_due" | "pending_verification" | "disabled";
+  /** Last 4 digits of the default payout account, for display only — never the full IBAN / card. */
+  payout_last4: string | null;
 }
 
 export function normalizeCheckoutSession(s: Stripe.Checkout.Session): CheckoutCompletedPayload {
@@ -267,7 +269,16 @@ export function normalizeAccount(a: Stripe.Account): ConnectAccountPayload {
     details_submitted: a.details_submitted ?? false,
     disabled_reason: req?.disabled_reason ?? null,
     requirements_status: status,
+    payout_last4: payoutLast4(a),
   };
+}
+
+/** Default external account (bank account or debit card) → its last 4 digits only. */
+function payoutLast4(a: Stripe.Account): string | null {
+  const accounts = a.external_accounts?.data ?? [];
+  const pick = accounts.find((x) => (x as { default_for_currency?: boolean }).default_for_currency) ?? accounts[0];
+  const last4 = (pick as { last4?: string } | undefined)?.last4;
+  return typeof last4 === "string" && /^[0-9]{4}$/.test(last4) ? last4 : null;
 }
 
 /**

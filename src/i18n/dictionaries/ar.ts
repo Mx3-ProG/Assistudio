@@ -7,12 +7,16 @@ import gd from "./guided.ar";
 import ct from "./contracts.ar";
 import net from "./network.ar";
 import hc from "./home-conversion.ar";
+import hp from "./help.ar";
+import po from "./payouts.ar";
 
 /** العربية — complete. TODO(i18n): native review before launch. */
 const ar: Dictionary = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -727,13 +731,7 @@ const ar: Dictionary = {
       history: "سجل المدفوعات",
       documents: "المستندات",
       status: "الحالة",
-      statuses: {
-        scheduled: "مجدولة",
-        processing: "قيد المعالجة",
-        paid: "مدفوعة",
-        failed: "فشلت",
-        cancelled: "ملغاة",
-      },
+      statuses: po.statuses,
       minimum: "الحد الأدنى للدفع: {amount}",
       empty: "لا مدفوعات بعد.",
       settingsLink: "إعدادات المدفوعات",
@@ -930,6 +928,11 @@ const ar: Dictionary = {
     },
   },
   notificationsText: {
+    payoutRequested: "تم إرسال طلب الدفع {payout_ref} بقيمة {amount}",
+    payoutRequestStaff: "طلب دفع جديد {payout_ref}: {amount} — {affiliate_name}",
+    payoutProcessing: "دفعتك {payout_ref} بقيمة {amount} قيد المعالجة",
+    payoutRejected: "رُفض طلب الدفع {payout_ref}: {reason}",
+    payoutFailed: "فشلت الدفعة {payout_ref}: {reason} — المبلغ متاح مجددًا",
     newLead: "تم استقبال طلب جديد ({profession})",
     paymentConfirmed: "تم تأكيد الدفع لـ {sale_ref}",
     commissionAvailable: "أصبحت عمولة بقيمة {amount} متاحة",

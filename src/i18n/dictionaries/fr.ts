@@ -7,11 +7,15 @@ import gd from "./guided.fr";
 import ct from "./contracts.fr";
 import net from "./network.fr";
 import hc from "./home-conversion.fr";
+import hp from "./help.fr";
+import po from "./payouts.fr";
 
 const fr: Dictionary = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -774,13 +778,7 @@ const fr: Dictionary = {
       history: "Historique",
       documents: "Documents",
       status: "Statut",
-      statuses: {
-        scheduled: "Programmé",
-        processing: "En cours",
-        paid: "Payé",
-        failed: "Échoué",
-        cancelled: "Annulé",
-      },
+      statuses: po.statuses,
       settingsLink: "Paramètres de paiement",
       pipeline: "Paiement reçu → commission en attente → période de validation → disponible → paiement. Aucun paiement n’est automatique après une vente.",
       settings: {
@@ -977,6 +975,11 @@ const fr: Dictionary = {
     },
   },
   notificationsText: {
+    payoutRequested: "Demande de paiement {payout_ref} de {amount} envoyée",
+    payoutRequestStaff: "Nouvelle demande de paiement {payout_ref} : {amount} — {affiliate_name}",
+    payoutProcessing: "Votre paiement {payout_ref} de {amount} est en traitement",
+    payoutRejected: "Demande de paiement {payout_ref} refusée : {reason}",
+    payoutFailed: "Le paiement {payout_ref} a échoué : {reason} — le montant est de nouveau disponible",
     newLead: "Nouvelle demande ({profession})",
     paymentConfirmed: "Paiement confirmé pour {sale_ref}",
     commissionAvailable: "Une commission de {amount} est disponible",

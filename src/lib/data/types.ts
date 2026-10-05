@@ -13,7 +13,8 @@ export type AffiliateStatus = "pending" | "approved" | "rejected" | "suspended";
 export type ProspectStage =
   | "new" | "contacted" | "replied" | "qualified" | "interested" | "proof_sent" | "proposal" | "appointment"
   | "handed_off" | "checkout" | "won" | "lost";
-export type PayoutStatus = "scheduled" | "processing" | "paid" | "failed" | "cancelled";
+export type { PayoutStatus, PayoutMethod } from "@/lib/payouts";
+import type { PayoutStatus, PayoutMethod } from "@/lib/payouts";
 export type ActivityType =
   | "click" | "visitor" | "lead" | "appointment" | "checkout_started" | "sale_pending" | "payment_confirmed"
   | "commission_pending" | "commission_validated" | "commission_available" | "commission_reversed"
@@ -420,6 +421,8 @@ export interface CommissionRow {
   paidAt: string | null;
   reversalReason: string | null;
   createdAt: string;
+  /** Cents of this commission inside a payout request / payout in progress ("payout requested"). */
+  requestedCents?: number;
 }
 
 /** One attributed contract. Every "next"/"projected" value is a projection, never earned money. */
@@ -481,6 +484,8 @@ export interface ConnectStatus {
   payoutsEnabled: boolean;
   requirementsStatus: string | null;
   updatedAt: string | null;
+  /** Last 4 digits of the payout account, for display only (never the full IBAN). */
+  payoutLast4: string | null;
 }
 
 export interface Payout {
@@ -491,6 +496,30 @@ export interface Payout {
   scheduledFor: string;
   paidAt: string | null;
   documentPath: string | null;
+  /** When the partner asked (or staff created it). */
+  requestedAt: string;
+  method: PayoutMethod;
+  processedAt: string | null;
+  rejectedAt: string | null;
+  failedAt: string | null;
+  /** Shown to the partner when a request is refused / failed. */
+  rejectionReason: string | null;
+  /** Bank transfer / provider reference entered when paid. */
+  paymentReference: string | null;
+  balanceBeforeCents: number | null;
+}
+
+/** Admin view of a payout: who, which commissions, what happened. */
+export interface AdminPayoutDetail extends Payout {
+  affiliateId: string;
+  affiliateName: string;
+  affiliateEmail: string | null;
+  adminNote: string | null;
+  stripeAccountId: string | null;
+  /** Null when everything is payable; otherwise why it cannot be paid yet. */
+  problem: string | null;
+  allocations: { commissionId: string; saleRef: string; customerRef: string; commissionCents: number; amountCents: number; status: CommissionStatus; released: boolean }[];
+  events: { at: string; actorName: string | null; actorRole: "affiliate" | "staff" | "system"; from: PayoutStatus | null; to: PayoutStatus; amountCents: number; note: string | null }[];
 }
 
 export interface Notification {

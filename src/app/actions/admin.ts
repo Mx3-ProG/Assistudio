@@ -82,12 +82,6 @@ export async function createPayout(_: AdminState, f: FormData) {
   return run(() => repo().adminCreatePayout(s, id(f, "affiliateId")));
 }
 
-export async function markPayoutPaid(_: AdminState, f: FormData) {
-  const s = await staff();
-  const ref = z.string().trim().min(3).max(120).parse(f.get("providerRef"));
-  return run(() => repo().adminMarkPayoutPaid(s, id(f), ref));
-}
-
 export async function reviewFraud(_: AdminState, f: FormData) {
   const s = await staff();
   const status = z.enum(["reviewing", "dismissed", "confirmed"]).parse(f.get("status"));

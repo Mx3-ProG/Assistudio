@@ -52,6 +52,11 @@ const HELP_LABELS: Record<string, Record<string, string>> = {
 };
 const ON: Record<string, string> = { en: " for {d}", fr: " pour le {d}" };
 
+const METHOD: Record<string, Record<string, string>> = {
+  en: { manual: "Bank transfer by Studio ATS", stripe_connect: "Stripe Connect (connected account)" },
+  fr: { manual: "Virement bancaire par Studio ATS", stripe_connect: "Stripe Connect (compte connecté)" },
+};
+
 /** Template placeholders, formatted for the recipient's locale. */
 export function placeholders(params: Params, locale: string): Record<string, string> {
   const who = [params.company, params.profession].filter((x) => typeof x === "string" && x.trim()).join(" · ");
@@ -78,6 +83,8 @@ export function placeholders(params: Params, locale: string): Record<string, str
     commission: money(params.commission_cents, params.currency, locale),
     amount: money(params.amount_cents, params.currency, locale),
     available_on: date(params.available_on, locale),
+    requested_on: date(params.requested_at, locale),
+    method_label: (METHOD[locale] ?? METHOD.en)[String(params.method ?? "manual")] ?? String(params.method ?? ""),
     ends_on: date(params.ends_on, locale),
     who: who || WHO[locale] || WHO.en,
     when,

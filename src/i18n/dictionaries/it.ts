@@ -7,12 +7,16 @@ import gd from "./guided.it";
 import ct from "./contracts.it";
 import net from "./network.it";
 import hc from "./home-conversion.it";
+import hp from "./help.it";
+import po from "./payouts.it";
 
 /** Italiano — complete. TODO(i18n): native review before launch. */
 const it: Dictionary = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -727,13 +731,7 @@ const it: Dictionary = {
       history: "Storico dei pagamenti",
       documents: "Documenti",
       status: "Stato",
-      statuses: {
-        scheduled: "Programmato",
-        processing: "In elaborazione",
-        paid: "Pagato",
-        failed: "Non riuscito",
-        cancelled: "Annullato",
-      },
+      statuses: po.statuses,
       minimum: "Pagamento minimo: {amount}",
       empty: "Ancora nessun pagamento.",
       settingsLink: "Impostazioni di pagamento",
@@ -930,6 +928,11 @@ const it: Dictionary = {
     },
   },
   notificationsText: {
+    payoutRequested: "Richiesta di pagamento {payout_ref} di {amount} inviata",
+    payoutRequestStaff: "Nuova richiesta di pagamento {payout_ref}: {amount} — {affiliate_name}",
+    payoutProcessing: "Il tuo pagamento {payout_ref} di {amount} è in lavorazione",
+    payoutRejected: "Richiesta di pagamento {payout_ref} rifiutata: {reason}",
+    payoutFailed: "Il pagamento {payout_ref} non è riuscito: {reason} — l’importo è di nuovo disponibile",
     newLead: "Nuova richiesta acquisita ({profession})",
     paymentConfirmed: "Pagamento confermato per {sale_ref}",
     commissionAvailable: "Una commissione di {amount} è ora disponibile",

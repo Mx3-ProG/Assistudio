@@ -7,12 +7,16 @@ import gd from "./guided.nl";
 import ct from "./contracts.nl";
 import net from "./network.nl";
 import hc from "./home-conversion.nl";
+import hp from "./help.nl";
+import po from "./payouts.nl";
 
 /** Nederlands — complete. TODO(i18n): native review before launch. */
 const nl: Dictionary = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -727,13 +731,7 @@ const nl: Dictionary = {
       history: "Betalingsgeschiedenis",
       documents: "Documenten",
       status: "Status",
-      statuses: {
-        scheduled: "Gepland",
-        processing: "In verwerking",
-        paid: "Uitbetaald",
-        failed: "Mislukt",
-        cancelled: "Geannuleerd",
-      },
+      statuses: po.statuses,
       minimum: "Minimale uitbetaling: {amount}",
       empty: "Nog geen uitbetalingen.",
       settingsLink: "Uitbetalingsinstellingen",
@@ -930,6 +928,11 @@ const nl: Dictionary = {
     },
   },
   notificationsText: {
+    payoutRequested: "Uitbetalingsaanvraag {payout_ref} van {amount} verzonden",
+    payoutRequestStaff: "Nieuwe uitbetalingsaanvraag {payout_ref}: {amount} — {affiliate_name}",
+    payoutProcessing: "Je uitbetaling {payout_ref} van {amount} wordt verwerkt",
+    payoutRejected: "Uitbetalingsaanvraag {payout_ref} geweigerd: {reason}",
+    payoutFailed: "Uitbetaling {payout_ref} mislukt: {reason} — het bedrag is weer beschikbaar",
     newLead: "Nieuwe aanvraag ontvangen ({profession})",
     paymentConfirmed: "Betaling bevestigd voor {sale_ref}",
     commissionAvailable: "Commissie van {amount} is nu beschikbaar",

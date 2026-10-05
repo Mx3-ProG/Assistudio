@@ -178,8 +178,10 @@ export interface Balances {
   pendingCents: number;
   /** Frozen until an administrative decision. NOT earned. */
   disputedCents: number;
-  /** Validated, payable. Net of clawbacks and adjustments not yet settled. */
+  /** Validated, payable. Net of clawbacks and adjustments not yet settled, and of cents already requested. */
   availableCents: number;
+  /** In a payout request / payout in progress: no longer available, not paid yet. */
+  requestedCents: number;
   paidCents: number;
   /** Validated history: available + paid. Never includes pending money. */
   lifetimeEarnedCents: number;
@@ -193,17 +195,24 @@ export interface Balances {
  * settled by a payout.
  */
 export function summarize(
-  commissions: Pick<CommissionState, "status" | "amountCents">[],
+  commissions: (Pick<CommissionState, "status" | "amountCents"> & { paidAllocCents?: number; openAllocCents?: number })[],
   unsettledLedgerCents = 0,
+  requestedCents = 0,
 ): Balances {
   const sum = (...st: CommissionStatus[]) =>
     commissions.filter((c) => st.includes(c.status)).reduce((a, c) => a + c.amountCents, 0);
+  // Payout allocations (see lib/payouts.ts): paid cents of a not-yet-fully-paid
+  // commission count as paid; requested cents are no longer available.
+  const paidPart = (c: (typeof commissions)[number]) => c.paidAllocCents ?? 0;
+  const openPart = (c: (typeof commissions)[number]) => c.openAllocCents ?? 0;
   return {
     awaitingPaymentCents: sum("awaiting_payment"),
     pendingCents: sum("pending"),
-    disputedCents: sum("disputed"),
-    availableCents: sum("available") + unsettledLedgerCents,
-    paidCents: sum("paid"),
+    disputedCents: commissions.filter((c) => c.status === "disputed").reduce((a, c) => a + Math.max(c.amountCents - paidPart(c), 0), 0),
+    availableCents: commissions.filter((c) => c.status === "available")
+      .reduce((a, c) => a + Math.max(c.amountCents - paidPart(c) - openPart(c), 0), 0) + unsettledLedgerCents,
+    requestedCents,
+    paidCents: sum("paid") + commissions.filter((c) => c.status !== "paid").reduce((a, c) => a + paidPart(c), 0),
     lifetimeEarnedCents: sum("available", "paid"),
     reversedCents: sum("reversed"),
   };

@@ -62,3 +62,22 @@ test("staff help request: full context, labels, escaped multi-line message, admi
   assert.equal(noRelated.text.includes("Prospect: Rossi"), false);
   assert.match(noRelated.text, /Commissions available \(owed\): €450/);
 });
+
+test("payout request: partner confirmation and admin alert carry the brief's facts", () => {
+  const params = {
+    amount_cents: 300_000, balance_before_cents: 300_000, currency: "EUR", payout_ref: "PAY-AB12CD", first_name: "Alice",
+    affiliate_name: "Alice Martin", affiliate_email: "alice@example.com", requested_at: "2026-10-05T12:30:00Z", method: "manual",
+    admin_path: "/admin/payouts/0000-1111",
+  };
+  const staff = renderEmail("staff.payout_request", params, { ...opts, locale: "fr" });
+  assert.equal(staff.subject, "Nouvelle demande de paiement — Studio ATS");
+  for (const s of ["Alice Martin", "alice@example.com", "PAY-AB12CD", "5 octobre 2026", "Virement bancaire par Studio ATS"]) assert.ok(staff.text.includes(s), s);
+  assert.match(staff.text, /Montant demandé : 3\s000\s€/);
+  assert.ok(staff.html.includes("https://studio.test/fr/admin/payouts/0000-1111"), "CTA opens the request in the admin");
+  const mine = renderEmail("affiliate.payout_requested", params, { ...opts, locale: "fr" });
+  assert.equal(mine.subject, "Votre demande de paiement a bien été reçue");
+  assert.match(mine.text, /Bonjour Alice/);
+  assert.ok(mine.text.includes("PAY-AB12CD"));
+  const no = renderEmail("affiliate.payout_rejected", { ...params, reason: "Vente remboursée" }, { ...opts, locale: "fr" });
+  assert.match(no.text, /Raison : Vente remboursée/);
+});

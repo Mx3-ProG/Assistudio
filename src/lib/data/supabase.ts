@@ -2,6 +2,7 @@
 import "server-only";
 import { supabaseServer, supabaseService } from "@/lib/supabase/server";
 import { type Balances } from "@/lib/commission";
+import { OPEN_PAYOUT_STATUSES, PayoutError, payoutErrorCode, payoutProblem } from "@/lib/payouts";
 import { OFFER_LOOKUP_KEYS, maxEarningOffer, sortOffers, tierOfLookupKey } from "@/lib/offers";
 import { defaultMarkets, type Market } from "@/content/markets";
 import { assetsFor, type SalesAsset } from "@/content/sales-kit";
@@ -18,7 +19,7 @@ import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow, LinkStats,
   ReferralTarget, AdminAffiliateRow, RecurringBook, RecurringContract, FinancialOverview, AdminFinanceSummary,
   PerformanceRow, ProductView, SalesAnalytics, ActivationFunnel, AdminSaleRow, AdminCommissionRow, AdminLeadRow, Payout,
-  AdminNetworkStats, HelpRequest,
+  AdminNetworkStats, HelpRequest, AdminPayoutDetail,
 } from "./types";
 
 const DAY = 86_400_000;
@@ -212,8 +213,21 @@ const toAdminLead = (r: any): AdminLeadRow => ({
   affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? null, status: r.status, createdAt: r.created_at,
 });
 const toPayout = (r: any): Payout => ({
-  id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path,
+  id: r.id, ref: r.public_ref, amountCents: Number(r.amount_cents), status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at,
+  documentPath: r.document_path, requestedAt: r.created_at, method: r.method ?? "manual", processedAt: r.processed_at ?? null,
+  rejectedAt: r.rejected_at ?? null, failedAt: r.failed_at ?? null, rejectionReason: r.rejection_reason ?? r.failure_reason ?? null,
+  paymentReference: r.provider_ref ?? null, balanceBeforeCents: r.balance_before_cents != null ? Number(r.balance_before_cents) : null,
 });
+/** RPC errors raised as `payout.<code>` become typed PayoutErrors. */
+function payoutRpc<T>(res: { data: T; error: any }): T {
+  if (res.error) {
+    const msg = String(res.error.message ?? res.error);
+    const code = payoutErrorCode(msg) ?? (/payouts_one_open_idx/.test(msg) ? "already_open" : null);
+    if (code) throw new PayoutError(code, msg.split(":").slice(1).join(":").trim() || undefined);
+    throw new Error(msg);
+  }
+  return res.data;
+}
 const HELP_COLS = "*, affiliates(profiles!affiliates_profile_id_fkey(full_name, email))";
 const toHelp = (r: any): HelpRequest => ({
   id: r.id, ref: r.public_ref, affiliateId: r.affiliate_id,
@@ -533,6 +547,7 @@ export const supabaseRepo: Repo = {
     return {
       awaitingPaymentCents: Number(r.awaiting_payment_cents ?? 0), pendingCents: Number(r.pending_cents ?? 0),
       disputedCents: Number(r.disputed_cents ?? 0), availableCents: Number(r.available_cents ?? 0),
+      requestedCents: Number(r.requested_cents ?? 0),
       paidCents: Number(r.paid_cents ?? 0), lifetimeEarnedCents: Number(r.lifetime_earned_cents ?? 0),
       reversedCents: (check(reversed) as any[]).reduce((a, x) => a + x.amount_cents, 0),
     };
@@ -717,12 +732,18 @@ export const supabaseRepo: Repo = {
 
   async listCommissions(s) {
     const sb = await supabaseServer();
-    const [rows, customers] = await Promise.all([
+    const [rows, customers, allocs] = await Promise.all([
       sb.from("commissions").select("*, sales(public_ref, customer_id)").eq("affiliate_id", mustAffiliate(s)).order("created_at", { ascending: false }),
       sb.from("my_customers").select("id, public_ref"),
+      sb.from("payout_allocations").select("commission_id, amount_cents, payouts!inner(status)").is("released_at", null).in("payouts.status", [...OPEN_PAYOUT_STATUSES]),
     ]);
     const cmap = new Map((check(customers) as any[]).map((c) => [c.id, c.public_ref]));
-    return (check(rows) as any[]).map((r) => toCommission({ ...r, sales: { ...r.sales, customer_ref: cmap.get(r.sales?.customer_id) } }));
+    const requested = new Map<string, number>();
+    for (const a of check(allocs) as any[]) requested.set(a.commission_id, (requested.get(a.commission_id) ?? 0) + Number(a.amount_cents));
+    return (check(rows) as any[]).map((r) => ({
+      ...toCommission({ ...r, sales: { ...r.sales, customer_ref: cmap.get(r.sales?.customer_id) } }),
+      requestedCents: requested.get(r.id) ?? 0,
+    }));
   },
 
   async getRecurringBook(s): Promise<RecurringBook> {
@@ -746,8 +767,17 @@ export const supabaseRepo: Repo = {
 
   async listPayouts(s) {
     const sb = await supabaseServer();
-    return (check(await sb.from("payouts").select("*").eq("affiliate_id", mustAffiliate(s)).order("scheduled_for", { ascending: false })) as any[])
-      .map((r) => ({ id: r.id, ref: r.public_ref, amountCents: r.amount_cents, status: r.status, scheduledFor: r.scheduled_for, paidAt: r.paid_at, documentPath: r.document_path }));
+    return (check(await sb.from("payouts").select("*").eq("affiliate_id", mustAffiliate(s)).order("created_at", { ascending: false })) as any[]).map(toPayout);
+  },
+
+  async requestPayout(s, amountCents, key) {
+    mustAffiliate(s);
+    const sb = await supabaseServer();
+    // The function re-derives everything from the session (auth.uid()) and the database: the amount is only a wish.
+    const rows = payoutRpc(await sb.rpc("affiliate_request_payout", { p_amount_cents: amountCents, p_idempotency_key: key })) as any[];
+    const r = rows?.[0];
+    if (!r) throw new Error("payout request returned nothing");
+    return { id: r.id, ref: r.public_ref, amountCents: Number(r.amount_cents), status: r.status, created: !!r.created };
   },
 
   async listNotifications(s, status = "inbox") {
@@ -774,7 +804,7 @@ export const supabaseRepo: Repo = {
   async getConnectStatus(s) {
     const sb = await supabaseServer();
     const [a, settings] = await Promise.all([
-      sb.from("affiliates").select("stripe_connected_account_id, connect_onboarding_status, payouts_enabled, connect_requirements_status, connect_updated_at").eq("id", mustAffiliate(s)).single(),
+      sb.from("affiliates").select("stripe_connected_account_id, connect_onboarding_status, payouts_enabled, connect_requirements_status, connect_updated_at, connect_payout_last4").eq("id", mustAffiliate(s)).single(),
       supabaseRepo.getSettings(),
     ]);
     const r = check(a) as any;
@@ -782,6 +812,7 @@ export const supabaseRepo: Repo = {
       enabled: settings.connectEnabled, providerConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
       accountConnected: !!r.stripe_connected_account_id, onboardingStatus: r.connect_onboarding_status,
       payoutsEnabled: r.payouts_enabled, requirementsStatus: r.connect_requirements_status, updatedAt: r.connect_updated_at,
+      payoutLast4: r.connect_payout_last4 ?? null,
     };
   },
 
@@ -1087,30 +1118,75 @@ export const supabaseRepo: Repo = {
 
   async adminPayoutCandidates() {
     const sb = await supabaseServer();
-    const [rows, settings] = await Promise.all([
-      sb.from("commissions").select("affiliate_id, amount_cents, affiliates!commissions_affiliate_id_fkey(profiles!affiliates_profile_id_fkey(full_name))").eq("status", "available").is("payout_id", null),
+    // affiliate_balances already nets requested / paid allocations and open clawbacks.
+    const [rows, settings, open] = await Promise.all([
+      sb.from("affiliate_balances").select("affiliate_id, available_cents").gt("available_cents", 0),
       supabaseRepo.getSettings(),
+      sb.from("payouts").select("affiliate_id").in("status", [...OPEN_PAYOUT_STATUSES]),
     ]);
-    const m = new Map<string, { affiliateId: string; affiliateName: string; availableCents: number }>();
-    for (const r of check(rows) as any[]) {
-      const e = m.get(r.affiliate_id) ?? { affiliateId: r.affiliate_id, affiliateName: r.affiliates?.profiles?.full_name ?? "—", availableCents: 0 };
-      e.availableCents += r.amount_cents;
-      m.set(r.affiliate_id, e);
-    }
-    return [...m.values()].filter((x) => x.availableCents >= settings.payoutMinimumCents);
+    const busy = new Set((check(open) as any[]).map((r) => r.affiliate_id));
+    const ids = (check(rows) as any[]).filter((r) => Number(r.available_cents) >= settings.payoutMinimumCents && !busy.has(r.affiliate_id));
+    if (!ids.length) return [];
+    const names = check(await sb.from("affiliates").select("id, profiles!affiliates_profile_id_fkey(full_name)").in("id", ids.map((r) => r.affiliate_id))) as any[];
+    const nameOf = new Map(names.map((a) => [a.id, a.profiles?.full_name ?? "—"]));
+    return ids.map((r) => ({ affiliateId: r.affiliate_id, affiliateName: nameOf.get(r.affiliate_id) ?? "—", availableCents: Number(r.available_cents) }));
   },
-  async adminListPayouts() {
+  async adminListPayouts(_s, status) {
     const sb = await supabaseServer();
-    return (check(await sb.from("payouts").select("*, affiliates(profiles!affiliates_profile_id_fkey(full_name))").order("created_at", { ascending: false }).limit(200)) as any[])
-      .map((r) => ({ ...toPayout(r), affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
+    let q = sb.from("payouts").select("*, affiliates(profiles!affiliates_profile_id_fkey(full_name))").order("created_at", { ascending: false }).limit(300);
+    if (status?.length) q = q.in("status", status);
+    return (check(await q) as any[]).map((r) => ({ ...toPayout(r), affiliateName: r.affiliates?.profiles?.full_name ?? "—" }));
+  },
+  async adminGetPayout(_s, payoutId) {
+    const sb = await supabaseServer();
+    const p = check(await sb.from("payouts").select("*, affiliates(id, profiles!affiliates_profile_id_fkey(full_name, email))").eq("id", payoutId).maybeSingle()) as any;
+    if (!p) return null;
+    const [allocs, events] = await Promise.all([
+      sb.from("payout_allocations").select("commission_id, amount_cents, released_at, commissions(amount_cents, status, sales(public_ref, customers(public_ref)))").eq("payout_id", payoutId).order("created_at"),
+      sb.from("payout_events").select("*, profiles(full_name, email)").eq("payout_id", payoutId).order("id"),
+    ]);
+    const rows = check(allocs) as any[];
+    const ids = rows.map((a) => a.commission_id);
+    const live = ids.length
+      ? check(await sb.from("payout_allocations").select("commission_id, amount_cents").in("commission_id", ids).is("released_at", null)) as any[]
+      : [];
+    const allocated = new Map<string, number>();
+    for (const a of live) allocated.set(a.commission_id, (allocated.get(a.commission_id) ?? 0) + Number(a.amount_cents));
+    const allocations = rows.map((a) => ({
+      commissionId: a.commission_id, saleRef: a.commissions?.sales?.public_ref ?? "—", customerRef: a.commissions?.sales?.customers?.public_ref ?? "—",
+      commissionCents: Number(a.commissions?.amount_cents ?? 0), amountCents: Number(a.amount_cents), status: a.commissions?.status, released: !!a.released_at,
+    }));
+    const open = OPEN_PAYOUT_STATUSES.includes(p.status);
+    return {
+      ...toPayout(p), affiliateId: p.affiliate_id, affiliateName: p.affiliates?.profiles?.full_name ?? "—", affiliateEmail: p.affiliates?.profiles?.email ?? null,
+      adminNote: p.admin_note ?? null, stripeAccountId: p.stripe_account_id ?? null,
+      problem: open ? payoutProblem(allocations.filter((a) => !a.released).map((a) => ({ status: a.status, amountCents: a.commissionCents, allocatedCents: allocated.get(a.commissionId) ?? 0, ref: a.saleRef }))) : null,
+      allocations,
+      events: (check(events) as any[]).map((e) => ({
+        at: e.created_at, actorName: e.profiles?.full_name || e.profiles?.email || null, actorRole: e.actor_role,
+        from: e.from_status, to: e.to_status, amountCents: Number(e.amount_cents), note: e.note,
+      })),
+    } satisfies AdminPayoutDetail;
   },
   async adminCreatePayout(_s, affiliateId) {
     const sb = await supabaseServer();
-    check(await sb.rpc("staff_create_payout", { p_affiliate_id: affiliateId }));
+    payoutRpc(await sb.rpc("staff_create_payout", { p_affiliate_id: affiliateId }));
+  },
+  async adminProcessPayout(_s, payoutId, note) {
+    const sb = await supabaseServer();
+    payoutRpc(await sb.rpc("staff_process_payout", { p_payout_id: payoutId, p_note: note }));
   },
   async adminMarkPayoutPaid(_s, payoutId, providerRef) {
     const sb = await supabaseServer();
-    check(await sb.rpc("staff_mark_payout_paid", { p_payout_id: payoutId, p_provider_ref: providerRef }));
+    payoutRpc(await sb.rpc("staff_mark_payout_paid", { p_payout_id: payoutId, p_provider_ref: providerRef }));
+  },
+  async adminRejectPayout(_s, payoutId, reason) {
+    const sb = await supabaseServer();
+    payoutRpc(await sb.rpc("staff_reject_payout", { p_payout_id: payoutId, p_reason: reason }));
+  },
+  async adminFailPayout(_s, payoutId, reason) {
+    const sb = await supabaseServer();
+    payoutRpc(await sb.rpc("staff_fail_payout", { p_payout_id: payoutId, p_reason: reason }));
   },
 
   async adminListFraudFlags() {

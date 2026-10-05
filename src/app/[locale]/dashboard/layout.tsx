@@ -16,6 +16,7 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
   const [b, settings, staffHelp] = await Promise.all([getBadges(s, "dashboard"), repo().getSettings(), staffOpenHelp(s)]);
   return (
     <DashboardShell
+      userId={s.userId}
       userName={s.displayName || s.fullName}
       unread={b.notifications}
       help={b.help}

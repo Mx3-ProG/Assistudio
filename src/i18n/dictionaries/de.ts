@@ -7,12 +7,16 @@ import gd from "./guided.de";
 import ct from "./contracts.de";
 import net from "./network.de";
 import hc from "./home-conversion.de";
+import hp from "./help.de";
+import po from "./payouts.de";
 
 /** Deutsch — complete. TODO(i18n): native review before launch. */
 const de: Dictionary = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -727,13 +731,7 @@ const de: Dictionary = {
       history: "Zahlungsverlauf",
       documents: "Dokumente",
       status: "Status",
-      statuses: {
-        scheduled: "Geplant",
-        processing: "In Bearbeitung",
-        paid: "Ausgezahlt",
-        failed: "Fehlgeschlagen",
-        cancelled: "Storniert",
-      },
+      statuses: po.statuses,
       minimum: "Mindestauszahlung: {amount}",
       empty: "Noch keine Auszahlungen.",
       settingsLink: "Auszahlungseinstellungen",
@@ -930,6 +928,11 @@ const de: Dictionary = {
     },
   },
   notificationsText: {
+    payoutRequested: "Auszahlungsanfrage {payout_ref} über {amount} gesendet",
+    payoutRequestStaff: "Neue Auszahlungsanfrage {payout_ref}: {amount} — {affiliate_name}",
+    payoutProcessing: "Ihre Auszahlung {payout_ref} über {amount} wird bearbeitet",
+    payoutRejected: "Auszahlungsanfrage {payout_ref} abgelehnt: {reason}",
+    payoutFailed: "Auszahlung {payout_ref} fehlgeschlagen: {reason} — der Betrag ist wieder verfügbar",
     newLead: "Neuer Lead erfasst ({profession})",
     paymentConfirmed: "Zahlung für {sale_ref} bestätigt",
     commissionAvailable: "Provision von {amount} ist jetzt verfügbar",

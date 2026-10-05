@@ -5,6 +5,8 @@ import { repo } from "@/lib/data";
 import { PageHeader } from "@/components/ui/primitives";
 import { ProspectsBoard } from "@/components/dashboard/prospects-board";
 import { nextActions } from "@/lib/sales/server";
+import { FirstVisitHint } from "@/components/help/first-visit-hint";
+import { InfoTip } from "@/components/help/info-tip";
 
 /** Question: "Who should I contact next?" — each card opens the prospect's guided page. */
 export default async function Prospects({ params, searchParams }: PageProps<"/[locale]/dashboard/prospects">) {
@@ -16,7 +18,8 @@ export default async function Prospects({ params, searchParams }: PageProps<"/[l
   const target = typeof sp.target === "string" ? markets.find((m) => m.slug === sp.target)?.id ?? null : null;
   return (
     <>
-      <PageHeader title={t.dash.prospects.title} subtitle={t.dash.prospects.subtitle} />
+      <PageHeader title={<>{t.dash.prospects.title}<InfoTip tip="stages" /></>} subtitle={t.dash.prospects.subtitle} />
+      <FirstVisitHint id="/dashboard/prospects" text={t.hp.hints.prospects} />
       <ProspectsBoard
         prospects={prospects}
         markets={markets}

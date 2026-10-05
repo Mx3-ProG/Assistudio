@@ -20,6 +20,10 @@ import { marketContent } from "@/content/markets";
 import { FirstSaleStarter } from "@/components/guided/first-sale-starter";
 import { primaryAction } from "@/lib/sales/primary-action";
 import { checklistDone, CHECKLIST_SIZE } from "@/lib/sales/onboarding-checklist";
+import { ESSENTIALS } from "@/content/help-videos";
+import { summarize } from "@/lib/help/videos";
+import { NewHere } from "@/components/help/new-here";
+import { TourButton } from "@/components/help/tour-button";
 
 function greeting(t: Awaited<ReturnType<typeof getDictionary>>, name: string) {
   const h = new Date().getHours();
@@ -166,12 +170,15 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
 
   return (
     <div className="space-y-6">
-      <header className="animate-rise">
-        <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.035em] sm:text-[40px]">{greeting(t, first)}</h1>
-        <p className="mt-1 text-[15px] text-muted">{t.dash.overviewSubtitle}</p>
+      <header className="animate-rise flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.035em] sm:text-[40px]">{greeting(t, first)}</h1>
+          <p className="mt-1 text-[15px] text-muted">{t.dash.overviewSubtitle}</p>
+        </div>
+        <div className="shrink-0 pt-1"><TourButton /></div>
       </header>
 
-      <Link href={`${base}${primary.path}`}
+      <Link href={`${base}${primary.path}`} data-tour="next-action"
         className="card group relative flex flex-col gap-4 overflow-hidden border-accent/40 p-5 transition hover:shadow-md sm:flex-row sm:items-center sm:p-6">
         <div className="pointer-events-none absolute -end-20 -top-20 size-56 rounded-full bg-accent/15 blur-3xl" />
         <div className="relative min-w-0 flex-1">
@@ -190,6 +197,9 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
         </Link>
       )}
       {s.affiliate.status === "pending" && s.role === "affiliate" && <Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice>}
+
+      {/* New partners (no paid sale yet): the 3 essential tutorials + the guided-tour offer, until they hide it. */}
+      {beginner && <NewHere videos={ESSENTIALS.map((v) => summarize(v, locale, t))} base={base} />}
 
       {beginner && (
         <section className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">

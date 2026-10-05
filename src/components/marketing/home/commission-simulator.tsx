@@ -5,6 +5,7 @@ import { useI18n } from "@/components/providers";
 import { computeCommissionCents } from "@/lib/commission";
 import { formatMoney, formatNumber } from "@/lib/money";
 import { convertCurrency } from "@/i18n/currency";
+import { fmt } from "@/i18n/format";
 import { trackOnce } from "@/lib/analytics/client";
 import type { OfferTier } from "@/lib/offers";
 import { cn } from "@/lib/cn";
@@ -23,7 +24,7 @@ export interface SimOffer {
 const CLIENTS = [1, 3, 5, 10, 20];
 
 /**
- * Commission simulator: offer × number of clients → sales, commissions on the
+ * Commission simulator: offer × number of clients → value of the sales, commissions on the
  * first payment and the yearly recurring commission (annual offers only).
  * Pure arithmetic from `public.offers`; never a promise.
  */
@@ -74,9 +75,9 @@ export function CommissionSimulator({ offers, ctaHref }: { offers: SimOffer[]; c
 
       <dl aria-live="polite" className="mt-6 grid grid-cols-2 gap-2.5 sm:mt-8 sm:grid-cols-3 sm:gap-3">
         <div className="rounded-2xl bg-surface-2 p-4 sm:p-5">
-          <dt className="text-[13px] text-muted">{S.sales}</dt>
-          <dd className="tabular mt-1 text-[24px] font-semibold tracking-[-0.03em] sm:text-[30px]">{formatNumber(clients, locale)}</dd>
-          <p className="mt-1 text-[12px] text-muted">{offer.name}</p>
+          <dt className="text-[13px] text-muted">{S.salesValue}</dt>
+          <dd className="tabular mt-1 text-[24px] font-semibold tracking-[-0.03em] sm:text-[30px]">{money(clients * offer.priceCents)}</dd>
+          <p className="mt-1 text-[12px] text-muted">{fmt(S.salesHint, { n: formatNumber(clients, locale), offer: offer.name })}</p>
         </div>
         <div className="rounded-2xl bg-surface-2 p-4 sm:p-5">
           <dt className="text-[13px] text-muted">{S.commission}</dt>
@@ -109,10 +110,10 @@ export function CommissionSimulator({ offers, ctaHref }: { offers: SimOffer[]; c
         })}
       </div>
 
-      <div className="mt-8 flex flex-col items-start gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <div data-cta className="mt-8 flex flex-col items-start gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-xl text-[12.5px] leading-relaxed text-muted">{S.disclaimer}</p>
         <TrackedLink href={ctaHref} event="cta_click" placement="simulator" className="w-full shrink-0 sm:w-auto">
-          {S.cta} <ArrowRight className="flip-rtl size-4" />
+          {t.hc.cta} <ArrowRight className="flip-rtl size-4" />
         </TrackedLink>
       </div>
     </div>

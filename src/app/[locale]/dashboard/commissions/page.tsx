@@ -6,6 +6,8 @@ import { repo } from "@/lib/data";
 import { formatDate, formatMoney } from "@/lib/money";
 import { PageHeader, Stat, Badge, EmptyState, Notice } from "@/components/ui/primitives";
 import { commissionTone } from "@/components/dashboard/status";
+import { FirstVisitHint } from "@/components/help/first-visit-hint";
+import { InfoTip } from "@/components/help/info-tip";
 
 /** Question: "How much did I earn?" — a real ledger, never optimistic. */
 export default async function Commissions({ params }: PageProps<"/[locale]/dashboard/commissions">) {
@@ -14,6 +16,8 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
   const t = await getDictionary(locale);
   const [rows, b] = await Promise.all([repo().listCommissions(s), repo().getBalances(s)]);
   const C = t.dash.commissions;
+  // Derived "payout requested": an available commission whose cents are in a payout request in progress.
+  const requested = (c: (typeof rows)[number]) => c.status === "available" && (c.requestedCents ?? 0) > 0;
 
   // The lifecycle in order. `disputed` only appears when something is under review.
   const pipeline: [keyof typeof C.statuses, number][] = [
@@ -24,15 +28,16 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
   return (
     <>
       <PageHeader title={C.title} subtitle={C.subtitle} />
+      <FirstVisitHint id="/dashboard/commissions" text={t.hp.hints.commissions} />
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label={C.available} value={formatMoney(b.availableCents, locale)} tone="accent" />
-        <Stat label={C.pending} value={formatMoney(b.pendingCents + b.disputedCents, locale)} tone="warning" />
+        <Stat label={<>{C.pending}<InfoTip tip="pending" /></>} value={formatMoney(b.pendingCents + b.disputedCents, locale)} tone="warning" />
         <Stat label={C.paid} value={formatMoney(b.paidCents, locale)} tone="success" />
         <Stat label={C.lifetime} value={formatMoney(b.lifetimeEarnedCents, locale)} />
       </section>
 
       {/* The lifecycle, made visible */}
-      <ol className={`mt-6 grid grid-cols-2 gap-2 ${pipeline.length === 5 ? "sm:grid-cols-5" : pipeline.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+      <ol data-tour="commission-flow" className={`mt-6 grid grid-cols-2 gap-2 ${pipeline.length === 5 ? "sm:grid-cols-5" : pipeline.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         {pipeline.map(([k, cents], i) => (
           <li key={k} className="relative rounded-2xl border border-line bg-surface-2/60 p-4">
             <span className="tabular text-[11px] font-semibold text-muted">0{i + 1}</span>
@@ -56,7 +61,7 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
                   </div>
                   <div className="text-end">
                     <p className="tabular font-semibold">{formatMoney(c.amountCents, locale)}</p>
-                    <Badge tone={commissionTone[c.status]} className="mt-1">{C.statuses[c.status]}</Badge>
+                    <Badge tone={requested(c) ? "neutral" : commissionTone[c.status]} className="mt-1">{requested(c) ? t.po.commissionRequested : C.statuses[c.status]}</Badge>
                   </div>
                 </li>
               ))}
@@ -78,7 +83,7 @@ export default async function Commissions({ params }: PageProps<"/[locale]/dashb
                       <td className="tabular px-4 py-3 text-end text-fg-2">{formatMoney(c.grossCents, locale)}</td>
                       <td className="tabular px-4 py-3 text-end font-semibold">{formatMoney(c.amountCents, locale)}</td>
                       <td className="px-4 py-3">
-                        <Badge tone={commissionTone[c.status]}>{C.statuses[c.status]}</Badge>
+                        <Badge tone={requested(c) ? "neutral" : commissionTone[c.status]}>{requested(c) ? t.po.commissionRequested : C.statuses[c.status]}</Badge>
                         {c.reversalReason && <span className="ms-2 text-[12px] text-muted">{c.reversalReason}</span>}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-fg-2">{formatDate(c.holdUntil, locale, "short")}</td>

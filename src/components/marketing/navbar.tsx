@@ -26,10 +26,10 @@ export function Navbar({ variant = "partners", studioCtaHref = "#request" }: { v
 
   const links = variant === "partners"
     ? [
+        { href: p("/#how"), label: t.hc.nav.how },
         { href: p("/#sell"), label: t.hc.nav.whatYouSell },
-        { href: p("/#how"), label: t.hc.nav.firstCommission },
-        { href: p("/#simulator"), label: t.hc.nav.simulator },
         { href: p("/#sales-center"), label: t.hc.nav.salesCenter },
+        { href: p("/#simulator"), label: t.hc.nav.simulator },
         { href: p("/studio"), label: t.nav.discover },
         { href: p("/pricing"), label: t.nav.pricing },
         { href: p("/#faq"), label: t.nav.faq },
@@ -68,7 +68,7 @@ export function Navbar({ variant = "partners", studioCtaHref = "#request" }: { v
               </Link>
               <span className="hidden sm:inline-flex">
                 <Link href={p("/register")} onClick={() => track("cta_click", { placement: "nav" })} className={buttonClass("primary", "sm")}>
-                  {t.hc.nav.ambassador}
+                  {t.hc.cta}
                 </Link>
               </span>
             </>
@@ -114,7 +114,7 @@ export function Navbar({ variant = "partners", studioCtaHref = "#request" }: { v
             }}
             className={buttonClass("primary", "md", "mt-4 w-full")}
           >
-            {variant === "partners" ? t.hc.nav.ambassador : t.studio.cta}
+            {variant === "partners" ? t.hc.cta : t.studio.cta}
           </Link>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <LocaleSwitcher />

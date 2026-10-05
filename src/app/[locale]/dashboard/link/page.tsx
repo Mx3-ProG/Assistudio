@@ -6,6 +6,7 @@ import { repo } from "@/lib/data";
 import { env } from "@/lib/env";
 import { formatMoney, formatNumber, formatPercent } from "@/lib/money";
 import { PageHeader, Card, Notice } from "@/components/ui/primitives";
+import { InfoTip } from "@/components/help/info-tip";
 import { SharePanel } from "@/components/dashboard/share-panel";
 import { SlugForm, PrivatePages } from "@/components/dashboard/link-forms";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -36,7 +37,7 @@ export default async function MyLink({ params }: PageProps<"/[locale]/dashboard/
 
   return (
     <>
-      <PageHeader title={t.sc.links.title} subtitle={t.sc.links.subtitle} action={<LinkForm pages={pages.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, label: p.pathKey ?? p.slug }))} targets={markets.map((m) => ({ id: m.id, name: marketContent(m, locale).name }))} />} />
+      <PageHeader title={<>{t.sc.links.title}<InfoTip tip="attribution" /></>} subtitle={t.sc.links.subtitle} action={<LinkForm pages={pages.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, label: p.pathKey ?? p.slug }))} targets={markets.map((m) => ({ id: m.id, name: marketContent(m, locale).name }))} />} />
       {s.affiliate.status !== "approved" && s.role === "affiliate" && <div className="mb-6"><Notice tone="warning">{t.dash.onboarding.pendingNote}</Notice></div>}
       <SharePanel url={url} qrDataUrl={qr} />
       <Card className="mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:p-6">

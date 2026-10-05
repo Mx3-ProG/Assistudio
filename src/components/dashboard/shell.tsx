@@ -14,8 +14,11 @@ import { signOut } from "@/app/actions/auth";
 import { cn } from "@/lib/cn";
 import { MessagesNotifier } from "@/components/messaging/messages-notifier";
 import { BadgeIcon, RedCount } from "@/components/ui/badge-icon";
+import { HelpProvider } from "@/components/help/help-context";
+import { HelpButton } from "@/components/help/help-button";
 
-type Item = { href: string; label: string; icon: typeof LayoutGrid; badge?: number };
+/** `tour`: stable anchor for the guided tour (see src/lib/help/tour.ts). */
+type Item = { href: string; label: string; icon: typeof LayoutGrid; badge?: number; tour?: string };
 
 const NON_TEXT_INPUTS = new Set(["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"]);
 
@@ -43,8 +46,8 @@ function useTyping() {
   return typing;
 }
 
-export function DashboardShell({ children, userName, unread, isStaff, leaderboard, messages, help, staffHelp }: {
-  children: React.ReactNode; userName: string; unread: number; isStaff: boolean; leaderboard: boolean;
+export function DashboardShell({ children, userId, userName, unread, isStaff, leaderboard, messages, help, staffHelp }: {
+  children: React.ReactNode; userId: string; userName: string; unread: number; isStaff: boolean; leaderboard: boolean;
   /** Unread replies to the partner's help requests; staff: open requests (dot on Admin). */
   help: number; staffHelp: number;
   /** Unread messages + who is signed in (for the live notifier). */
@@ -69,8 +72,8 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
       // product, find, campaigns) stay reachable from its toolbox, not from here.
       label: n.groupSell,
       items: [
-        { href: `${base}/sales-center`, label: t.cp.nav.copilot, icon: Rocket },
-        { href: `${base}/prospects`, label: n.prospects, icon: Users },
+        { href: `${base}/sales-center`, label: t.cp.nav.copilot, icon: Rocket, tour: "nav-sales-center" },
+        { href: `${base}/prospects`, label: n.prospects, icon: Users, tour: "nav-prospects" },
         { href: `${base}/link`, label: t.cp.nav.linkCode, icon: Link2 },
         { href: `${base}/promo-codes`, label: n.promoCodes, icon: Tag },
         { href: `${base}/documents`, label: t.ct.nav.affiliate, icon: FileSignature },
@@ -99,8 +102,8 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
   const isActive = (href: string) => (href === base ? pathname === base : pathname.startsWith(href));
   const tabs: Item[] = [
     { href: base, label: n.overview, icon: LayoutGrid },
-    { href: `${base}/sales-center`, label: t.cp.nav.copilot, icon: Rocket },
-    { href: `${base}/prospects`, label: n.prospects, icon: Users },
+    { href: `${base}/sales-center`, label: t.cp.nav.copilot, icon: Rocket, tour: "nav-sales-center" },
+    { href: `${base}/prospects`, label: n.prospects, icon: Users, tour: "nav-prospects" },
     { href: `${base}/commissions`, label: n.commissions, icon: Wallet },
   ];
 
@@ -110,10 +113,11 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
         <div key={i}>
           {g.label && <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{g.label}</p>}
           <ul className="grid gap-0.5">
-            {g.items.map(({ href, label, icon: Icon, badge }) => (
+            {g.items.map(({ href, label, icon: Icon, badge, tour }) => (
               <li key={href}>
                 <Link
                   href={href}
+                  data-tour={tour}
                   onClick={onNavigate}
                   aria-current={isActive(href) ? "page" : undefined}
                   className={cn(
@@ -134,6 +138,7 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
   );
 
   return (
+    <HelpProvider userId={userId} helpUnread={help}>
     <div className="min-h-dvh lg:grid lg:grid-cols-[256px_1fr]">
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-e border-line bg-bg-elevated/60 px-3 py-5 lg:flex">
@@ -166,8 +171,8 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
                   <RedCount n={staffHelp} className="absolute -end-1 -top-1 ring-2 ring-bg" />
                 </Link>
               )}
-              {/* Help carries the current page so the team knows where the partner was. */}
-              <BadgeIcon href={`${base}/help?from=${encodeURIComponent(pathname)}`} icon={LifeBuoy} count={help} label={t.net.help.nav} />
+              {/* Help centre: contextual answers, tutorials, guided tour — and the request form (which keeps the current page). */}
+              <HelpButton />
               <BadgeIcon href={`${base}/messages`} icon={MessageCircle} count={messages.unread} label={t.msg.nav} />
               <BadgeIcon href={`${base}/notifications`} icon={Bell} count={unread} label={n.notifications} />
             </div>
@@ -181,9 +186,9 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
       {/* Bottom tab bar (mobile) */}
       <nav className={cn("glass fixed inset-x-0 bottom-0 z-40 !border-x-0 !border-b-0 border-t pb-[env(safe-area-inset-bottom)] lg:hidden", typing && "hidden")} aria-label="Primary">
         <ul className="grid grid-cols-5">
-          {tabs.map(({ href, label, icon: Icon }) => (
+          {tabs.map(({ href, label, icon: Icon, tour }) => (
             <li key={href}>
-              <Link href={href} aria-current={isActive(href) ? "page" : undefined} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10.5px] font-medium", isActive(href) ? "text-accent" : "text-muted")}>
+              <Link href={href} data-tour={tour} aria-current={isActive(href) ? "page" : undefined} className={cn("flex flex-col items-center gap-1 py-2.5 text-[10.5px] font-medium", isActive(href) ? "text-accent" : "text-muted")}>
                 <Icon className="size-5" />
                 <span className="max-w-full truncate px-1">{label}</span>
               </Link>
@@ -215,5 +220,6 @@ export function DashboardShell({ children, userName, unread, isStaff, leaderboar
         </div>
       )}
     </div>
+    </HelpProvider>
   );
 }

@@ -14,6 +14,7 @@ import { SalesSearch } from "@/components/sales-center/sc-search";
 import { FirstWeek } from "@/components/sales-center/first-week";
 import { SectorSearch } from "@/components/copilot/sector-search";
 import { AmbassadorKit } from "@/components/copilot/ambassador-kit";
+import { FirstVisitHint } from "@/components/help/first-visit-hint";
 
 /** The copilot: "What do you want to do?" — one question, seven answers, the toolbox one tap below. */
 export default async function SalesCenter({ params }: PageProps<"/[locale]/dashboard/sales-center">) {
@@ -64,6 +65,7 @@ export default async function SalesCenter({ params }: PageProps<"/[locale]/dashb
         <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent">{t.cp.title}</p>
         <h1 className="mt-1 text-[30px] font-semibold leading-tight tracking-[-0.035em] sm:text-[38px]">{t.cp.ask}</h1>
       </header>
+      <FirstVisitHint id="/dashboard/sales-center" text={t.hp.hints.salesCenter} />
 
       <section className="card relative overflow-hidden border-accent/30 p-5 sm:p-6">
         <div className="pointer-events-none absolute -end-16 -top-16 size-56 rounded-full bg-accent/15 blur-3xl" />
@@ -71,7 +73,7 @@ export default async function SalesCenter({ params }: PageProps<"/[locale]/dashb
         <div className="relative"><SectorSearch sectors={sectors} popular={sectors.slice(0, 6)} /></div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-3">
+      <section data-tour="sales-intents" className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-3">
         {intents.map(({ href, icon: Icon, title, body, badge, primary }) => (
           <Link key={title} href={href}
             className={`card relative flex flex-col gap-2 p-4 transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 ${primary ? "border-accent/40 bg-accent-soft" : ""}`}>
@@ -83,7 +85,7 @@ export default async function SalesCenter({ params }: PageProps<"/[locale]/dashb
         ))}
       </section>
 
-      <AmbassadorKit t={t} base={dash} link={ctx.defaultLink} code={s.affiliate.code} qr={qr} />
+      <div data-tour="sales-kit"><AmbassadorKit t={t} base={dash} link={ctx.defaultLink} code={s.affiliate.code} qr={qr} /></div>
 
       <div>
         <SalesSearch docs={searchDocs(ctx.content, ctx.markets, locale)} />

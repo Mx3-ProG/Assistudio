@@ -7,12 +7,16 @@ import gd from "./guided.es";
 import ct from "./contracts.es";
 import net from "./network.es";
 import hc from "./home-conversion.es";
+import hp from "./help.es";
+import po from "./payouts.es";
 
 /** Español — complete. TODO(i18n): native review before launch. */
 const es: Dictionary = {
   sc,
   net,
   hc,
+  hp,
+  po,
   msg,
   cp,
   gd,
@@ -727,13 +731,7 @@ const es: Dictionary = {
       history: "Historial de pagos",
       documents: "Documentos",
       status: "Estado",
-      statuses: {
-        scheduled: "Programado",
-        processing: "En proceso",
-        paid: "Pagado",
-        failed: "Fallido",
-        cancelled: "Cancelado",
-      },
+      statuses: po.statuses,
       minimum: "Pago mínimo: {amount}",
       empty: "Aún no hay pagos.",
       settingsLink: "Ajustes de cobro",
@@ -930,6 +928,11 @@ const es: Dictionary = {
     },
   },
   notificationsText: {
+    payoutRequested: "Solicitud de pago {payout_ref} de {amount} enviada",
+    payoutRequestStaff: "Nueva solicitud de pago {payout_ref}: {amount} — {affiliate_name}",
+    payoutProcessing: "Tu pago {payout_ref} de {amount} está en tramitación",
+    payoutRejected: "Solicitud de pago {payout_ref} rechazada: {reason}",
+    payoutFailed: "El pago {payout_ref} ha fallado: {reason} — el importe vuelve a estar disponible",
     newLead: "Nueva solicitud captada ({profession})",
     paymentConfirmed: "Pago confirmado para {sale_ref}",
     commissionAvailable: "Ya está disponible una comisión de {amount}",

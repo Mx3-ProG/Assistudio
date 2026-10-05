@@ -3,7 +3,7 @@ import type {
   SaleRow, CommissionRow, RecurringBook, Payout, Notification, NotificationStatus, LeaderboardRow, AnalyticsData,
   FinancialOverview, ConnectStatus, AdminFinanceFilters, AdminFinanceSummary, AdminFinanceOptions,
   ReferralTarget, ReferralDashboard, LeadInput, ClickInput, Market, SalesAsset, AdminOverview, AdminAffiliateRow,
-  AdminCommissionRow, AdminSaleRow, AdminLeadRow, FraudFlag, FraudStatus, AuditLog, AdminPayoutCandidate, AffiliateStatus,
+  AdminCommissionRow, AdminSaleRow, AdminLeadRow, FraudFlag, FraudStatus, AuditLog, AdminPayoutCandidate, AffiliateStatus, AdminPayoutDetail, PayoutStatus,
   SalesPageInput, PerformanceRow, ProductView, SalesEventInput, SalesContentInput, SalesAnalytics, FunnelEventInput, ActivationFunnel,
   PromoCode, ProspectEvent, ProspectEventType, ProspectStage,
   AdminNetworkStats, AdminAffiliateDetail, HelpRequest, HelpRequestInput, HelpStatus,
@@ -156,6 +156,12 @@ export interface Repo extends MessagingRepo {
   listCommissions(s: Session): Promise<CommissionRow[]>;
   getRecurringBook(s: Session): Promise<RecurringBook>;
   listPayouts(s: Session): Promise<Payout[]>;
+  /**
+   * The partner asks for `amountCents` of their available balance. Every check
+   * (identity, balance, minimum, one request at a time, idempotency on `key`)
+   * happens server-side; throws PayoutError (lib/payouts.ts) when refused.
+   */
+  requestPayout(s: Session, amountCents: number, key: string): Promise<{ id: string; ref: string; amountCents: number; status: PayoutStatus; created: boolean }>;
   listNotifications(s: Session, status?: NotificationStatus | "inbox"): Promise<Notification[]>;
   /** All unread notifications, or only those with these title keys (without the `notifications.` prefix). */
   markNotificationsRead(s: Session, titleKeys?: readonly string[]): Promise<void>;
@@ -210,9 +216,16 @@ export interface Repo extends MessagingRepo {
   adminFinanceSummary(s: Session, filters: AdminFinanceFilters): Promise<AdminFinanceSummary>;
   adminFinanceOptions(s: Session): Promise<AdminFinanceOptions>;
   adminPayoutCandidates(s: Session): Promise<AdminPayoutCandidate[]>;
-  adminListPayouts(s: Session): Promise<(Payout & { affiliateName: string })[]>;
+  adminListPayouts(s: Session, status?: PayoutStatus[]): Promise<(Payout & { affiliateName: string })[]>;
+  adminGetPayout(s: Session, payoutId: string): Promise<AdminPayoutDetail | null>;
   adminCreatePayout(s: Session, affiliateId: string): Promise<void>;
+  /** requested → processing (checks every allocated commission is still payable). */
+  adminProcessPayout(s: Session, payoutId: string, note: string | null): Promise<void>;
   adminMarkPayoutPaid(s: Session, payoutId: string, providerRef: string): Promise<void>;
+  /** Refuse with a mandatory reason: the cents become available again. */
+  adminRejectPayout(s: Session, payoutId: string, reason: string): Promise<void>;
+  /** The transfer failed (bank / provider): the cents become available again. */
+  adminFailPayout(s: Session, payoutId: string, reason: string): Promise<void>;
   adminListFraudFlags(s: Session): Promise<FraudFlag[]>;
   adminReviewFraudFlag(s: Session, id: string, status: Exclude<FraudStatus, "open">, note: string): Promise<void>;
   adminListAuditLogs(s: Session): Promise<AuditLog[]>;

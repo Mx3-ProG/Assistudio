@@ -70,7 +70,7 @@ export function ProspectsBoard({ prospects, markets, campaigns, defaultValueCent
               </button>
             ))}
           </div>
-          <button onClick={() => setEditing("new")} className={buttonClass("primary", "md", "flex-1 sm:flex-none")}><Plus className="size-4" />{P.new}</button>
+          <button onClick={() => setEditing("new")} data-tour="add-prospect" className={buttonClass("primary", "md", "flex-1 sm:flex-none")}><Plus className="size-4" />{P.new}</button>
         </div>
       </div>
 
