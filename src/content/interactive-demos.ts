@@ -12,6 +12,9 @@ import type { LocalizedText } from "./help-videos.ts";
  *      optionally, a `thumb` screenshot.
  *   3. `npm test` checks that local files exist and that texts have en + fr.
  *
+ * Each demo appears on /studio (#demos, public page /[locale]/demos/<slug>)
+ * and in Documents → Demos for partners.
+ *
  * Demos are shown in a sandboxed iframe WITHOUT same-origin access, so a demo
  * can run scripts but cannot read the partner's session. A demo that needs
  * storage must keep it in memory. Demos are always labelled as demonstrations:

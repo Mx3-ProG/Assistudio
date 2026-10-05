@@ -246,6 +246,7 @@ const hi: Dictionary = {
     capacityFull: "इस महीने की क्षमता पूरी है। खरीद खुली है; अगली ऑनबोर्डिंग अवधि: {window}।",
     capacityNext: "अगली ऑनबोर्डिंग अवधि: {window}।",
     demoOnly: "Studio प्रदर्शन",
+    demos: { eyebrow: "डेमो", title: "अपने व्यवसाय की कल्पना", title2: "यहाँ करें।", body: "Studio ATS द्वारा बनाई गई डेमो साइटें। उन्हें खोलें, देखें और उनकी जगह अपने व्यवसाय की कल्पना करें।", open: "डेमो खोलें", tryIt: "डेमो आज़माएँ", interactive: "इंटरैक्टिव", hotel: "होटल", cars: "कार बिक्री", restaurant: "रेस्टोरेंट", back: "Studio ATS पर वापस जाएँ", newTab: "नए टैब में खोलें", note: "यह एक प्रदर्शन है: कोई वास्तविक डेटा नहीं भेजा जाता।" },
     productCaptureTitle: "वास्तविक स्क्रीन, केवल वादे नहीं।",
     productCaptureNote: "Studio प्रदर्शन",
   },

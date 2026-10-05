@@ -246,6 +246,7 @@ const nl: Dictionary = {
     capacityFull: "Deze maand is vol. Kopen blijft mogelijk; volgende onboarding: {window}.",
     capacityNext: "Volgende onboarding: {window}.",
     demoOnly: "Studio-demonstratie",
+    demos: { eyebrow: "Demo’s", title: "Zie uw bedrijf", title2: "erin terug.", body: "Demosites gebouwd door Studio ATS. Open ze, klik rond en stel u uw eigen bedrijf in hun plaats voor.", open: "Demo openen", tryIt: "Probeer de demo", interactive: "Interactief", hotel: "Hotellerie", cars: "Autoverkoop", restaurant: "Restaurant", back: "Terug naar Studio ATS", newTab: "Openen in een nieuw tabblad", note: "Dit is een demonstratie: er worden geen echte gegevens verzonden." },
     productCaptureTitle: "Echte schermen, geen beloftes.",
     productCaptureNote: "Studio-demonstratie",
   },

@@ -9,8 +9,9 @@ import { pick } from "@/content/help-videos";
 import { BackLink } from "@/components/sales-center/back-link";
 import { PageHeader, Notice } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
+import { DemoFrame } from "@/components/demos/demo-frame";
 
-/** One interactive demo, played in a sandboxed frame (scripts, but no access to the partner's session). */
+/** One interactive demo for partners (the public version is /[locale]/demos/[slug]). */
 export default async function Demo({ params }: PageProps<"/[locale]/dashboard/documents/demos/[slug]">) {
   const { locale, slug } = (await params) as { locale: Locale; slug: string };
   await requireSession(locale);
@@ -24,10 +25,7 @@ export default async function Demo({ params }: PageProps<"/[locale]/dashboard/do
       <BackLink href={`/${locale}/dashboard/documents#demos`} label={L.demoBack} />
       <PageHeader title={title} subtitle={pick(d.description, locale)}
         action={<a href={d.src} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary", "sm")}><ExternalLink className="size-4" />{L.demoNewTab}</a>} />
-      <div className="card overflow-hidden">
-        <iframe src={d.src} title={fmt(L.demoFrame, { name: title })} sandbox="allow-scripts allow-forms allow-popups allow-modals"
-          className="block h-[75dvh] w-full bg-white" loading="lazy" />
-      </div>
+      <DemoFrame src={d.src} title={fmt(L.demoFrame, { name: title })} />
       <Notice>{L.demoNote}</Notice>
     </div>
   );

@@ -246,6 +246,7 @@ const pt: Dictionary = {
     capacityFull: "Este mês está completo. A compra continua disponível; próximo onboarding: {window}.",
     capacityNext: "Próximo onboarding: {window}.",
     demoOnly: "Demonstração Studio",
+    demos: { eyebrow: "Demos", title: "Imagine o seu negócio", title2: "aqui.", body: "Sites de demonstração criados pelo Studio ATS. Abra-os, explore e imagine o seu próprio negócio no lugar deles.", open: "Abrir a demo", tryIt: "Experimentar a demo", interactive: "Interativa", hotel: "Hotelaria", cars: "Venda automóvel", restaurant: "Restaurante", back: "Voltar ao Studio ATS", newTab: "Abrir num novo separador", note: "Isto é uma demonstração: nenhum dado real é enviado." },
     productCaptureTitle: "Ecrãs reais, não promessas.",
     productCaptureNote: "Demonstração Studio",
   },

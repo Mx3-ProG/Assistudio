@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ArrowDown, ArrowRight, CircleCheck, Inbox, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUpRight, CircleCheck, Inbox, MousePointerClick, Sparkles } from "lucide-react";
 import type { Dictionary } from "@/i18n/types";
 import type { Locale } from "@/i18n/config";
 import type { MarketContent } from "@/content/markets";
@@ -13,6 +13,8 @@ import { StudioSectionBeacon, StudioViewBeacon } from "./studio-tracking";
 import { TrackedStudioLink } from "./tracked-studio-link";
 import { StudioCapacitySignal } from "./studio-capacity";
 import { TeamSection } from "./team-section";
+import { INTERACTIVE_DEMOS } from "@/content/interactive-demos";
+import { pick } from "@/content/help-videos";
 import studioHero from "../../../public/portfolio/maisonaurelia.webp";
 
 export interface StudioContentProps {
@@ -28,10 +30,11 @@ export interface StudioContentProps {
   ctaVariant?: "request" | "call";
 }
 
-const DEMO_SHOWCASE = [
-  { image: "/portfolio/maisonaurelia.webp", mobile: "/portfolio/maisonaurelia-mobile.webp" },
-  { image: "/portfolio/autosold.webp", mobile: "/portfolio/autosold-mobile.webp" },
-  { image: "/portfolio/pizzaflash.webp", mobile: "/portfolio/pizzaflash-mobile.webp" },
+/** Demonstration sites (templates, not clients) the visitor can open and click through. */
+const DEMO_SITES = [
+  { name: "Maison Aurélia", sector: "hotel", image: "/portfolio/maisonaurelia.webp", mobile: "/portfolio/maisonaurelia-mobile.webp", url: "https://template-hotel-six.vercel.app/fr" },
+  { name: "AutoSolde", sector: "cars", image: "/portfolio/autosold.webp", mobile: "/portfolio/autosold-mobile.webp", url: "https://autosoldorigin.vercel.app" },
+  { name: "RestoFlash", sector: "restaurant", image: "/portfolio/pizzaflash.webp", mobile: "/portfolio/pizzaflash-mobile.webp", url: "https://pizzaflashorigin.vercel.app" },
 ] as const;
 
 export function StudioContent({ t, locale, offers, settings, page, referral, referrerName, market, pitch = "default", ctaVariant = "request" }: StudioContentProps) {
@@ -127,7 +130,29 @@ function JourneyStep({ number, title, body, image, imageAlt, reverse = false }: 
   return <article className="grid gap-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-center"><div className={reverse ? "lg:order-2" : ""}><p className="tabular text-[13px] font-semibold text-accent">{number}</p><h3 className="mt-3 text-[28px] font-semibold tracking-tight">{title}</h3><p className="mt-3 text-[15px] leading-relaxed text-muted">{body}</p></div><div className={reverse ? "lg:order-1" : ""}><Image src={image} alt={imageAlt} width={1280} height={800} sizes="(min-width: 1024px) 60vw, 100vw" className="aspect-[16/10] w-full rounded-[30px] border border-line object-cover object-top shadow-lift" /></div></article>;
 }
 
+/** "Demos": sites and interactive demos the visitor can open, so they picture their own business. Verified projects follow when there are any. */
 function Showcase({ t, locale, proofs }: { t: Dictionary; locale: Locale; proofs: FieldProof[] }) {
-  const items = proofs.length ? proofs.map((p) => ({ image: p.screenshot, mobile: undefined, name: p.name, label: p.sector[locale] ?? p.sector.en, url: p.url })) : DEMO_SHOWCASE.map((demo, index) => ({ ...demo, name: `${t.studio.eyebrow} · ${t.studio.features[index].title}`, label: t.studio.demoOnly, url: undefined }));
-  return <section className="overflow-hidden py-20 sm:py-28"><StudioSectionBeacon event="studio_proof_view" placement={proofs.length ? "verified_projects" : "studio_examples"} /><div className="mx-auto max-w-6xl px-4 sm:px-6"><div className="grid gap-6 lg:grid-cols-2 lg:items-end"><h2 className="display text-balance text-[42px] sm:text-[62px]">{t.studio.productTitle}<br /><span className="text-gradient">{t.studio.features[0].title}</span></h2><p className="max-w-xl text-[16px] leading-relaxed text-muted lg:justify-self-end">{proofs.length ? t.hc.proof.subtitle : t.studio.demoOnly}</p></div></div><ul className="no-scrollbar mx-auto mt-12 flex max-w-[1600px] snap-x gap-4 overflow-x-auto px-4 pb-4 sm:px-6">{items.map((item, index) => item.image && <li key={`${item.name}-${index}`} className="w-[86%] shrink-0 snap-start sm:w-[58%] lg:w-[38%]"><a href={item.url} target={item.url ? "_blank" : undefined} rel={item.url ? "noopener" : undefined} className="group block"><div className="overflow-hidden rounded-[26px] border border-line bg-surface shadow-soft"><picture>{item.mobile && <source media="(max-width: 639px)" srcSet={item.mobile} />}<Image src={item.image} alt={item.name} width={1280} height={800} sizes="(min-width: 1024px) 38vw, (min-width: 640px) 58vw, 86vw" className="aspect-[16/10] w-full object-cover object-top transition duration-500 group-hover:scale-[1.015]" /></picture></div><p className="mt-4 font-semibold">{item.name}</p><p className="mt-1 text-[13px] text-muted">{item.label}</p></a></li>)}</ul></section>;
+  const D = t.studio.demos;
+  const items = [
+    ...INTERACTIVE_DEMOS.map((d) => ({ key: `demo-${d.slug}`, image: d.thumb, mobile: undefined, name: pick(d.title, locale), label: d.sector ? pick(d.sector, locale) : D.interactive, href: `/${locale}/demos/${d.slug}`, external: false, demo: true, interactive: true })),
+    ...DEMO_SITES.map((d) => ({ key: d.name, image: d.image, mobile: d.mobile, name: d.name, label: D[d.sector], href: d.url, external: true, demo: true, interactive: false })),
+    ...proofs.map((p) => ({ key: p.name, image: p.screenshot, mobile: undefined, name: p.name, label: p.sector[locale] ?? p.sector.en, href: p.url, external: true, demo: false, interactive: false })),
+  ];
+  return <section id="demos" className="scroll-mt-20 overflow-hidden py-20 sm:py-28"><StudioSectionBeacon event="studio_proof_view" placement={proofs.length ? "demos_and_verified_projects" : "studio_demos"} />
+    <div className="mx-auto max-w-6xl px-4 sm:px-6"><div className="grid gap-6 lg:grid-cols-2 lg:items-end">
+      <div><p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-accent"><Sparkles className="size-4" />{D.eyebrow}</p><h2 className="display mt-4 text-balance text-[42px] sm:text-[62px]">{D.title}<br /><span className="text-gradient">{D.title2}</span></h2></div>
+      <p className="max-w-xl text-[16px] leading-relaxed text-muted lg:justify-self-end">{D.body}</p>
+    </div></div>
+    <ul className="no-scrollbar mx-auto mt-12 flex max-w-[1600px] snap-x gap-4 overflow-x-auto px-4 pb-4 sm:px-6">{items.map((item) => <li key={item.key} className="w-[86%] shrink-0 snap-start sm:w-[58%] lg:w-[38%]">
+      <a href={item.href} target={item.external ? "_blank" : undefined} rel={item.external ? "noopener" : undefined} className="group block">
+        <div className="relative overflow-hidden rounded-[26px] border border-line bg-surface shadow-soft">
+          {item.image ? <picture>{item.mobile && <source media="(max-width: 639px)" srcSet={item.mobile} />}<Image src={item.image} alt={item.name} width={1280} height={800} sizes="(min-width: 1024px) 38vw, (min-width: 640px) 58vw, 86vw" className="aspect-[16/10] w-full object-cover object-top transition duration-500 group-hover:scale-[1.015]" /></picture>
+            : <div className="grid aspect-[16/10] w-full place-items-center bg-surface-2 text-accent"><MousePointerClick className="size-10" /></div>}
+          <span className="absolute bottom-4 end-4 inline-flex h-10 items-center gap-2 rounded-full bg-fg px-4 text-[13.5px] font-medium text-bg shadow-lift transition group-hover:brightness-110">{item.interactive ? <MousePointerClick className="size-4" /> : <ArrowUpRight className="flip-rtl size-4" />}{item.interactive ? D.tryIt : D.open}</span>
+        </div>
+        <p className="mt-4 font-semibold">{item.name}</p>
+        <p className="mt-1 text-[13px] text-muted">{item.label}{item.demo && <> · {t.studio.demoOnly}</>}</p>
+      </a>
+    </li>)}</ul>
+  </section>;
 }
