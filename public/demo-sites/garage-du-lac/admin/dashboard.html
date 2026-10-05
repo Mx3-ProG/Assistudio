@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord — Garage Du Lac</title>
+<meta name="description" content="Administration.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1E293B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E293B'/%3E%3Cpath d='M62 30a16 16 0 0 0-21.6 21.6L26 66v12h12l14.4-14.4A16 16 0 0 0 74 42l-10.4 10.4-8.4-8.4L62 30Z' fill='%23DC2626'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/main.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body data-page="admin" data-base="../" data-meta="dash">
+
+<header id="site-header"></header>
+
+<div class="dash">
+
+  <!-- ========================= Barre latérale ========================= -->
+  <aside class="dash__side">
+    <div class="dash__user">
+      <span class="review__av" id="uAvatar">G</span>
+      <span>
+        <b id="uName">—</b>
+        <span id="uRole">—</span>
+      </span>
+    </div>
+
+    <a class="btn btn-primary btn-sm" href="../index.html" style="width:100%;margin-bottom:14px">
+      <span data-alert-icon="arrowR"></span><span>Accueil du site</span>
+    </a>
+
+    <nav class="dash__nav" id="dashNav" aria-label="Navigation du tableau de bord"></nav>
+
+    <button class="btn btn-ghost btn-sm" id="logoutBtn" style="width:100%;margin-top:20px">
+      <span data-alert-icon="logout"></span><span data-i18n="dash.logout"></span>
+    </button>
+  </aside>
+
+  <!-- ============================ Contenu ============================ -->
+  <main class="dash__main">
+
+    <div class="alert alert-info" style="font-size:.83rem">
+      <span data-alert-icon="info"></span>
+      <span data-i18n="dash.demoBanner"></span>
+    </div>
+
+    <!-- ---------------------- Vue d'ensemble ---------------------- -->
+    <section class="panel active" id="p-overview">
+      <div class="dash__head">
+        <h1><span data-i18n="dash.hello"></span>, <span id="helloName"></span></h1>
+        <p data-i18n="dash.navOverview"></p>
+      </div>
+
+      <div class="kpis" id="kpiRow"></div>
+
+      <div class="grid grid-2" style="align-items:start">
+        <div>
+          <h3 style="margin-bottom:14px" data-i18n="dash.ordersT"></h3>
+          <div class="table-wrap"><table id="recentTable"></table></div>
+        </div>
+        <div>
+          <h3 style="margin-bottom:14px" data-i18n="dash.navLogs"></h3>
+          <div class="card" style="padding:0">
+            <ul id="recentLogs" style="padding:8px"></ul>
+          </div>
+
+          <div class="locked mt-4">
+            <div class="locked__head">
+              <strong><span data-alert-icon="chart"></span><span data-i18n="upsell.eyebrow"></span></strong>
+              <span class="chip chip--soon" data-i18n="common.soonShort"></span>
+            </div>
+            <p data-i18n="dash.analyticsSoon"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------- Demandes / commandes ---------------- -->
+    <section class="panel" id="p-orders">
+      <div class="dash__head">
+        <h1 data-i18n="dash.ordersT"></h1>
+        <p data-i18n="dash.ordersD"></p>
+      </div>
+      <div class="table-wrap"><table id="ordersTable"></table></div>
+
+      <div class="locked mt-5">
+        <div class="locked__head">
+          <strong><span data-alert-icon="bell"></span><span data-i18n="dash.relance"></span></strong>
+          <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+        </div>
+        <p data-i18n="dash.relanceSoon"></p>
+        <a class="btn btn-primary btn-sm mt-4" href="../contact.html?sujet=modules" data-i18n="common.unlockNow"></a>
+      </div>
+    </section>
+
+    <!-- ---------------------------- Clients ----------------------- -->
+    <section class="panel" id="p-clients">
+      <div class="dash__head">
+        <h1 data-i18n="dash.clientsT"></h1>
+        <p data-i18n="dash.clientsD"></p>
+      </div>
+      <div class="table-wrap"><table id="clientsTable"></table></div>
+
+      <div class="locked mt-5">
+        <div class="locked__head">
+          <strong><span data-alert-icon="file"></span><span data-i18n="upsell.f7.t"></span></strong>
+          <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+        </div>
+        <p data-i18n="dash.exportSoon"></p>
+        <a class="btn btn-primary btn-sm mt-4" href="../contact.html?sujet=modules" data-i18n="common.unlockNow"></a>
+      </div>
+    </section>
+
+    <!-- --------------------------- Prestations -------------------- -->
+    <section class="panel" id="p-products">
+      <div class="dash__head">
+        <h1 data-i18n="dash.productsT"></h1>
+        <p data-i18n="dash.productsD"></p>
+      </div>
+
+      <div class="alert alert-success hidden" id="saveOk" role="status">
+        <span data-alert-icon="checkCir"></span><span data-i18n="dash.saved"></span>
+      </div>
+
+      <div id="productList"></div>
+
+      <div class="locked mt-5">
+        <div class="locked__head">
+          <strong><span data-alert-icon="plus"></span><span data-i18n="dash.addProduct"></span></strong>
+          <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+        </div>
+        <p data-i18n="upsell.lockedNote"></p>
+      </div>
+    </section>
+
+    <!-- ------------------------ Journal / activité ---------------- -->
+    <section class="panel" id="p-logs">
+      <div class="dash__head">
+        <h1 data-i18n="dash.logsT"></h1>
+        <p data-i18n="dash.logsD"></p>
+      </div>
+
+      <div id="logsGate"></div>
+    </section>
+
+    <!-- ---------------------------- Paramètres -------------------- -->
+    <section class="panel" id="p-settings">
+      <div class="dash__head">
+        <h1 data-i18n="dash.navSettings"></h1>
+        <p data-i18n="biz.name"></p>
+      </div>
+
+      <div class="grid grid-2" style="align-items:start">
+        <div class="card">
+          <h3 data-i18n="contact.infoTitle"></h3>
+          <div class="field mt-4">
+            <label data-i18n="biz.name"></label>
+            <input class="input" value="Garage Du Lac" readonly>
+          </div>
+          <div class="field">
+            <label data-i18n="form.phone"></label>
+            <input class="input" value="+41 24 481 17 34" readonly>
+          </div>
+          <div class="field">
+            <label data-i18n="form.email"></label>
+            <input class="input" value="contact@garagedulac.ch" readonly>
+          </div>
+          <div class="field">
+            <label data-i18n="biz.hoursTitle"></label>
+            <input class="input" data-i18n-attr="value:biz.hours" readonly>
+          </div>
+          <p class="hint" data-i18n="upsell.lockedNote"></p>
+        </div>
+
+        <div>
+          <div class="locked">
+            <div class="locked__head">
+              <strong><span data-alert-icon="users"></span><span data-i18n="auth.backSso"></span></strong>
+              <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+            </div>
+            <p data-i18n="auth.backSsoD"></p>
+          </div>
+          <div class="locked mt-4">
+            <div class="locked__head">
+              <strong><span data-alert-icon="shield"></span><span data-i18n="auth.back2fa"></span></strong>
+              <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+            </div>
+            <p data-i18n="auth.back2faD"></p>
+          </div>
+          <div class="locked mt-4">
+            <div class="locked__head">
+              <strong><span data-alert-icon="card"></span><span data-i18n="upsell.f5.t"></span></strong>
+              <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+            </div>
+            <p data-i18n="upsell.f5.d"></p>
+          </div>
+          <a class="btn btn-primary btn-lg mt-4" style="width:100%" href="../contact.html?sujet=modules" data-i18n="upsell.cta"></a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer id="site-footer"></footer>
+
+<script src="../assets/js/translations.js"></script>
+<script src="../assets/js/store.js"></script>
+<script src="../assets/js/site.js"></script>
+<script src="../assets/js/catalog.js"></script>
+<script src="../assets/js/dashboard.js"></script>
+</body>
+</html>

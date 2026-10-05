@@ -14,7 +14,8 @@
 --    source of truth. Staff only.
 -- =============================================================================
 
-create table public.funnel_events (
+-- Idempotent: the table was created by hand on production before this migration was recorded.
+create table if not exists public.funnel_events (
   id           bigint generated always as identity primary key,
   event        text not null check (event in (
                  'home_view', 'hero_signup_click', 'see_product_click', 'studio_demo_click',
@@ -30,11 +31,12 @@ create table public.funnel_events (
                  check (jsonb_typeof(meta) = 'object' and pg_column_size(meta) < 2000),
   occurred_at  timestamptz not null default now()
 );
-create index funnel_events_event_idx on public.funnel_events (event, occurred_at desc);
-create index funnel_events_affiliate_idx on public.funnel_events (affiliate_id, event, occurred_at)
+create index if not exists funnel_events_event_idx on public.funnel_events (event, occurred_at desc);
+create index if not exists funnel_events_affiliate_idx on public.funnel_events (affiliate_id, event, occurred_at)
   where affiliate_id is not null;
 
 alter table public.funnel_events enable row level security;
+drop policy if exists funnel_events_staff_read on public.funnel_events;
 create policy funnel_events_staff_read on public.funnel_events for select using (public.is_staff());
 revoke insert, update, delete on public.funnel_events from anon, authenticated;
 

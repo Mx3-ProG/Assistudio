@@ -11,6 +11,7 @@ import { buttonClass } from "@/components/ui/button";
 import { FavoriteButton } from "@/components/sales-center/favorite-button";
 import { CaseStudyCard } from "@/components/copilot/case-study-card";
 import { ProductShowcaseGallery } from "@/components/marketing/product-showcase-gallery";
+import { DemoLibrarySection } from "@/components/dashboard/demo-library-section";
 import { cn } from "@/lib/cn";
 
 /** "What can I send?" — projects & demos to show (filterable by sector), then the other sales assets. */
@@ -31,6 +32,7 @@ export default async function Assets({ params, searchParams }: PageProps<"/[loca
   return (
     <div className="space-y-6">
       <PageHeader title={t.cp.intents.send.title} subtitle={t.cp.sheet.showHint} />
+      <DemoLibrarySection locale={locale} />
       <nav className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
         <Link href={href()} className={chip(!sector)}>{C.filterAll}</Link>
         {withProjects.map((m) => <Link key={m.slug} href={href(m.slug)} className={chip(sector?.slug === m.slug)}>{marketContent(m, locale).name}</Link>)}

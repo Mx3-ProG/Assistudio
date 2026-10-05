@@ -9,6 +9,7 @@ import { repo } from "@/lib/data";
 import { PageHeader, Badge, EmptyState, Field, inputClass } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
 import { VideoHelpSection } from "@/components/help/video-help-section";
+import { DemoLibrarySection } from "@/components/dashboard/demo-library-section";
 import { getDictionary } from "@/i18n";
 
 export default async function DocumentsPage({ params }: PageProps<"/[locale]/dashboard/documents">) {
@@ -18,6 +19,7 @@ export default async function DocumentsPage({ params }: PageProps<"/[locale]/das
     <PageHeader title={C.affiliate.title} subtitle={C.affiliate.subtitle} />
     {/* Video help: the permanent tutorial library starts here (Documents → Video help). */}
     <VideoHelpSection t={t} locale={locale} />
+    <DemoLibrarySection locale={locale} />
     <section className="card p-5 sm:p-6"><h2 className="font-semibold">{C.affiliate.newTitle}</h2>
       <form action={createDossierAction} className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={C.affiliate.prospect}><select name="prospectId" className={inputClass}><option value="">—</option>{prospects.filter((p) => p.email).map((p) => <option key={p.id} value={p.id}>{p.name} · {p.email}</option>)}</select></Field>

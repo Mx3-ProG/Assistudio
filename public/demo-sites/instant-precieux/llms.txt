@@ -1,0 +1,14 @@
+# L’instant précieux
+
+> Portfolio et prestations de photographie à domicile.
+
+## Contenu public
+- [Accueil](http://localhost:4173/)
+- [Portfolio](http://localhost:4173/portfolio)
+- [Prestations et tarifs](http://localhost:4173/catalogue)
+- [Qui sommes-nous](http://localhost:4173/a-propos)
+- [Contact](http://localhost:4173/contact)
+- [Demande de devis](http://localhost:4173/devis)
+
+## Utilisation
+Les informations publiques peuvent être citées avec attribution et lien vers la page source. Les photographies restent protégées par le droit d’auteur et ne doivent pas être reproduites sans autorisation.

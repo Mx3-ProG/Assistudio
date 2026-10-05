@@ -11,6 +11,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    // Precompiled, isolated demo applications imported from client projects.
+    "public/demo-sites/**",
     "next-env.d.ts",
   ]),
 ]);

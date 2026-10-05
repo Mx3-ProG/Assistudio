@@ -13,6 +13,7 @@ import { StudioSectionBeacon, StudioViewBeacon } from "./studio-tracking";
 import { TrackedStudioLink } from "./tracked-studio-link";
 import { StudioCapacitySignal } from "./studio-capacity";
 import { TeamSection } from "./team-section";
+import { StudioDemoShowcase } from "./studio-demo-showcase";
 import studioHero from "../../../public/portfolio/maisonaurelia.webp";
 
 export interface StudioContentProps {
@@ -56,6 +57,7 @@ export function StudioContent({ t, locale, offers, settings, page, referral, ref
             <p className="mt-7 max-w-xl text-[18px] leading-relaxed text-fg-2 sm:text-[20px]">{heroSub}</p>
             <div className="mt-9 flex flex-wrap gap-3">
               <TrackedStudioLink href="#journey" placement="hero_demo" className="inline-flex h-12 items-center gap-2 rounded-full bg-accent px-7 text-[15px] font-medium text-accent-fg shadow-[0_12px_32px_-12px_var(--accent)] transition hover:brightness-110">{s.ctaSecondary}<ArrowDown className="size-4" /></TrackedStudioLink>
+              <TrackedStudioLink href="#demos" placement="hero_offer_demos" className="inline-flex h-12 items-center gap-2 rounded-full border border-accent/25 bg-accent-soft px-7 text-[15px] font-medium text-accent transition hover:bg-accent hover:text-accent-fg"><Sparkles className="size-4" />{locale === "fr" ? "Essayer les démos" : "Try the demos"}</TrackedStudioLink>
               <TrackedStudioLink href="#request" placement="hero_request" className="inline-flex h-12 items-center gap-2 rounded-full border border-line-strong bg-surface px-7 text-[15px] font-medium hover:bg-surface-2">{cta}<ArrowRight className="flip-rtl size-4" /></TrackedStudioLink>
             </div>
             <StudioCapacitySignal t={t} settings={settings} className="mt-7 max-w-lg" />
@@ -92,6 +94,8 @@ export function StudioContent({ t, locale, offers, settings, page, referral, ref
       </section>
 
       <Showcase t={t} locale={locale} proofs={proofs} />
+
+      <StudioDemoShowcase locale={locale} />
 
       <section id="journey" className="scroll-mt-20 border-y border-line bg-surface-2/55 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">

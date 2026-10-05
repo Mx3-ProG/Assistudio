@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact & rendez-vous — Garage Du Lac</title>
+<meta name="description" content="Rte Cantonale 98, 1898 Saint-Gingolph. +41 24 481 17 34.">
+<meta name="theme-color" content="#1E293B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E293B'/%3E%3Cpath d='M62 30a16 16 0 0 0-21.6 21.6L26 66v12h12l14.4-14.4A16 16 0 0 0 74 42l-10.4 10.4-8.4-8.4L62 30Z' fill='%23DC2626'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body data-page="contact" data-base="" data-meta="contact">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero">
+    <div class="container page-hero__inner">
+      <nav class="breadcrumb" aria-label="Fil d'Ariane">
+        <a href="index.html" data-i18n="nav.home"></a><span data-alert-icon="chevR"></span>
+        <span data-i18n="nav.contact"></span>
+      </nav>
+      <span class="eyebrow" data-i18n="contact.eyebrow"></span>
+      <h1 data-i18n="contact.title"></h1>
+      <p class="lead" data-i18n="contact.lead"></p>
+    </div>
+  </section>
+
+  <section class="section--tight">
+    <div class="container">
+      <div class="grid" style="grid-template-columns:1.35fr .95fr;gap:40px;align-items:start" id="contactGrid">
+
+        <!-- Formulaire -->
+        <div class="card">
+          <h2 style="font-size:1.4rem" data-i18n="contact.formTitle"></h2>
+          <form data-gdl-form id="contactForm" class="mt-4">
+            <div class="form-row">
+              <div class="field">
+                <label for="c-name" data-i18n="form.name"></label>
+                <input class="input" id="c-name" name="name" type="text" required data-i18n-attr="placeholder:form.namePh">
+                <div class="field-error" role="alert"></div>
+              </div>
+              <div class="field">
+                <label for="c-phone" data-i18n="form.phone"></label>
+                <input class="input" id="c-phone" name="phone" type="tel" required data-i18n-attr="placeholder:form.phonePh">
+                <div class="field-error" role="alert"></div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="c-email" data-i18n="form.email"></label>
+              <input class="input" id="c-email" name="email" type="email" required data-i18n-attr="placeholder:form.emailPh">
+              <div class="field-error" role="alert"></div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label for="c-vehicle" data-i18n="form.vehicle"></label>
+                <input class="input" id="c-vehicle" name="vehicle" type="text" data-i18n-attr="placeholder:form.vehiclePh">
+                <div class="field-error" role="alert"></div>
+              </div>
+              <div class="field">
+                <label for="c-plate" data-i18n="form.plate"></label>
+                <input class="input" id="c-plate" name="plate" type="text" data-i18n-attr="placeholder:form.platePh">
+                <div class="field-error" role="alert"></div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label for="c-service" data-i18n="form.service"></label>
+                <select class="select" id="c-service" name="service" required data-service-select></select>
+                <div class="field-error" role="alert"></div>
+              </div>
+              <div class="field">
+                <label for="c-date" data-i18n="form.date"></label>
+                <input class="input" id="c-date" name="date" type="date">
+                <div class="field-error" role="alert"></div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="c-message" data-i18n="form.message"></label>
+              <textarea class="textarea" id="c-message" name="message" data-i18n-attr="placeholder:form.messagePh"></textarea>
+              <div class="field-error" role="alert"></div>
+            </div>
+
+            <div class="field">
+              <label class="flex gap-2" style="align-items:flex-start;font-weight:500;font-size:.88rem;cursor:pointer">
+                <input type="checkbox" name="consent" required style="margin-top:3px;width:18px;height:18px;flex:none;accent-color:var(--color-accent)">
+                <span data-i18n="form.consent"></span>
+              </label>
+              <div class="field-error" role="alert"></div>
+            </div>
+
+            <div class="alert alert-success hidden" data-form-success>
+              <span data-alert-icon="checkCir"></span>
+              <div><b data-i18n="form.okTitle"></b><br><span data-i18n="form.okBody"></span></div>
+            </div>
+
+            <button class="btn btn-primary btn-lg" type="submit" style="width:100%" data-i18n="form.submit"></button>
+            <p class="hint" style="margin-top:12px" data-i18n="form.demoNote"></p>
+          </form>
+        </div>
+
+        <!-- Colonne infos -->
+        <div>
+          <div class="card">
+            <h3 data-i18n="contact.infoTitle"></h3>
+            <ul style="margin-top:16px" id="infoList"></ul>
+          </div>
+
+          <div class="card mt-4" style="background:var(--color-primary);color:#fff;border:0">
+            <div class="flex items-center gap-2" style="margin-bottom:8px">
+              <span data-alert-icon="alert" style="color:#FCA5A5"></span>
+              <b data-i18n="contact.urgent"></b>
+            </div>
+            <p style="color:rgba(255,255,255,.72);font-size:.9rem" data-i18n="contact.urgentD"></p>
+            <a class="btn btn-primary" href="tel:+41244811734" style="width:100%;margin-top:8px" data-icon-btn="phone"><span>+41 24 481 17 34</span></a>
+          </div>
+
+          <div class="card mt-4">
+            <h3 data-i18n="contact.mapTitle"></h3>
+            <p class="muted" style="font-size:.9rem" data-i18n="contact.mapNote"></p>
+            <div style="border-radius:14px;overflow:hidden;border:1px solid var(--color-border);margin-top:12px">
+              <iframe title="Carte Garage Du Lac" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                style="width:100%;height:230px;border:0;display:block"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=6.7920%2C46.3870%2C6.8140%2C46.3980&layer=mapnik&marker=46.3925%2C6.8030"></iframe>
+            </div>
+            <a class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px"
+               href="https://maps.google.com/?q=Garage+Du+Lac+Rte+Cantonale+98+1898+Saint-Gingolph"
+               target="_blank" rel="noopener" data-i18n="contact.openMaps"></a>
+          </div>
+
+          <!-- Fonction à venir -->
+          <div class="locked mt-4">
+            <div class="locked__head">
+              <strong><span data-alert-icon="calendar"></span><span data-i18n="upsell.f1.t"></span></strong>
+              <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+            </div>
+            <p data-i18n="upsell.f1.d"></p>
+            <button class="btn btn-dark btn-sm mt-4" style="width:100%" disabled data-i18n="common.soon"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fonctions à venir -->
+  <section class="section section--alt">
+    <div class="container">
+      <div class="upsell">
+        <span class="eyebrow" data-i18n="upsell.eyebrow"></span>
+        <h2 data-i18n="upsell.title"></h2>
+        <p class="lead" style="max-width:640px" data-i18n="upsell.lead"></p>
+        <div class="grid grid-2 mt-5" id="upsellGrid" style="gap:12px"></div>
+        <div class="mt-6">
+          <a class="btn btn-primary btn-lg" href="mailto:contact@wayne-web.com?subject=Activation%20modules%20Garage%20Du%20Lac" data-i18n="upsell.cta"></a>
+          <p style="margin:14px 0 0;font-size:.82rem" data-i18n="upsell.ctaSub"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Vous aimerez aussi -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow" data-i18n="services.alsoLike"></span>
+        <h2 data-i18n="services.alsoLike"></h2>
+        <p class="lead" data-i18n="services.alsoLikeLead"></p>
+      </div>
+      <div class="grid grid-3" id="alsoLikeGrid"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/translations.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script>
+(function () {
+  var G = window.GDL, S = window.GDL_Store, C = window.GDL_Catalog;
+
+  function render() {
+    document.getElementById('infoList').innerHTML =
+      [['pin', G.t('biz.address'), 'https://maps.google.com/?q=Garage+Du+Lac+Rte+Cantonale+98+1898+Saint-Gingolph'],
+       ['phone', '+41 24 481 17 34', 'tel:+41244811734'],
+       ['mail', 'contact@garagedulac.ch', 'mailto:contact@garagedulac.ch'],
+       ['clock', G.t('biz.hours'), null],
+       ['clock', G.t('biz.hoursSat'), null],
+       ['clock', G.t('biz.hoursSun'), null]]
+      .map(function (r) {
+        var inner = '<span class="flex gap-2" style="align-items:flex-start">' +
+          '<span style="color:var(--color-accent);flex:none;width:18px">' + G.icon(r[0]) + '</span>' +
+          '<span style="font-size:.92rem">' + C.esc(r[1]) + '</span></span>';
+        return '<li style="margin-bottom:12px">' +
+          (r[2] ? '<a href="' + r[2] + '"' + (r[2].indexOf('http') === 0 ? ' target="_blank" rel="noopener"' : '') + '>' + inner + '</a>' : inner) +
+          '</li>';
+      }).join('');
+
+    document.getElementById('upsellGrid').innerHTML =
+      ['f1', 'f2', 'f3', 'f5'].map(function (k, i) {
+        var ico = ['calendar', 'bell', 'file', 'card'][i];
+        return '<div class="feature-soon" style="border-color:rgba(255,255,255,.14)">' +
+          '<div class="feature-soon__ico" style="background:rgba(252,165,165,.16);color:#FCA5A5">' + G.icon(ico) + '</div>' +
+          '<div><h4 style="color:#fff">' + G.t('upsell.' + k + '.t') + '</h4>' +
+          '<p style="color:rgba(255,255,255,.68)">' + G.t('upsell.' + k + '.d') + '</p></div></div>';
+      }).join('');
+
+    document.getElementById('alsoLikeGrid').innerHTML = C.cards(S.getProducts().slice(0, 3), 'services.html');
+
+    C.fillServiceSelects();
+    C.paintInlineIcons();
+    G.initReveal();
+  }
+
+  render();
+  document.addEventListener('gdl:lang', render);
+})();
+</script>
+<style>
+@media (max-width: 900px) { #contactGrid { grid-template-columns: 1fr !important; } }
+</style>
+<script src="/demo-sites/demo-guard.js" data-demo-name="Garage Du Lac" data-demo-slug="garage-du-lac" data-demo-admin-href="/demo-sites/garage-du-lac/admin/login.html"></script></body>
+</html>

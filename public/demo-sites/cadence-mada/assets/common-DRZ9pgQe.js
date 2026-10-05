@@ -1,0 +1,1 @@
+var e={"nav.pricing":`Pricing`,"nav.contact_aria":`Contact Cadence`,"nav.start":`Get started`,"nav.back_home_aria":`Back to home`,"nav.dashboard":`Go to my dashboard`,"brand.name":`Cadence`};export{e as default};

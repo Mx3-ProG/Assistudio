@@ -1,0 +1,1 @@
+var e={"nav.pricing":`मूल्य`,"nav.contact_aria":`Cadence से संपर्क करें`,"nav.start":`शुरू करें`,"nav.back_home_aria":`होम पेज पर वापस जाएँ`,"nav.dashboard":`मेरा डैशबोर्ड देखें`,"brand.name":`Cadence`};export{e as default};

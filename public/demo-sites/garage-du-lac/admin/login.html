@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espace sécurisé — Garage Du Lac</title>
+<meta name="description" content="Accès réservé à l'administration.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1E293B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E293B'/%3E%3Cpath d='M62 30a16 16 0 0 0-21.6 21.6L26 66v12h12l14.4-14.4A16 16 0 0 0 74 42l-10.4 10.4-8.4-8.4L62 30Z' fill='%23DC2626'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/main.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body data-page="admin" data-base="../" data-meta="login">
+
+<header id="site-header"></header>
+
+<main>
+  <div class="auth-wrap">
+
+    <div>
+      <div class="auth-card">
+        <div class="auth-card__ico" data-alert-icon="lock"></div>
+        <h1 style="font-size:1.7rem" data-i18n="auth.title"></h1>
+        <p class="muted" style="font-size:.94rem" data-i18n="auth.lead"></p>
+
+        <div class="alert alert-error hidden" id="authErr" role="alert">
+          <span data-alert-icon="alert"></span>
+          <span data-i18n="auth.err"></span>
+        </div>
+
+        <form id="loginForm" class="mt-4">
+          <div class="alert alert-info" style="margin-bottom:18px">
+            <span data-alert-icon="info"></span>
+            <span>Compte de démonstration préconfiguré — aucun identifiant nécessaire.</span>
+          </div>
+          <button class="btn btn-primary btn-lg" type="submit" style="width:100%">Accéder au tableau de bord</button>
+        </form>
+
+        <p class="flex gap-2" style="align-items:flex-start;font-size:.78rem;color:var(--color-muted-fg);margin-top:18px">
+          <span style="flex:none;width:16px;color:var(--color-success)" data-alert-icon="shield"></span>
+          <span data-i18n="auth.secNote"></span>
+        </p>
+
+      </div>
+    </div>
+
+    <!-- Colonne latérale : fonctions à venir -->
+    <aside class="auth-aside">
+      <div>
+        <span class="eyebrow" style="color:#FCA5A5" data-i18n="upsell.eyebrow"></span>
+        <h2 data-i18n="upsell.title"></h2>
+        <p data-i18n="upsell.lead"></p>
+        <div class="mt-5" id="asideFeatures"></div>
+      </div>
+    </aside>
+
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="../assets/js/translations.js"></script>
+<script src="../assets/js/store.js"></script>
+<script src="../assets/js/site.js"></script>
+<script src="../assets/js/catalog.js"></script>
+<script>
+(function () {
+  var G = window.GDL, S = window.GDL_Store, C = window.GDL_Catalog;
+
+  function render() {
+    document.getElementById('asideFeatures').innerHTML =
+      ['back2fa', 'backSso'].map(function (k, i) {
+        return '<div class="feature-soon" style="border-color:rgba(255,255,255,.14)">' +
+          '<div class="feature-soon__ico" style="background:rgba(252,165,165,.16);color:#FCA5A5">' +
+            G.icon(i === 0 ? 'shield' : 'users') + '</div>' +
+          '<div><h4 style="color:#fff">' + G.t('auth.' + k) + '</h4>' +
+          '<p style="color:rgba(255,255,255,.68)">' + G.t('auth.' + k + 'D') + '</p></div></div>';
+      }).join('') +
+      ['f1', 'f4'].map(function (k, i) {
+        return '<div class="feature-soon" style="border-color:rgba(255,255,255,.14)">' +
+          '<div class="feature-soon__ico" style="background:rgba(252,165,165,.16);color:#FCA5A5">' +
+            G.icon(i === 0 ? 'calendar' : 'activity') + '</div>' +
+          '<div><h4 style="color:#fff">' + G.t('upsell.' + k + '.t') + '</h4>' +
+          '<p style="color:rgba(255,255,255,.68)">' + G.t('upsell.' + k + '.d') + '</p></div></div>';
+      }).join('');
+    C.paintInlineIcons();
+  }
+
+  render();
+  document.addEventListener('gdl:lang', render);
+
+  /* Déjà connecté ? */
+  if (S.getSession()) location.replace('dashboard.html');
+
+  document.getElementById('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    S.setSession({ user: 'demo', role: 'superadmin', name: 'Gianvito', at: Date.now() });
+    S.log('demo', 'login.success', 'Connexion au compte de démonstration');
+    location.href = 'dashboard.html';
+  });
+})();
+</script>
+</body>
+</html>

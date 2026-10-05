@@ -1,0 +1,20 @@
+1:"$Sreact.fragment"
+2:I[6167,["974","static/chunks/app/page-0379718659be1985.js"],"ExperienceLoader"]
+3:I[484,[],"OutletBoundary"]
+4:"$Sreact.suspense"
+8:I[484,[],"ViewportBoundary"]
+9:I[484,[],"MetadataBoundary"]
+a:I[6869,[],"IconMark"]
+c:I[7121,[],""]
+d:I[4581,[],""]
+:HL["/demo-sites/vortex/_next/static/css/452c558ff74c2e02.css","style"]
+7:X
+0:{"buildId":"IjWmTHT7BIiLMZTpBc9G4","data":[{"rsc":["$","$1","c",{"children":[["$","$L2",null,{}],null,["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":["$","$1","h",{"children":[null,["$","$L8",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L9",null,{"children":["$","$4",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"VORTEX R — Engineered without compromise"}],["$","meta","1",{"name":"description","content":"VORTEX R. 218 HP. 186 KG. A supersport motorcycle presented as a cinematic, scroll-driven experience."}],["$","meta","2",{"property":"og:title","content":"VORTEX R — Engineered without compromise"}],["$","meta","3",{"property":"og:description","content":"VORTEX R. 218 HP. 186 KG. A supersport motorcycle presented as a cinematic, scroll-driven experience."}],["$","meta","4",{"property":"og:site_name","content":"VORTEX R"}],["$","meta","5",{"property":"og:locale","content":"en_US"}],["$","meta","6",{"property":"og:type","content":"website"}],["$","meta","7",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","8",{"name":"twitter:title","content":"VORTEX R — Engineered without compromise"}],["$","meta","9",{"name":"twitter:description","content":"VORTEX R. 218 HP. 186 KG. A supersport motorcycle presented as a cinematic, scroll-driven experience."}],["$","link","10",{"rel":"icon","href":"/demo-sites/vortex/favicon.ico?6383a8722ffe319d","type":"image/x-icon","sizes":"16x16"}],["$","link","11",{"rel":"icon","href":"/demo-sites/vortex/icon.png?ab7a0cabaf577164","type":"image/png","sizes":"512x512"}],["$","link","12",{"rel":"apple-touch-icon","href":"/demo-sites/vortex/apple-icon.png?2a6612df80bd5631","type":"image/png","sizes":"180x180"}],["$","$La","13",{}]]}]}]}],null]}],"isPartial":"$@b","staleTime":"$7","varyParams":null},{"rsc":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/demo-sites/vortex/_next/static/css/452c558ff74c2e02.css","precedence":"next"}]],["$","html",null,{"lang":"en","className":"h-full antialiased","children":["$","body",null,{"className":"min-h-full bg-void text-paper","children":["$","$Lc",null,{"parallelRouterKey":"children","template":["$","$Ld",null,{}],"notFound":[[["$","title",null,{"children":"404: This page could not be found."}],["$","div",null,{"style":{"fontFamily":"system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\"","height":"100vh","textAlign":"center","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center"},"children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}}],["$","h1",null,{"className":"next-error-h1","style":{"display":"inline-block","margin":"0 20px 0 0","padding":"0 23px 0 0","fontSize":24,"fontWeight":500,"verticalAlign":"top","lineHeight":"49px"},"children":404}],["$","div",null,{"style":{"display":"inline-block"},"children":["$","h2",null,{"style":{"fontSize":14,"fontWeight":400,"lineHeight":"49px","margin":0},"children":"This page could not be found."}]}]]}]}]],[]]}]}]}]]}],"isPartial":"$@e","staleTime":"$7","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+5:null
+7:300
+10:true
+7:C
+f:0
+b:"$undefined"
+e:"$undefined"
+6:"$undefined"

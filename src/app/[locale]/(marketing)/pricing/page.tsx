@@ -10,6 +10,10 @@ import { Navbar } from "@/components/marketing/navbar";
 import { PricingPlans } from "@/components/marketing/pricing-plans";
 import { normalizePromoCode } from "@/lib/services/promo";
 
+// Prices and capacity come from Supabase. Keep metadata and page rendering on the
+// incoming request so a production build never depends on database availability.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: PageProps<"/[locale]/pricing">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
   const [t, offers] = await Promise.all([getDictionary(locale), repo().listOffers()]);

@@ -1,0 +1,1 @@
+var e=new Proxy({},{get:()=>()=>e}),t=e,n=async()=>({source:null,nodes:[],services:[]}),r=async()=>({at:new Date().toISOString(),sources:[],nodes:[],services:[]}),i=async()=>({checked:0,synced:0,failed:0,paused:0});export{r as pullAll,n as pullOne,i as runDueSyncs,t as supabaseAdmin};

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qui sommes-nous — Garage Du Lac</title>
+<meta name="description" content="Un garage indépendant à Saint-Gingolph. Rencontrez Gianvito et l'équipe.">
+<meta name="theme-color" content="#1E293B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E293B'/%3E%3Cpath d='M62 30a16 16 0 0 0-21.6 21.6L26 66v12h12l14.4-14.4A16 16 0 0 0 74 42l-10.4 10.4-8.4-8.4L62 30Z' fill='%23DC2626'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body data-page="about" data-base="" data-meta="about">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero">
+    <div class="container page-hero__inner">
+      <nav class="breadcrumb" aria-label="Fil d'Ariane">
+        <a href="index.html" data-i18n="nav.home"></a><span data-alert-icon="chevR"></span>
+        <span data-i18n="nav.about"></span>
+      </nav>
+      <span class="eyebrow" data-i18n="about.eyebrow"></span>
+      <h1 data-i18n="about.title"></h1>
+    </div>
+  </section>
+
+  <section class="section--tight">
+    <div class="container">
+      <div class="grid grid-2" style="gap:56px;align-items:start">
+        <div class="prose">
+          <p class="lead" data-i18n="about.p1"></p>
+          <p data-i18n="about.p2"></p>
+          <p data-i18n="about.p3"></p>
+        </div>
+        <div>
+          <div class="card">
+            <h3 data-i18n="contact.infoTitle"></h3>
+            <ul style="margin-top:16px" id="infoList"></ul>
+          </div>
+          <div class="card mt-4" style="border-color:var(--color-accent)">
+            <div class="flex items-center gap-2" style="margin-bottom:8px">
+              <span data-alert-icon="calendar" style="color:var(--color-accent)"></span>
+              <b data-i18n="about.reopenT"></b>
+            </div>
+            <p class="muted" style="font-size:.9rem;margin:0" data-i18n="about.reopenD"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Valeurs -->
+  <section class="section section--alt">
+    <div class="container">
+      <div class="grid grid-3" id="valuesGrid"></div>
+    </div>
+  </section>
+
+  <!-- Équipe -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow" data-i18n="about.teamTitle"></span>
+        <h2 data-i18n="about.teamTitle"></h2>
+        <p class="lead" data-i18n="about.teamLead"></p>
+      </div>
+      <div class="grid grid-3" id="teamGrid"></div>
+    </div>
+  </section>
+
+  <!-- Avis -->
+  <section class="section section--alt">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow" data-i18n="reviews.eyebrow"></span>
+        <h2 data-i18n="reviews.title"></h2>
+      </div>
+      <div class="grid grid-3" id="reviewsGrid"></div>
+      <div id="reviewCta"></div>
+      <p class="center muted mt-4" style="font-size:.82rem" data-i18n="reviews.src"></p>
+    </div>
+  </section>
+
+  <!-- Fonctions à venir -->
+  <section class="section">
+    <div class="container">
+      <div class="upsell">
+        <span class="eyebrow" data-i18n="upsell.eyebrow"></span>
+        <h2 data-i18n="upsell.title"></h2>
+        <p class="lead" style="max-width:640px" data-i18n="upsell.lead"></p>
+        <div class="grid grid-2 mt-5" id="upsellGrid" style="gap:12px"></div>
+        <div class="mt-6">
+          <a class="btn btn-primary btn-lg" href="contact.html?sujet=modules" data-i18n="upsell.cta"></a>
+          <p style="margin:14px 0 0;font-size:.82rem" data-i18n="upsell.ctaSub"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Vous aimerez aussi -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow" data-i18n="services.alsoLike"></span>
+        <h2 data-i18n="services.alsoLike"></h2>
+        <p class="lead" data-i18n="services.alsoLikeLead"></p>
+      </div>
+      <div class="grid grid-3" id="alsoLikeGrid"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/translations.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script>
+(function () {
+  var G = window.GDL, S = window.GDL_Store, C = window.GDL_Catalog;
+
+  function render() {
+    document.getElementById('infoList').innerHTML =
+      [['pin', G.t('biz.address'), 'https://maps.google.com/?q=Garage+Du+Lac+Rte+Cantonale+98+1898+Saint-Gingolph'],
+       ['phone', '+41 24 481 17 34', 'tel:+41244811734'],
+       ['mail', 'contact@garagedulac.ch', 'mailto:contact@garagedulac.ch'],
+       ['clock', G.t('biz.hours'), null],
+       ['clock', G.t('biz.hoursSat'), null]]
+      .map(function (r) {
+        var inner = '<span class="flex items-center gap-2" style="align-items:flex-start">' +
+          '<span style="color:var(--color-accent);flex:none;width:18px">' + G.icon(r[0]) + '</span>' +
+          '<span style="font-size:.92rem">' + C.esc(r[1]) + '</span></span>';
+        return '<li style="margin-bottom:12px">' +
+          (r[2] ? '<a href="' + r[2] + '"' + (r[2].indexOf('http') === 0 ? ' target="_blank" rel="noopener"' : '') + '>' + inner + '</a>' : inner) +
+          '</li>';
+      }).join('');
+
+    document.getElementById('valuesGrid').innerHTML =
+      ['v1', 'v2', 'v3'].map(function (k, i) {
+        var ico = ['shield', 'users', 'wrench'][i];
+        return '<article class="card card--hover reveal" data-delay="' + (i * 70) + '">' +
+          '<div class="card__icon">' + G.icon(ico) + '</div>' +
+          '<h3>' + G.t('about.' + k + '.t') + '</h3><p>' + G.t('about.' + k + '.d') + '</p></article>';
+      }).join('');
+
+    document.getElementById('teamGrid').innerHTML =
+      ['m1', 'm2', 'm3'].map(function (k, i) {
+        var n = G.t('about.' + k + '.n');
+        return '<article class="card card--hover reveal" data-delay="' + (i * 70) + '">' +
+          '<div class="review__av" style="width:56px;height:56px;font-size:1.2rem;margin-bottom:16px">' + n.charAt(0) + '</div>' +
+          '<h3 style="margin-bottom:2px">' + n + '</h3>' +
+          '<span class="chip chip--live" style="margin-bottom:12px">' + G.t('about.' + k + '.r') + '</span>' +
+          '<p style="margin-top:12px">' + G.t('about.' + k + '.d') + '</p></article>';
+      }).join('');
+
+    document.getElementById('reviewsGrid').innerHTML = C.reviews();
+    document.getElementById('reviewCta').innerHTML = C.reviewCta();
+
+    document.getElementById('upsellGrid').innerHTML =
+      ['f6', 'f8', 'f2', 'f1'].map(function (k, i) {
+        var ico = ['star', 'users', 'bell', 'calendar'][i];
+        return '<div class="feature-soon" style="border-color:rgba(255,255,255,.14)">' +
+          '<div class="feature-soon__ico" style="background:rgba(252,165,165,.16);color:#FCA5A5">' + G.icon(ico) + '</div>' +
+          '<div><h4 style="color:#fff">' + G.t('upsell.' + k + '.t') + '</h4>' +
+          '<p style="color:rgba(255,255,255,.68)">' + G.t('upsell.' + k + '.d') + '</p></div></div>';
+      }).join('');
+
+    document.getElementById('alsoLikeGrid').innerHTML = C.cards(S.getProducts().slice(0, 3), 'services.html');
+
+    C.paintInlineIcons();
+    G.initReveal();
+  }
+
+  render();
+  document.addEventListener('gdl:lang', render);
+})();
+</script>
+<script src="/demo-sites/demo-guard.js" data-demo-name="Garage Du Lac" data-demo-slug="garage-du-lac" data-demo-admin-href="/demo-sites/garage-du-lac/admin/login.html"></script></body>
+</html>

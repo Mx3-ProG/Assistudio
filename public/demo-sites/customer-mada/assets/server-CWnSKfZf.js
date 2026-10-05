@@ -1,0 +1,1 @@
+var e=new Proxy({},{get:()=>()=>e}),t=e;export{t as supabaseAdmin};

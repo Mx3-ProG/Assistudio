@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nos prestations — Garage Du Lac</title>
+<meta name="description" content="Entretien, freins, pneus, diagnostic électronique, expertise, climatisation. Tarifs transparents.">
+<meta name="theme-color" content="#1E293B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E293B'/%3E%3Cpath d='M62 30a16 16 0 0 0-21.6 21.6L26 66v12h12l14.4-14.4A16 16 0 0 0 74 42l-10.4 10.4-8.4-8.4L62 30Z' fill='%23DC2626'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body data-page="services" data-base="" data-meta="services">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero">
+    <div class="container page-hero__inner">
+      <nav class="breadcrumb" aria-label="Fil d'Ariane">
+        <a href="index.html" data-i18n="nav.home"></a><span data-alert-icon="chevR"></span>
+        <span data-i18n="nav.services"></span>
+      </nav>
+      <span class="eyebrow" data-i18n="services.eyebrow"></span>
+      <h1 data-i18n="services.pageTitle"></h1>
+      <p class="lead" data-i18n="services.pageLead"></p>
+      <div class="flex gap-3 wrap mt-4">
+        <a class="btn btn-primary" href="contact.html" data-i18n="common.book"></a>
+        <a class="btn btn-ghost" href="tel:+41244811734" data-icon-btn="phone"><span data-i18n="common.callShort"></span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Grille des prestations -->
+  <section class="section--tight">
+    <div class="container">
+      <div class="grid grid-3" id="servicesGrid"></div>
+    </div>
+  </section>
+
+  <!-- Fiches détaillées -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow" data-i18n="common.discover"></span>
+        <h2 data-i18n="services.title"></h2>
+      </div>
+      <div class="grid" id="detailsList" style="gap:16px"></div>
+    </div>
+  </section>
+
+  <!-- Fonctions à venir -->
+  <section class="section section--alt">
+    <div class="container">
+      <div class="upsell">
+        <span class="eyebrow" data-i18n="upsell.eyebrow"></span>
+        <h2 data-i18n="upsell.title"></h2>
+        <p class="lead" style="max-width:640px" data-i18n="upsell.lead"></p>
+        <div class="grid grid-2 mt-5" id="upsellGrid" style="gap:12px"></div>
+        <div class="mt-6">
+          <a class="btn btn-primary btn-lg" href="contact.html?sujet=modules" data-i18n="upsell.cta"></a>
+          <p style="margin:14px 0 0;font-size:.82rem" data-i18n="upsell.ctaSub"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== VOUS AIMEREZ AUSSI ===================== -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow" data-i18n="services.alsoLike"></span>
+        <h2 data-i18n="services.alsoLike"></h2>
+        <p class="lead" data-i18n="services.alsoLikeLead"></p>
+      </div>
+      <div class="grid grid-3" id="alsoLikeGrid"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/translations.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script>
+(function () {
+  var G = window.GDL, S = window.GDL_Store, C = window.GDL_Catalog;
+
+  function render() {
+    var all = S.getProducts();
+
+    document.getElementById('servicesGrid').innerHTML = C.cards(all, 'services.html');
+    document.getElementById('detailsList').innerHTML = all.map(C.detail).join('');
+
+    document.getElementById('upsellGrid').innerHTML =
+      ['f3', 'f4', 'f5', 'f7'].map(function (k, i) {
+        var ico = ['file', 'activity', 'card', 'chart'][i];
+        return '<div class="feature-soon" style="border-color:rgba(255,255,255,.14)">' +
+          '<div class="feature-soon__ico" style="background:rgba(252,165,165,.16);color:#FCA5A5">' + G.icon(ico) + '</div>' +
+          '<div><h4 style="color:#fff">' + G.t('upsell.' + k + '.t') + '</h4>' +
+          '<p style="color:rgba(255,255,255,.68)">' + G.t('upsell.' + k + '.d') + '</p></div></div>';
+      }).join('');
+
+    /* « Vous aimerez aussi » — 3 prestations complémentaires tirées au hasard */
+    var pool = all.slice();
+    var picks = [];
+    var seed = new Date().getDate();
+    while (picks.length < 3 && pool.length) {
+      picks.push(pool.splice((seed * (picks.length + 7)) % pool.length, 1)[0]);
+    }
+    document.getElementById('alsoLikeGrid').innerHTML = C.cards(picks, 'services.html');
+
+    C.paintInlineIcons();
+    G.initReveal();
+  }
+
+  render();
+  document.addEventListener('gdl:lang', render);
+
+  /* Ancre profonde : #s1 … #s9 */
+  if (location.hash) {
+    setTimeout(function () {
+      var el = document.querySelector('#detailsList ' + location.hash);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 250);
+  }
+})();
+</script>
+<script src="/demo-sites/demo-guard.js" data-demo-name="Garage Du Lac" data-demo-slug="garage-du-lac" data-demo-admin-href="/demo-sites/garage-du-lac/admin/login.html"></script></body>
+</html>

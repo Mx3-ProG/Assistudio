@@ -1,0 +1,1 @@
+var e={"nav.pricing":`价格`,"nav.contact_aria":`联系 Cadence`,"nav.start":`开始使用`,"nav.back_home_aria":`返回首页`,"nav.dashboard":`查看我的仪表盘`,"brand.name":`Cadence`};export{e as default};

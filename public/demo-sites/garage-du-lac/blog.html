@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blog & conseils auto — Garage Du Lac</title>
+<meta name="description" content="Conseils d'entretien, réglementation suisse, préparation hiver.">
+<meta name="theme-color" content="#1E293B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E293B'/%3E%3Cpath d='M62 30a16 16 0 0 0-21.6 21.6L26 66v12h12l14.4-14.4A16 16 0 0 0 74 42l-10.4 10.4-8.4-8.4L62 30Z' fill='%23DC2626'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body data-page="blog" data-base="" data-meta="blog">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero">
+    <div class="container page-hero__inner">
+      <nav class="breadcrumb" aria-label="Fil d'Ariane">
+        <a href="index.html" data-i18n="nav.home"></a><span data-alert-icon="chevR"></span>
+        <span data-i18n="nav.blog"></span>
+      </nav>
+      <span class="eyebrow" data-i18n="blog.eyebrow"></span>
+      <h1 data-i18n="blog.title"></h1>
+      <p class="lead" data-i18n="blog.lead"></p>
+    </div>
+  </section>
+
+  <section class="section--tight">
+    <div class="container">
+      <div class="grid grid-3" id="blogGrid"></div>
+    </div>
+  </section>
+
+  <!-- Newsletter : fonction à venir -->
+  <section class="section">
+    <div class="container">
+      <div class="locked" style="max-width:760px;margin-inline:auto">
+        <div class="locked__head">
+          <strong><span data-alert-icon="bell"></span><span data-i18n="upsell.f2.t"></span></strong>
+          <span class="chip chip--soon" data-i18n="upsell.lockedBadge"></span>
+        </div>
+        <p data-i18n="upsell.f2.d"></p>
+        <div class="form-row mt-4">
+          <input class="input" type="email" placeholder="vous@exemple.ch" disabled aria-label="E-mail">
+          <button class="btn btn-dark" disabled data-i18n="common.soon"></button>
+        </div>
+        <p style="margin-top:12px" data-i18n="upsell.lockedNote"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fonctions à venir -->
+  <section class="section section--alt">
+    <div class="container">
+      <div class="upsell">
+        <span class="eyebrow" data-i18n="upsell.eyebrow"></span>
+        <h2 data-i18n="upsell.title"></h2>
+        <p class="lead" style="max-width:640px" data-i18n="upsell.lead"></p>
+        <div class="grid grid-2 mt-5" id="upsellGrid" style="gap:12px"></div>
+        <div class="mt-6">
+          <a class="btn btn-primary btn-lg" href="contact.html?sujet=modules" data-i18n="upsell.cta"></a>
+          <p style="margin:14px 0 0;font-size:.82rem" data-i18n="upsell.ctaSub"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Vous aimerez aussi -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow" data-i18n="services.alsoLike"></span>
+        <h2 data-i18n="services.alsoLike"></h2>
+        <p class="lead" data-i18n="services.alsoLikeLead"></p>
+      </div>
+      <div class="grid grid-3" id="alsoLikeGrid"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/translations.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script>
+(function () {
+  var G = window.GDL, S = window.GDL_Store, C = window.GDL_Catalog;
+
+  function render() {
+    document.getElementById('blogGrid').innerHTML = C.posts();
+
+    document.getElementById('upsellGrid').innerHTML =
+      ['f2', 'f6', 'f8', 'f1'].map(function (k, i) {
+        var ico = ['bell', 'star', 'users', 'calendar'][i];
+        return '<div class="feature-soon" style="border-color:rgba(255,255,255,.14)">' +
+          '<div class="feature-soon__ico" style="background:rgba(252,165,165,.16);color:#FCA5A5">' + G.icon(ico) + '</div>' +
+          '<div><h4 style="color:#fff">' + G.t('upsell.' + k + '.t') + '</h4>' +
+          '<p style="color:rgba(255,255,255,.68)">' + G.t('upsell.' + k + '.d') + '</p></div></div>';
+      }).join('');
+
+    document.getElementById('alsoLikeGrid').innerHTML = C.cards(S.getProducts().slice(3, 6), 'services.html');
+
+    C.paintInlineIcons();
+    G.initReveal();
+  }
+
+  render();
+  document.addEventListener('gdl:lang', render);
+})();
+</script>
+<script src="/demo-sites/demo-guard.js" data-demo-name="Garage Du Lac" data-demo-slug="garage-du-lac" data-demo-admin-href="/demo-sites/garage-du-lac/admin/login.html"></script></body>
+</html>

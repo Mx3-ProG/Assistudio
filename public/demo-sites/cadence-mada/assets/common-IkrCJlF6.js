@@ -1,0 +1,1 @@
+var e={"nav.pricing":`Тарифы`,"nav.contact_aria":`Связаться с Cadence`,"nav.start":`Начать`,"nav.back_home_aria":`Вернуться на главную`,"nav.dashboard":`Перейти к панели управления`,"brand.name":`Cadence`};export{e as default};

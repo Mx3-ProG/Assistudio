@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  version="1.2"
+  baseProfile="tiny-ps"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+>
+  <title>Cadence Mada</title>
+  <desc>Le symbole Cadence : un C en mouvement qui se termine par une coche de confirmation.</desc>
+  <rect width="512" height="512" fill="#12352e" />
+  <path
+    d="M324 132a152 152 0 1 0 4 248"
+    fill="none"
+    stroke="#49d7a3"
+    stroke-width="56"
+    stroke-linecap="round"
+  />
+  <path
+    d="m252 276 52 52 100-120"
+    fill="none"
+    stroke="#f7fbf8"
+    stroke-width="48"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

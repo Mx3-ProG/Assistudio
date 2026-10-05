@@ -1,0 +1,1 @@
+var e={"nav.pricing":`الأسعار`,"nav.contact_aria":`تواصل مع Cadence`,"nav.start":`ابدأ الآن`,"nav.back_home_aria":`العودة إلى الصفحة الرئيسية`,"nav.dashboard":`عرض لوحة التحكم`,"brand.name":`Cadence`};export{e as default};
