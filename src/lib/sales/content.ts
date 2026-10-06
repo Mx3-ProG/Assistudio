@@ -176,6 +176,17 @@ export interface CaseStudyBody {
   url?: string;
   image?: string;
   imageMobile?: string;
+  /** Social proof: a measured, verifiable result (never an estimate) and where it comes from. */
+  result?: string;
+  resultSource?: string;
+  /** Slug of an interactive demo in src/lib/demos.ts that matches the project. */
+  demoSlug?: string;
+  /**
+   * Written agreement of the client to be shown PUBLICLY (date YYYY-MM-DD + who
+   * recorded it). Without it a client case study stays inside the partner space.
+   */
+  publicConsentAt?: string;
+  publicConsentBy?: string;
 }
 export interface DiagnosticBody {
   intro?: string;
@@ -359,6 +370,8 @@ export const BODY_FIELDS: { [K in ContentKind]: FieldSpec[] } = {
     area("description", true, 600), area("problem", true, 1500), area("solution", true, 1500), list("features", true),
     area("argument", true, 800), select("offer", OFFER_TIERS, false),
     text("url", false, 1000), text("image", false, 400), text("imageMobile", false, 400),
+    area("result", false, 600), text("resultSource", false, 300), text("demoSlug", false, 80),
+    text("publicConsentAt", false, 10), text("publicConsentBy", false, 120),
   ],
   diagnostic: [
     area("intro", false, 1200),

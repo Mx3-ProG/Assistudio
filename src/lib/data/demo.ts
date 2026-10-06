@@ -14,6 +14,7 @@ import type { Repo, Range, SignupData } from "./repo";
 import { CODE_TTL_SECONDS, MAX_ATTEMPTS, RESEND_AFTER_SECONDS, generateCode, type CodePurpose } from "@/lib/auth-code";
 import { summarizeBook } from "./book";
 import { createDemoMessaging } from "./messaging.demo";
+import { createDemoProof } from "./proof.demo";
 import type {
   Session, Settings, Offer, TrackingLink, PrivatePage, Prospect, SaleRow, CommissionRow,
   Payout, Notification, ActivityEvent, ActivityType, FraudFlag, AuditLog, AffiliateStatus, Role,
@@ -611,6 +612,17 @@ export const demoRepo: Repo = {
   ...createDemoMessaging(
     () => ({ users: db().users, affiliates: db().affiliates }),
     (s, action, entityId, reason) => audit(s, action, "message_report", entityId, null, null, reason),
+  ),
+  ...createDemoProof(
+    () => {
+      const st = db();
+      return {
+        users: st.users, affiliates: st.affiliates, offerName: st.offer.productName,
+        customers: st.customers, sales: st.sales,
+        payouts: st.payouts.map((p) => ({ id: p.id, ref: p.ref, amountCents: p.amountCents, status: p.status, paidAt: p.paidAt })),
+      };
+    },
+    (s, action, entityId, reason) => audit(s, action, "testimonial", entityId, null, null, reason),
   ),
 
   async getSettings() { return db().settings; },

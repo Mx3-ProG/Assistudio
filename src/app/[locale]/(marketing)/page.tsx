@@ -26,6 +26,9 @@ import { SupportSection, WhyPartner, AttributionRules, HomeFaq } from "@/compone
 import { StickyCta } from "@/components/marketing/home/sticky-cta";
 import { HomeView } from "@/components/marketing/home/home-view";
 import { TeamSection } from "@/components/marketing/team-section";
+import { StudioDemoShowcase } from "@/components/marketing/studio-demo-showcase";
+import { AmbassadorProof } from "@/components/proof/ambassador-proof";
+import { publicProofEvents, publicTestimonials } from "@/lib/proof-server";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
   const { locale } = (await params) as { locale: Locale };
@@ -43,7 +46,9 @@ export async function generateMetadata({ params }: PageProps<"/[locale]">): Prom
 export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  const [offer, offers, settings] = await Promise.all([repo().getOffer(), repo().listOffers(), repo().getSettings()]);
+  const [offer, offers, settings, proofEvents, homeTestimonials] = await Promise.all([
+    repo().getOffer(), repo().listOffers(), repo().getSettings(), publicProofEvents(6), publicTestimonials({ placement: "home" }),
+  ]);
   const commission = computeCommissionCents(offer.priceCents, offer.commissionRate);
   const rate = formatPercent(offer.commissionRate, locale, 0);
   const p = (path: string) => `/${locale}${path}`;
@@ -162,6 +167,10 @@ export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
               </TrackedLink>
               {env.studioDemoUrl && <DemoButton url={env.studioDemoUrl} label={t.hc.sell.demo} closeLabel={t.hc.sell.demoClose} />}
             </div>
+            {/* What the partner sells, to try first-hand: the same interactive demos as the client page. */}
+            <div className="mt-14 border-t border-line pt-12 sm:mt-16 sm:pt-14">
+              <StudioDemoShowcase locale={locale} compact />
+            </div>
             {/* The flow above already explains Studio on phones; the real-interface tour is for larger screens. */}
             <div className="mt-12 hidden md:block"><ProductMockup /></div>
           </div>
@@ -190,6 +199,10 @@ export default async function PartnerHome({ params }: PageProps<"/[locale]">) {
             <AttributionRules t={t} facts={facts} />
           </div>
         </section>
+
+        {/* How a recommendation becomes a payment (labelled simulation) + real anonymised payouts + reviews placed on the home. */}
+        <AmbassadorProof t={t} locale={locale} validationDays={settings.commissionValidationDays} events={proofEvents} testimonials={homeTestimonials}
+          offer={{ name: t.pricing.plans[offer.tier].name, priceCents: offer.priceCents, commissionRate: offer.commissionRate, currency: offer.currency }} />
 
         {/* Verified references only: renders nothing until one has documented client consent. */}
         <FieldProof t={t} locale={locale} proofs={proofs} />

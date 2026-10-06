@@ -9,6 +9,7 @@ import net from "./network.hi";
 import hc from "./home-conversion.hi";
 import hp from "./help.hi";
 import po from "./payouts.hi";
+import pf from "./proof.hi";
 
 /** हिन्दी — complete. TODO(i18n): native review before launch. */
 const hi: Dictionary = {
@@ -17,6 +18,7 @@ const hi: Dictionary = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -178,6 +180,7 @@ const hi: Dictionary = {
     eyebrow: "Studio ATS",
     heroTitle: "अपने ट्रैफ़िक को अवसरों में बदलें।",
     heroTitle2: "अवसरों को अपॉइंटमेंट में बदलें।",
+    problemHeading: "अब कोई भी मौका हाथ से न जाने दें।",
     heroSubtitle: "उन पेशेवरों के लिए ऑनलाइन बिक्री स्टूडियो जिनके हर नए ग्राहक का असली मूल्य है। अपना काम दिखाएँ, अनुरोधों की जाँच करें और अपॉइंटमेंट बुक करें — एक ही जगह।",
     cta: "Studio ATS का अनुरोध करें",
     ctaSecondary: "देखें यह कैसे काम करता है",

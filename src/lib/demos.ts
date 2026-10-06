@@ -127,3 +127,12 @@ export type StudioDemo = (typeof studioDemos)[number];
 export function getStudioDemo(slug: string) {
   return studioDemos.find((demo) => demo.slug === slug);
 }
+
+/**
+ * The demos featured in "See it, then test it" (src/components/proof/case-studies.tsx):
+ * those with a front AND an admin side first. The demo gallery excludes them so
+ * a demo never appears twice on the same page.
+ */
+export function featuredDemos(limit = 3): StudioDemo[] {
+  return [...studioDemos].sort((a, b) => Number(!!b.adminHref) - Number(!!a.adminHref)).slice(0, limit);
+}

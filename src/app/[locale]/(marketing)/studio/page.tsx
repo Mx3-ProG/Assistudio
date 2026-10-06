@@ -6,6 +6,7 @@ import { pageMetadata, JsonLd } from "@/lib/seo";
 import { env } from "@/lib/env";
 import { Navbar } from "@/components/marketing/navbar";
 import { StudioContent } from "@/components/marketing/studio-content";
+import { clientProofData } from "@/lib/proof-server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/studio">
 export default async function StudioPage({ params }: PageProps<"/[locale]/studio">) {
   const { locale } = (await params) as { locale: Locale };
   const t = await getDictionary(locale);
-  const [offers, settings] = await Promise.all([repo().listOffers(), repo().getSettings()]);
+  const [offers, settings, proof] = await Promise.all([repo().listOffers(), repo().getSettings(), clientProofData(locale, "client")]);
   return (
     <>
       <JsonLd
@@ -46,7 +47,7 @@ export default async function StudioPage({ params }: PageProps<"/[locale]/studio
         }}
       />
       <Navbar variant="studio" />
-      <StudioContent t={t} locale={locale} offers={offers} settings={settings} />
+      <StudioContent t={t} locale={locale} offers={offers} settings={settings} proof={proof} />
     </>
   );
 }

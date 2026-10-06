@@ -9,6 +9,7 @@ import net from "./network.fr";
 import hc from "./home-conversion.fr";
 import hp from "./help.fr";
 import po from "./payouts.fr";
+import pf from "./proof.fr";
 
 const fr: Dictionary = {
   sc,
@@ -16,6 +17,7 @@ const fr: Dictionary = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -211,6 +213,7 @@ const fr: Dictionary = {
     eyebrow: "Studio ATS",
     heroTitle: "Chaque demande mérite un vrai",
     heroTitle2: "parcours commercial.",
+    problemHeading: "Ne laissez plus passer la moindre occasion.",
     heroSubtitle:
       "Un studio commercial en ligne pour les professionnels dont chaque nouveau client a une vraie valeur. Présentez votre travail, qualifiez les demandes et obtenez des rendez-vous — au même endroit.",
     cta: "Demander Studio ATS",

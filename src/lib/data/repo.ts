@@ -18,6 +18,11 @@ import type {
   ModerationAction, OpenedReport, SendMessageInput, SupportInboxRow, UploadTarget,
 } from "@/lib/messaging/types";
 import type { Reaction } from "@/lib/messaging/policy";
+import type {
+  AdminProofEvent, AdminTestimonial, InviteCandidate, InviteLookup, MediaKind, MyTestimonial, Placement, PresentationInput,
+  ProofEventCandidate, ProofEventType, PublicProofEvent, PublicTestimonial, TestimonialInput, TestimonialInvite, TestimonialStatus,
+  TestimonialType,
+} from "@/lib/proof";
 
 export type Range = "7d" | "30d" | "90d" | "1y" | "all";
 
@@ -67,6 +72,51 @@ export interface MessagingRepo {
   moderateMessageReport(s: Session, reportId: string, action: ModerationAction, reason: string | null): Promise<void>;
 }
 
+/**
+ * Social proof (testimonials, client invites, verified proof events). Every
+ * rule lives in SQL (supabase/migrations/20261013000001_social_proof.sql),
+ * mirrored by src/lib/proof.ts; errors surface as `proof.<code>`.
+ */
+export interface ProofRepo {
+  // public — whitelisted fields only, approved + consented testimonials only
+  listPublicTestimonials(filter: { placement?: Placement; type?: TestimonialType; limit?: number }): Promise<PublicTestimonial[]>;
+  /** Published, verified, real events whose source is still valid. */
+  listPublicProofEvents(limit?: number): Promise<PublicProofEvent[]>;
+  /**
+   * A short-lived URL for one medium, or null. Public when the testimonial is
+   * approved; staff and the author may also preview it before moderation.
+   */
+  resolveProofMedia(viewer: Session | null, testimonialId: string, kind: MediaKind): Promise<string | null>;
+
+  // partner: "Give my review"
+  createProofUpload(s: Session, kind: MediaKind, mime: string): Promise<{ path: string; uploadUrl: string }>;
+  submitAmbassadorTestimonial(s: Session, input: TestimonialInput): Promise<{ id: string; ref: string }>;
+  listMyTestimonials(s: Session): Promise<MyTestimonial[]>;
+  /** Withdraws consent: hidden at once and for good. */
+  withdrawTestimonial(s: Session, id: string): Promise<void>;
+
+  // client: single-use invite (token checked server-side, only its sha256 is stored)
+  lookupTestimonialInvite(token: string): Promise<InviteLookup | null>;
+  createInviteUpload(token: string, kind: MediaKind, mime: string): Promise<{ path: string; uploadUrl: string }>;
+  submitClientTestimonial(token: string, input: TestimonialInput): Promise<{ id: string; ref: string }>;
+
+  // staff (audited)
+  adminListTestimonials(s: Session, status?: TestimonialStatus[]): Promise<AdminTestimonial[]>;
+  adminReviewTestimonial(s: Session, id: string, status: Exclude<TestimonialStatus, "pending">, note: string | null): Promise<void>;
+  adminUpdateTestimonialPresentation(s: Session, id: string, input: PresentationInput): Promise<void>;
+  /** Removes the reference AND deletes the stored file. */
+  adminRemoveTestimonialMedia(s: Session, id: string, kind: MediaKind, reason: string | null): Promise<void>;
+  adminListTestimonialInvites(s: Session): Promise<TestimonialInvite[]>;
+  adminListInviteCandidates(s: Session): Promise<InviteCandidate[]>;
+  /** Returns the raw token once (never stored): the caller builds the link. */
+  adminCreateTestimonialInvite(s: Session, customerId: string, locale: string, note: string | null): Promise<{ token: string; expiresAt: string }>;
+  adminRevokeTestimonialInvite(s: Session, id: string): Promise<void>;
+  adminListProofEvents(s: Session): Promise<AdminProofEvent[]>;
+  adminListProofEventCandidates(s: Session): Promise<ProofEventCandidate[]>;
+  adminCreateProofEvent(s: Session, type: ProofEventType, sourceId: string): Promise<void>;
+  adminSetProofEventPublished(s: Session, id: string, published: boolean): Promise<void>;
+}
+
 export type SendCodeResult =
   | { status: "sent"; demoCode?: string }
   | { status: "no_account" | "too_soon" }
@@ -90,7 +140,7 @@ export interface SignupData {
   };
 }
 
-export interface Repo extends MessagingRepo {
+export interface Repo extends MessagingRepo, ProofRepo {
   // ------------------------------------------------------------- public
   getSettings(): Promise<Settings>;
   /** The offer paying the highest commission (Studio Premium): the maximum an affiliate can earn per sale. */

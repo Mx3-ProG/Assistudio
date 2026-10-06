@@ -9,6 +9,8 @@ import { formatMoney } from "@/lib/money";
 import { Navbar } from "@/components/marketing/navbar";
 import { PricingPlans } from "@/components/marketing/pricing-plans";
 import { normalizePromoCode } from "@/lib/services/promo";
+import { publicTestimonials } from "@/lib/proof-server";
+import { Testimonials } from "@/components/proof/testimonials";
 
 // Prices and capacity come from Supabase. Keep metadata and page rendering on the
 // incoming request so a production build never depends on database availability.
@@ -26,7 +28,7 @@ export default async function PricingPage({ params, searchParams }: PageProps<"/
   const { locale } = (await params) as { locale: Locale };
   const sp = await searchParams;
   const promo = normalizePromoCode(sp.promo);
-  const [t, offers, settings] = await Promise.all([getDictionary(locale), repo().listOffers(), repo().getSettings()]);
+  const [t, offers, settings, testimonials] = await Promise.all([getDictionary(locale), repo().listOffers(), repo().getSettings(), publicTestimonials({ placement: "offers" })]);
   const P = t.pricing;
 
   return (
@@ -62,6 +64,8 @@ export default async function PricingPage({ params, searchParams }: PageProps<"/
               <PricingPlans t={t} locale={locale} offers={offers} capacity={settings} promo={promo ?? undefined} requestHref={`/${locale}/studio#request`} requestLabel={P.talkToUs} />
             </div>
             <p className="mt-6 text-center text-[12px] text-muted">{t.studio.pricingNote}</p>
+            {/* Approved reviews placed on the offers page; nothing renders without one. */}
+            <Testimonials items={testimonials} title={t.pf.testimonials.title} subtitle={t.pf.testimonials.subtitle} className="mt-20" />
           </div>
         </section>
       </main>

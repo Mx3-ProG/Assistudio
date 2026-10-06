@@ -15,6 +15,8 @@ import { FirstWeek } from "@/components/sales-center/first-week";
 import { SectorSearch } from "@/components/copilot/sector-search";
 import { AmbassadorKit } from "@/components/copilot/ambassador-kit";
 import { FirstVisitHint } from "@/components/help/first-visit-hint";
+import { publicTestimonials } from "@/lib/proof-server";
+import { Testimonials } from "@/components/proof/testimonials";
 
 /** The copilot: "What do you want to do?" — one question, seven answers, the toolbox one tap below. */
 export default async function SalesCenter({ params }: PageProps<"/[locale]/dashboard/sales-center">) {
@@ -59,6 +61,8 @@ export default async function SalesCenter({ params }: PageProps<"/[locale]/dashb
     { href: `${base}/first-week`, icon: CalendarCheck, ...S.firstWeek },
   ];
 
+  // Client reviews staff placed in the Sales Center: proof the partner can show a prospect.
+  const proof = await publicTestimonials({ placement: "sales_center", limit: 9 });
   return (
     <div className="space-y-6">
       <header>
@@ -116,6 +120,8 @@ export default async function SalesCenter({ params }: PageProps<"/[locale]/dashb
           <FirstWeek journeyKey={journey.key} body={journey.body} done={progress} compact />
         </section>
       )}
+
+      <Testimonials items={proof} title={t.pf.testimonials.title} subtitle={t.pf.testimonials.subtitle} />
     </div>
   );
 }

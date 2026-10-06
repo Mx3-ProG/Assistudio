@@ -12,6 +12,7 @@ import type { Repo, Range } from "./repo";
 import type { SalesContent } from "@/lib/sales/content";
 import { summarizeBook } from "./book";
 import { supabaseMessaging } from "./messaging.supabase";
+import { supabaseProof } from "./proof.supabase";
 import { log } from "@/lib/log";
 import { StepError, describeError, isDuplicate, isMissingDbObject } from "@/lib/auth-errors";
 import type { EmailOtpType } from "@supabase/supabase-js";
@@ -247,6 +248,7 @@ const toNetworkStats = (r: any): AdminNetworkStats => ({
 
 export const supabaseRepo: Repo = {
   ...supabaseMessaging,
+  ...supabaseProof,
 
   // ------------------------------------------------------------- public
   async getSettings(): Promise<Settings> {

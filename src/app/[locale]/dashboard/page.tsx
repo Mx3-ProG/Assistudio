@@ -24,6 +24,10 @@ import { ESSENTIALS } from "@/content/help-videos";
 import { summarize } from "@/lib/help/videos";
 import { NewHere } from "@/components/help/new-here";
 import { TourButton } from "@/components/help/tour-button";
+import { reviewMoment } from "@/lib/proof";
+import { publicTestimonials } from "@/lib/proof-server";
+import { ReviewPrompt } from "@/components/proof/review-prompt";
+import { Testimonials } from "@/components/proof/testimonials";
 
 function greeting(t: Awaited<ReturnType<typeof getDictionary>>, name: string) {
   const h = new Date().getHours();
@@ -84,6 +88,9 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
     top: top ? { id: top.prospect.id, name: top.prospect.name, stage: top.prospect.stage, mode: top.rec.mode } : null,
   });
   const P = t.hc.activation.primary[primary.kind];
+  // "Give my review" after a milestone, once (any review given — even withdrawn — silences it).
+  const [mine, appProof] = await Promise.all([repo().listMyTestimonials(s).catch(() => []), publicTestimonials({ placement: "app", limit: 6 })]);
+  const moment = mine.length ? null : reviewMoment({ sales: paidSales, commissions: b.pendingCents + b.availableCents + b.paidCents > 0 ? 1 : 0, payoutsPaid: b.paidCents > 0 ? 1 : 0 });
   const sources = ofKind(sales.content, "find_source").map((x) => ({ key: x.key, title: x.title, how: x.body.how, action: x.body.action, tip: x.body.tip }));
 
   const numbers = (
@@ -142,6 +149,7 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
           )}
         </Link>
       )}
+      {moment && <ReviewPrompt t={t} moment={moment} href={`${base}/review`} />}
       <LiveSales affiliateId={s.affiliate.id} locale={locale} text={t.dash.live} enabled={!s.isDemo} />
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -165,6 +173,7 @@ export default async function Overview({ params }: PageProps<"/[locale]/dashboar
           </Card>
         </div>
       </div>
+      <Testimonials items={appProof} title={t.pf.amb.testimonialsTitle} />
     </>
   );
 

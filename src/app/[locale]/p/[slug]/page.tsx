@@ -8,6 +8,7 @@ import { marketContent } from "@/content/markets";
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
 import { StudioContent } from "@/components/marketing/studio-content";
+import { clientProofData } from "@/lib/proof-server";
 import { PageBeacon } from "@/components/marketing/page-beacon";
 import { I18nProvider } from "@/components/providers";
 
@@ -23,7 +24,7 @@ export default async function PrivateSalesPage({ params }: PageProps<"/[locale]/
   // The page's own language wins over the URL locale.
   const locale = page.locale as Locale;
   const t = await getDictionary(locale);
-  const [offers, markets, settings] = await Promise.all([repo().listOffers(), repo().listMarkets(), repo().getSettings()]);
+  const [offers, markets, settings, proof] = await Promise.all([repo().listOffers(), repo().listMarkets(), repo().getSettings(), clientProofData(locale, "client")]);
   const market = markets.find((m) => m.id === page.marketId);
 
   return (
@@ -41,6 +42,7 @@ export default async function PrivateSalesPage({ params }: PageProps<"/[locale]/
         market={market ? marketContent(market, locale) : null}
         pitch={page.pitchVariant}
         ctaVariant={page.ctaVariant}
+        proof={proof}
       />
       <Footer t={t} locale={locale} />
     </div>

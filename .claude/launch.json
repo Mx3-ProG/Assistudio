@@ -42,6 +42,23 @@
       "env": {
         "STUDIO_DEMO_MODE": "true"
       }
+    },
+    {
+      "name": "studio-proof-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/private/tmp/claude-501/-Users-mathieu-pro-Empire-wayne-web-affili--softwares/96765d7f-9ef5-4b9e-8c6a-828ebf366d73/scratchpad/studio",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3300"
+      ],
+      "port": 3300,
+      "env": {
+        "STUDIO_DEMO_MODE": "true"
+      }
     }
   ]
 }

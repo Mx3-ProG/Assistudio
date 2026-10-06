@@ -11,6 +11,7 @@ import net from "./network.en";
 import hc from "./home-conversion.en";
 import hp from "./help.en";
 import po from "./payouts.en";
+import pf from "./proof.en";
 
 const en = {
   sc,
@@ -18,6 +19,7 @@ const en = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -213,6 +215,7 @@ const en = {
     eyebrow: "Studio ATS",
     heroTitle: "Turn your traffic into opportunities.",
     heroTitle2: "Turn opportunities into appointments.",
+    problemHeading: "Never miss another opportunity.",
     heroSubtitle:
       "An online commercial studio for professionals whose every new client has real value. Present your work, qualify requests and book appointments — in one place.",
     cta: "Request Studio ATS",

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined, FileSignature, MessageCircle, Network, LifeBuoy, Bell } from "lucide-react";
+import { LayoutGrid, Users, Inbox, ShoppingBag, Wallet, Banknote, ShieldAlert, Map, BookOpen, Settings, ScrollText, ArrowLeft, LogOut, Landmark, FilePenLine, PanelsTopLeft, ChartNoAxesCombined, FileSignature, MessageCircle, Network, LifeBuoy, Bell, MessageSquareQuote } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -34,6 +34,7 @@ export function AdminShell({ children, hasAffiliate, messages, openHelp, notific
     { href: `${base}/fraud`, label: A.fraud, icon: ShieldAlert },
     { href: `${base}/markets`, label: A.markets, icon: Map },
     { href: `${base}/content`, label: A.content, icon: BookOpen },
+    { href: `${base}/proof`, label: t.pf.admin.nav, icon: MessageSquareQuote },
     { href: `${base}/sales-content`, label: t.sc.admin.nav, icon: FilePenLine },
     { href: `${base}/sales-pages`, label: t.sc.admin.navPages, icon: PanelsTopLeft },
     { href: `${base}/sales-analytics`, label: t.sc.admin.navAnalytics, icon: ChartNoAxesCombined },

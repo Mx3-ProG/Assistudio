@@ -14,6 +14,9 @@ import { TrackedStudioLink } from "./tracked-studio-link";
 import { StudioCapacitySignal } from "./studio-capacity";
 import { TeamSection } from "./team-section";
 import { StudioDemoShowcase } from "./studio-demo-showcase";
+import { featuredDemos } from "@/lib/demos";
+import { ClientProof } from "@/components/proof/client-proof";
+import type { ClientProofData } from "@/lib/proof-server";
 import studioHero from "../../../public/portfolio/maisonaurelia.webp";
 
 export interface StudioContentProps {
@@ -27,6 +30,8 @@ export interface StudioContentProps {
   market?: MarketContent | null;
   pitch?: "default" | "premium" | "automation";
   ctaVariant?: "request" | "call";
+  /** Social proof (src/lib/proof-server.ts clientProofData). Without it, the former screenshot showcase is kept. */
+  proof?: ClientProofData;
 }
 
 const DEMO_SHOWCASE = [
@@ -35,7 +40,7 @@ const DEMO_SHOWCASE = [
   { image: "/portfolio/pizzaflash.webp", mobile: "/portfolio/pizzaflash-mobile.webp" },
 ] as const;
 
-export function StudioContent({ t, locale, offers, settings, page, referral, referrerName, market, pitch = "default", ctaVariant = "request" }: StudioContentProps) {
+export function StudioContent({ t, locale, offers, settings, page, referral, referrerName, market, pitch = "default", ctaVariant = "request", proof }: StudioContentProps) {
   const s = t.studio;
   const cta = ctaVariant === "call" ? t.dash.link.page.ctaCall : s.cta;
   const heroSub = pitch === "automation" ? s.automationBody : market?.why ?? s.heroSubtitle;
@@ -84,7 +89,7 @@ export function StudioContent({ t, locale, offers, settings, page, referral, ref
 
       <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
         <div className="grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
-          <div className="lg:sticky lg:top-24"><p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-accent">{s.problemTitle}</p><h2 className="display mt-4 text-balance text-[40px] sm:text-[58px]">{s.heroTitle}</h2><p className="mt-6 max-w-lg text-[17px] leading-relaxed text-fg-2">{market?.problem ?? s.problemBody}</p></div>
+          <div className="lg:sticky lg:top-24"><p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-accent">{s.problemTitle}</p><h2 className="display mt-4 text-balance text-[40px] sm:text-[58px]">{s.problemHeading}</h2><p className="mt-6 max-w-lg text-[17px] leading-relaxed text-fg-2">{market?.problem ?? s.problemBody}</p></div>
           <div className="overflow-hidden rounded-[32px] bg-[#0b1020] p-6 text-white shadow-lift sm:p-9">
             <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/50">{s.problemTitle}</p>
             <ul className="mt-5 divide-y divide-white/10">{s.problems.map((problem) => <li key={problem} className="flex items-center gap-3 py-4 text-[15px]"><span className="size-2 rounded-full bg-orange-400" />{problem}</li>)}</ul>
@@ -93,9 +98,17 @@ export function StudioContent({ t, locale, offers, settings, page, referral, ref
         </div>
       </section>
 
-      <Showcase t={t} locale={locale} proofs={proofs} />
+      {proof ? (
+        <>
+          <StudioSectionBeacon event="studio_proof_view" placement={proof.testimonials.length || proof.cases.length ? "verified_projects" : "studio_examples"} />
+          <ClientProof t={t} locale={locale} testimonials={proof.testimonials} cases={proof.cases} events={proof.events} demosHref="#demos" />
+        </>
+      ) : (
+        <Showcase t={t} locale={locale} proofs={proofs} />
+      )}
 
-      <StudioDemoShowcase locale={locale} />
+      {/* With the proof section, the featured demos are already shown in "See it, then test it". */}
+      <StudioDemoShowcase locale={locale} exclude={proof ? featuredDemos().map((d) => d.slug) : []} />
 
       <section id="journey" className="scroll-mt-20 border-y border-line bg-surface-2/55 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">

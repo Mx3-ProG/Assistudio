@@ -9,6 +9,7 @@ import net from "./network.de";
 import hc from "./home-conversion.de";
 import hp from "./help.de";
 import po from "./payouts.de";
+import pf from "./proof.de";
 
 /** Deutsch — complete. TODO(i18n): native review before launch. */
 const de: Dictionary = {
@@ -17,6 +18,7 @@ const de: Dictionary = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -178,6 +180,7 @@ const de: Dictionary = {
     eyebrow: "Studio ATS",
     heroTitle: "Verwandeln Sie Traffic in Chancen.",
     heroTitle2: "Verwandeln Sie Chancen in Termine.",
+    problemHeading: "Lassen Sie keine Chance mehr ungenutzt.",
     heroSubtitle: "Ein Online-Vertriebsstudio für Fachleute, bei denen jeder neue Kunde echten Wert hat. Präsentieren Sie Ihre Arbeit, qualifizieren Sie Anfragen und vereinbaren Sie Termine — an einem Ort.",
     cta: "Studio ATS anfragen",
     ctaSecondary: "So funktioniert es",

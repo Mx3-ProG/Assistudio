@@ -17,22 +17,31 @@ const tierCopy = {
   },
 } as const;
 
-export function StudioDemoShowcase({ locale }: { locale: Locale }) {
+/**
+ * The interactive demos, grouped by offer. `exclude`: slugs already shown
+ * elsewhere on the page (a tier left empty disappears). `compact`: embedded in
+ * another section (no band, smaller heading) — e.g. the partner home.
+ */
+export function StudioDemoShowcase({ locale, exclude = [], compact = false }: { locale: Locale; exclude?: readonly string[]; compact?: boolean }) {
   const fr = locale === "fr";
   const copy = fr ? tierCopy.fr : tierCopy.en;
+  const groups = studioDemoTiers
+    .map((tier) => ({ tier, demos: studioDemos.filter((demo) => demo.tier === tier && !exclude.includes(demo.slug)) }))
+    .filter((g) => g.demos.length > 0);
+  const Heading = compact ? "h3" : "h2";
 
   return (
-    <section id="demos" className="scroll-mt-20 overflow-hidden border-y border-line bg-surface-2/55 py-20 sm:py-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+    <section id={compact ? "studio-demos" : "demos"} className={compact ? "scroll-mt-20" : "scroll-mt-20 overflow-hidden border-y border-line bg-surface-2/55 py-20 sm:py-28"}>
+      <div className={compact ? "" : "mx-auto max-w-6xl px-4 sm:px-6"}>
         <div className="grid gap-7 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
           <div>
             <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-accent">
               <MousePointerClick className="size-4" aria-hidden />
               {fr ? "Démonstrations utilisables" : "Interactive demonstrations"}
             </p>
-            <h2 className="display mt-4 text-balance text-[42px] sm:text-[62px]">
+            <Heading className={compact ? "display mt-3 text-balance text-[30px] sm:text-[40px]" : "display mt-4 text-balance text-[42px] sm:text-[62px]"}>
               {fr ? "Testez ce que chaque offre peut devenir." : "Try what each offer can become."}
-            </h2>
+            </Heading>
           </div>
           <p className="max-w-xl text-[16px] leading-relaxed text-muted lg:justify-self-end">
             {fr
@@ -41,9 +50,8 @@ export function StudioDemoShowcase({ locale }: { locale: Locale }) {
           </p>
         </div>
 
-        <div className="mt-14 space-y-14">
-          {studioDemoTiers.map((tier) => {
-            const demos = studioDemos.filter((demo) => demo.tier === tier);
+        <div className={compact ? "mt-10 space-y-10" : "mt-14 space-y-14"}>
+          {groups.map(({ tier, demos }) => {
             return (
               <div key={tier}>
                 <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">

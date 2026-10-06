@@ -9,6 +9,7 @@ import net from "./network.ar";
 import hc from "./home-conversion.ar";
 import hp from "./help.ar";
 import po from "./payouts.ar";
+import pf from "./proof.ar";
 
 /** العربية — complete. TODO(i18n): native review before launch. */
 const ar: Dictionary = {
@@ -17,6 +18,7 @@ const ar: Dictionary = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -178,6 +180,7 @@ const ar: Dictionary = {
     eyebrow: "Studio ATS",
     heroTitle: "حوّل زياراتك إلى فرص.",
     heroTitle2: "حوّل فرصك إلى مواعيد.",
+    problemHeading: "لا تدع أي فرصة تفوتك بعد اليوم.",
     heroSubtitle: "استوديو تجاري عبر الإنترنت للمهنيين الذين لكل عميل جديد لديهم قيمة حقيقية. اعرض أعمالك، وأهّل الطلبات، واحجز المواعيد — في مكان واحد.",
     cta: "اطلب Studio ATS",
     ctaSecondary: "شاهد كيف يعمل",

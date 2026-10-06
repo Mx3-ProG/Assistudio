@@ -356,3 +356,26 @@ body {
     }
   }
 }
+
+/* Social proof (src/components/proof) — light motion only, none for reduced motion.
+   Marquee: desktop pointer devices only; phones swipe the same list natively. */
+@keyframes proof-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (min-width: 768px) {
+  .proof-marquee { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+  .proof-marquee > ul { width: max-content; animation: proof-marquee 70s linear infinite; }
+  .proof-marquee:hover > ul, .proof-marquee:focus-within > ul { animation-play-state: paused; }
+  [dir="rtl"] .proof-marquee > ul { animation-direction: reverse; }
+  .proof-marquee [data-clone] { display: block; }
+}
+.proof-marquee [data-clone] { display: none; }
+
+/* Progressive reveal driven by scroll (no JavaScript); browsers without
+   scroll-driven animations simply show the content. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .proof-reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 35%; }
+  }
+}

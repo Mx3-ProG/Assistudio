@@ -9,6 +9,7 @@ import net from "./network.pt";
 import hc from "./home-conversion.pt";
 import hp from "./help.pt";
 import po from "./payouts.pt";
+import pf from "./proof.pt";
 
 /** Português (pt-PT) — complete. TODO(i18n): native review before launch. */
 const pt: Dictionary = {
@@ -17,6 +18,7 @@ const pt: Dictionary = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -178,6 +180,7 @@ const pt: Dictionary = {
     eyebrow: "Studio ATS",
     heroTitle: "Transforme o seu tráfego em oportunidades.",
     heroTitle2: "Transforme oportunidades em reuniões.",
+    problemHeading: "Não deixe escapar mais nenhuma oportunidade.",
     heroSubtitle: "Um estúdio comercial online para profissionais para quem cada novo cliente tem um valor real. Apresente o seu trabalho, qualifique os pedidos e marque reuniões — num só lugar.",
     cta: "Pedir o Studio ATS",
     ctaSecondary: "Ver como funciona",

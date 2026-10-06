@@ -9,6 +9,7 @@ import net from "./network.nl";
 import hc from "./home-conversion.nl";
 import hp from "./help.nl";
 import po from "./payouts.nl";
+import pf from "./proof.nl";
 
 /** Nederlands — complete. TODO(i18n): native review before launch. */
 const nl: Dictionary = {
@@ -17,6 +18,7 @@ const nl: Dictionary = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -178,6 +180,7 @@ const nl: Dictionary = {
     eyebrow: "Studio ATS",
     heroTitle: "Zet je verkeer om in kansen.",
     heroTitle2: "Zet kansen om in afspraken.",
+    problemHeading: "Laat geen enkele kans meer liggen.",
     heroSubtitle: "Een online commerciële studio voor professionals voor wie elke nieuwe klant echte waarde heeft. Presenteer je werk, kwalificeer aanvragen en plan afspraken — op één plek.",
     cta: "Studio ATS aanvragen",
     ctaSecondary: "Bekijk hoe het werkt",

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutGrid, Link2, Users, ShoppingBag, Wallet, Repeat,
   Banknote, BarChart3, Trophy, Bell, MessageCircle, Settings, Shield, MoreHorizontal, X, LogOut, Network, Rocket, Tag, FileSignature, LifeBuoy,
+  MessageSquareQuote,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { Logo } from "@/components/marketing/logo";
@@ -95,6 +96,7 @@ export function DashboardShell({ children, userId, userName, unread, isStaff, le
       label: n.groupAccount,
       items: [
         { href: `${base}/notifications`, label: n.notifications, icon: Bell, badge: unread },
+        { href: `${base}/review`, label: t.pf.prompt.cta, icon: MessageSquareQuote },
         { href: `${base}/settings`, label: n.settings, icon: Settings },
       ],
     },

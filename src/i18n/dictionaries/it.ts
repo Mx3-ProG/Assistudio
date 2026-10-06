@@ -9,6 +9,7 @@ import net from "./network.it";
 import hc from "./home-conversion.it";
 import hp from "./help.it";
 import po from "./payouts.it";
+import pf from "./proof.it";
 
 /** Italiano — complete. TODO(i18n): native review before launch. */
 const it: Dictionary = {
@@ -17,6 +18,7 @@ const it: Dictionary = {
   hc,
   hp,
   po,
+  pf,
   msg,
   cp,
   gd,
@@ -178,6 +180,7 @@ const it: Dictionary = {
     eyebrow: "Studio ATS",
     heroTitle: "Trasforma il tuo traffico in opportunità.",
     heroTitle2: "Trasforma le opportunità in appuntamenti.",
+    problemHeading: "Non lasciatevi più sfuggire nessuna occasione.",
     heroSubtitle: "Uno studio commerciale online per professionisti per cui ogni nuovo cliente ha un valore reale. Presenta il tuo lavoro, qualifica le richieste e fissa appuntamenti — in un unico posto.",
     cta: "Richiedi Studio ATS",
     ctaSecondary: "Scopri come funziona",
