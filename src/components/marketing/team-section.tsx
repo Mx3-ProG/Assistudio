@@ -1,4 +1,5 @@
 import { ArrowUpRight, Code2, ShieldCheck, Users } from "lucide-react";
+import Image from "next/image";
 import type { Dictionary } from "@/i18n/types";
 
 export function TeamSection({ t }: { t: Dictionary }) {
@@ -14,7 +15,7 @@ export function TeamSection({ t }: { t: Dictionary }) {
         <div className="mt-12 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <article className="rounded-[28px] border border-white/12 bg-white/[0.06] p-7 sm:p-9">
             <div className="flex items-center gap-4">
-              <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-blue-400 text-[20px] font-bold text-[#071020]">MD</span>
+              <span className="relative size-20 shrink-0 overflow-hidden rounded-2xl bg-blue-400 ring-1 ring-white/20"><Image src="/team/mathieu-deffontaines.webp" alt="Mathieu Deffontaines" fill sizes="80px" className="object-cover" /></span>
               <div><h3 className="text-[24px] font-semibold text-white">Mathieu Deffontaines</h3><p className="mt-1 text-[13px] font-medium uppercase tracking-[0.1em] text-blue-300">{team.founderRole}</p></div>
             </div>
             <p className="mt-7 max-w-2xl text-[16px] leading-relaxed text-white/72">{team.founderBody}</p>
