@@ -927,6 +927,7 @@ const ar: Dictionary = {
       webhooksFailed: "أحداث Stripe الفاشلة",
       lastWebhook: "آخر حدث من Stripe",
       emailsFailed: "رسائل البريد الفاشلة",
+      retryFailedEmails: "إعادة إرسال الرسائل الفاشلة",
       sales: "{n} عمليات بيع · {r} تجديدات",
     },
   },

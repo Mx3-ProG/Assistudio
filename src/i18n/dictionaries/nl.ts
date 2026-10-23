@@ -927,6 +927,7 @@ const nl: Dictionary = {
       webhooksFailed: "Mislukte Stripe-events",
       lastWebhook: "Laatste Stripe-event",
       emailsFailed: "Mislukte e-mails",
+      retryFailedEmails: "Mislukte e-mails opnieuw verzenden",
       sales: "{n} verkopen · {r} verlengingen",
     },
   },

@@ -771,6 +771,12 @@ export const demoRepo: Repo = {
     return { status: "sent", demoCode: code };
   },
 
+  async cancelSignInCode({ email }) {
+    // Demo codes are shown on screen and never emailed; kept for parity with production.
+    const c = demoCodes().get(email);
+    if (c && !c.consumed) demoCodes().delete(email);
+  },
+
   async signInWithCode({ email, code }) {
     const c = demoCodes().get(email);
     if (!c || c.consumed) return { status: "invalid" };
@@ -1408,6 +1414,10 @@ export const demoRepo: Repo = {
       if (before !== c.status) n++;
     }
     return n;
+  },
+  async adminRequeueFailedEmails(s) {
+    mustStaff(s);
+    return 0; // Demo mode sends no email, so none can fail.
   },
   async adminValidateCommission(s, cid, reason) {
     mustStaff(s);

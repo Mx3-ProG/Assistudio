@@ -181,6 +181,8 @@ export interface Repo extends MessagingRepo, ProofRepo {
     /** Production stores only this keyed hash. Demo mode ignores it. */
     codeHash?: string; ipHash?: string | null;
   }): Promise<SendCodeResult>;
+  /** The code email could not be sent: forget the code so it neither blocks a retry nor counts toward the rate limit. */
+  cancelSignInCode(input: { email: string; codeHash?: string }): Promise<void>;
   /** Checks the code; on success opens the session and provisions the profile + affiliate application if missing. */
   signInWithCode(input: { email: string; code: string; codeHash?: string; purpose: CodePurpose }): Promise<SignInWithCodeResult>;
 
@@ -261,6 +263,8 @@ export interface Repo extends MessagingRepo, ProofRepo {
   adminHoldCommission(s: Session, id: string, hold: boolean, reason: string): Promise<void>;
   adminReverseCommission(s: Session, id: string, reason: string): Promise<void>;
   adminReleaseDue(s: Session): Promise<number>;
+  /** Puts emails the outbox gave up on (provider outage) back in the queue. Audited. Returns how many. */
+  adminRequeueFailedEmails(s: Session): Promise<number>;
   adminValidateCommission(s: Session, id: string, reason: string): Promise<void>;
   adminAdjustLedger(s: Session, affiliateId: string, amountCents: number, currency: string, reason: string): Promise<void>;
   adminFinanceSummary(s: Session, filters: AdminFinanceFilters): Promise<AdminFinanceSummary>;

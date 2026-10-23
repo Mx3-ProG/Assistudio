@@ -496,6 +496,12 @@ export const supabaseRepo: Repo = {
     return { status: "rate_limited" };
   },
 
+  async cancelSignInCode({ email, codeHash }) {
+    if (!codeHash) return;
+    const { error } = await supabaseService().rpc("auth_code_cancel", { p_email: email, p_hash: codeHash });
+    if (error) throw new StepError("cancel_code", error);
+  },
+
   async signInWithCode({ email, codeHash }) {
     if (!codeHash) throw new StepError("check_code", "missing code hash");
     const svc = supabaseService();
@@ -1075,6 +1081,10 @@ export const supabaseRepo: Repo = {
   },
   async adminReleaseDue() {
     return Number(check(await supabaseService().rpc("release_due_commissions")));
+  },
+  async adminRequeueFailedEmails() {
+    const sb = await supabaseServer();
+    return Number(check(await sb.rpc("staff_requeue_failed_emails")));
   },
   async adminValidateCommission(_s, id, reason) {
     const sb = await supabaseServer();
