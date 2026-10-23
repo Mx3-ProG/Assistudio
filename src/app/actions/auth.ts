@@ -153,6 +153,9 @@ async function issue(form: FormData): Promise<AuthState> {
     } catch (e) {
       const detail = describeError(e);
       log.error("auth", "sign-in code email failed", { detail });
+      // Not sent → not issued: a retry must send a new code, not answer "too soon".
+      await repo().cancelSignInCode({ email, codeHash }).catch((err) =>
+        log.error("auth", "cancel unsent code failed", { detail: describeError(err) }));
       return { status: "error", error: "sendFailed", detail };
     }
   }

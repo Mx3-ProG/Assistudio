@@ -48,7 +48,7 @@ Create the first super admin after signing up through `/register`:
 update public.profiles set role = 'super_admin' where email = 'you@example.com';
 ```
 
-Then install the Studio ATS emails into **Supabase Auth** (sign-in codes are sent by Supabase): one command sets the 6 auth templates (code emails show `{{ .Token }}`), the 7 security notices, OTP length 6 / expiry 300 s and, with `--smtp`, Custom SMTP through Resend (the built-in mailer only sends a few emails per hour):
+Then install the Studio ATS emails into **Supabase Auth** (security notices and account emails; **sign-in codes are sent by the app through Resend**, not by Supabase): one command sets the 6 auth templates (code emails show `{{ .Token }}`), the 7 security notices, OTP length 6 / expiry 300 s and, with `--smtp`, Custom SMTP through Resend (the built-in mailer only sends a few emails per hour):
 
 ```bash
 SUPABASE_ACCESS_TOKEN=sbp_… RESEND_API_KEY=re_… npm run supabase:emails -- --push --smtp
@@ -60,10 +60,10 @@ The token comes from supabase.com → Account → Access Tokens; the project ref
 
 There are no passwords. Login and sign-up are the same two steps:
 
-1. The person enters their email (plus the partner application on `/register`, including the sponsor code from `?sponsor=`). **Supabase Auth emails a one-time code** (`signInWithOtp`; on sign-up the application becomes the new user's metadata). A login for an unknown address shows the same screen and sends nothing (no account enumeration).
-2. They type the code → `verifyOtp` opens the session in the current browser. The profile + affiliate application (+ sponsor) are provisioned by `provision_account()` if missing — the `auth.users` trigger is optional (creating it can fail with "must be owner of table users"), and the app falls back to direct inserts when the provisioning migrations are not applied yet.
+1. The person enters their email (plus the partner application on `/register`, including the sponsor code from `?sponsor=`). **The app emails a one-time code through Resend** and stores only its keyed hash (`auth_code_issue`; on sign-up the application becomes the new user's metadata). If Resend refuses the email, the code is cancelled (`auth_code_cancel`) so a retry sends a new one instead of answering "too soon". A login for an unknown address shows the same screen and sends nothing (no account enumeration).
+2. They type the code → `auth_code_consume` checks it, then a Supabase one-time token (`verifyOtp`) opens the session in the current browser. The profile + affiliate application (+ sponsor) are provisioned by `provision_account()` if missing — the `auth.users` trigger is optional (creating it can fail with "must be owner of table users"), and the app falls back to direct inserts when the provisioning migrations are not applied yet.
 
-Expiry, OTP length and rate limits are Supabase Auth settings. Every technical failure shows a short *Technical detail* under the error (`src/lib/auth-errors.ts`). `/api/health/email?key=<CRON_SECRET>` reports the configuration (never secret values). In demo mode the code is shown on screen, labelled.
+Expiry (5 min), one request per minute and 5 per 15 min per address are enforced in `auth_code_issue`. Every technical failure shows a short *Technical detail* under the error (`src/lib/auth-errors.ts`). `/api/health/email?key=<CRON_SECRET>` reports the configuration (never secret values). In demo mode the code is shown on screen, labelled.
 
 **Emails (all of them).** Sender: `Studio ATS <contact@atonservice.org>` by default (`EMAIL_FROM` / `EMAIL_REPLY_TO` override it). Transactional emails go through Resend: everything the database queues (`email_events`: affiliate welcome, lead confirmation, new lead, payouts, commissions…) is sent right after the action that queued it (`kickEmailOutbox()`), after Stripe webhooks, and retried by the daily cron. On production a missing `RESEND_API_KEY` makes every send fail (marked `failed`, retried later) instead of silently logging.
 

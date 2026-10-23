@@ -181,6 +181,8 @@ export interface Repo extends MessagingRepo, ProofRepo {
     /** Production stores only this keyed hash. Demo mode ignores it. */
     codeHash?: string; ipHash?: string | null;
   }): Promise<SendCodeResult>;
+  /** The code email could not be sent: forget the code so it neither blocks a retry nor counts toward the rate limit. */
+  cancelSignInCode(input: { email: string; codeHash?: string }): Promise<void>;
   /** Checks the code; on success opens the session and provisions the profile + affiliate application if missing. */
   signInWithCode(input: { email: string; code: string; codeHash?: string; purpose: CodePurpose }): Promise<SignInWithCodeResult>;
 

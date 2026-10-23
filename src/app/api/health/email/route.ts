@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
  * Sign-in / email diagnostic. Open in a browser:
  *   https://<site>/api/health/email?key=<CRON_SECRET>
  * Reports configuration (never secret values), the Supabase Auth email
- * provider (sign-in codes), the provisioning migrations, and which domains the
- * Resend API key (transactional emails) can send from.
+ * provider, the provisioning migrations, and which domains the
+ * Resend API key (sign-in codes + transactional emails) can send from.
  * Read-only: sends nothing, writes nothing.
  */
 export async function GET(req: NextRequest) {
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   }
   report.database = db;
 
-  // Supabase Auth: is the email provider (which sends the sign-in codes) enabled?
+  // Supabase Auth: is the email provider (needed to open the session) enabled?
   if (env.supabaseUrl && env.supabaseAnonKey) {
     try {
       const res = await fetch(`${env.supabaseUrl}/auth/v1/settings`, { headers: { apikey: env.supabaseAnonKey }, signal: AbortSignal.timeout(10_000) });
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
         ? {
             emailProviderEnabled: st.external?.email ?? null,
             signupsAllowed: st.disable_signup === undefined ? null : !st.disable_signup,
-            reminder: "Sign-in codes are sent by Supabase Auth: the 'Magic Link' and 'Confirm signup' templates must contain {{ .Token }}; set Custom SMTP (e.g. Resend) to lift the built-in mailer's few-emails-per-hour limit.",
+            reminder: "Sign-in codes are sent by the app through Resend (see `resend` below), not by Supabase Auth. Supabase only opens the session, so its email provider must stay enabled.",
           }
         : { httpStatus: res.status };
     } catch (e) {
