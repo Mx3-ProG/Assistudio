@@ -77,6 +77,14 @@ export async function releaseDue() {
   kickEmailOutbox();
 }
 
+/** After an email provider outage: retry every email the outbox gave up on, right away. */
+export async function requeueFailedEmails() {
+  const s = await staff();
+  await repo().adminRequeueFailedEmails(s);
+  done();
+  kickEmailOutbox();
+}
+
 export async function createPayout(_: AdminState, f: FormData) {
   const s = await staff();
   return run(() => repo().adminCreatePayout(s, id(f, "affiliateId")));

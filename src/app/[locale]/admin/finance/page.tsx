@@ -8,6 +8,7 @@ import type { AdminFinanceFilters } from "@/lib/data/types";
 import { formatMoney, formatNumber, formatRelative } from "@/lib/money";
 import { PageHeader, Card, Stat, Field, inputClass } from "@/components/ui/primitives";
 import { buttonClass } from "@/components/ui/button";
+import { requeueFailedEmails } from "@/app/actions/admin";
 
 const SALE_STATUSES = ["paid", "partially_refunded", "disputed", "refunded", "chargeback"] as const;
 const str = (v: string | string[] | undefined) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -78,6 +79,11 @@ export default async function AdminFinance({ params, searchParams }: PageProps<"
           <div><dt className="text-muted">{F.lastWebhook}</dt><dd className="text-[16px] font-medium">{sum.webhooksLastReceivedAt ? formatRelative(sum.webhooksLastReceivedAt, locale) : "—"}</dd></div>
           <div><dt className="text-muted">{F.emailsFailed}</dt><dd className={`tabular text-[20px] font-semibold ${sum.emailsFailed ? "text-danger" : ""}`}>{sum.emailsFailed}</dd></div>
         </dl>
+        {sum.emailsFailed > 0 && (
+          <form action={requeueFailedEmails} className="mt-4">
+            <button className={buttonClass("secondary", "md")}>{F.retryFailedEmails}</button>
+          </form>
+        )}
       </Card>
     </>
   );

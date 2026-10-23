@@ -978,6 +978,7 @@ const en = {
       webhooksFailed: "Failed Stripe events",
       lastWebhook: "Last Stripe event",
       emailsFailed: "Failed emails",
+      retryFailedEmails: "Retry failed emails",
       sales: "{n} sales · {r} renewals",
     },
   },

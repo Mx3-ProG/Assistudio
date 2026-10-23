@@ -1415,6 +1415,10 @@ export const demoRepo: Repo = {
     }
     return n;
   },
+  async adminRequeueFailedEmails(s) {
+    mustStaff(s);
+    return 0; // Demo mode sends no email, so none can fail.
+  },
   async adminValidateCommission(s, cid, reason) {
     mustStaff(s);
     const c = db().commissions.find((x) => x.id === cid);

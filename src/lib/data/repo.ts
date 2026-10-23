@@ -263,6 +263,8 @@ export interface Repo extends MessagingRepo, ProofRepo {
   adminHoldCommission(s: Session, id: string, hold: boolean, reason: string): Promise<void>;
   adminReverseCommission(s: Session, id: string, reason: string): Promise<void>;
   adminReleaseDue(s: Session): Promise<number>;
+  /** Puts emails the outbox gave up on (provider outage) back in the queue. Audited. Returns how many. */
+  adminRequeueFailedEmails(s: Session): Promise<number>;
   adminValidateCommission(s: Session, id: string, reason: string): Promise<void>;
   adminAdjustLedger(s: Session, affiliateId: string, amountCents: number, currency: string, reason: string): Promise<void>;
   adminFinanceSummary(s: Session, filters: AdminFinanceFilters): Promise<AdminFinanceSummary>;

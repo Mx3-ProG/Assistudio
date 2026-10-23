@@ -1082,6 +1082,10 @@ export const supabaseRepo: Repo = {
   async adminReleaseDue() {
     return Number(check(await supabaseService().rpc("release_due_commissions")));
   },
+  async adminRequeueFailedEmails() {
+    const sb = await supabaseServer();
+    return Number(check(await sb.rpc("staff_requeue_failed_emails")));
+  },
   async adminValidateCommission(_s, id, reason) {
     const sb = await supabaseServer();
     check(await sb.rpc("staff_validate_commission", { p_commission_id: id, p_reason: reason }));

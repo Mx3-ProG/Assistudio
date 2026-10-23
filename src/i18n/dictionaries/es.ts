@@ -927,6 +927,7 @@ const es: Dictionary = {
       webhooksFailed: "Eventos de Stripe fallidos",
       lastWebhook: "Último evento de Stripe",
       emailsFailed: "Correos fallidos",
+      retryFailedEmails: "Reenviar los correos fallidos",
       sales: "{n} ventas · {r} renovaciones",
     },
   },
