@@ -3,10 +3,11 @@
 import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { reloadIfStaleDeployment } from "@/lib/stale-deployment";
 
 export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
-    console.error(error);
+    if (!reloadIfStaleDeployment(error)) console.error(error);
   }, [error]);
 
   return (
